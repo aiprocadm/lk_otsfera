@@ -1,18 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 
-const { setDocumentStatus, logWarn, logError, logInfo } = vi.hoisted(() => ({
+const { setDocumentStatus, logWarn, logError, logInfo, liveFindMany } = vi.hoisted(() => ({
   setDocumentStatus: vi.fn(),
   logWarn: vi.fn(),
   logError: vi.fn(),
   logInfo: vi.fn(),
+  liveFindMany: vi.fn(async () => [] as Array<{ id: string }>),
 }));
+// Обёртка задачи берёт базу сама (`await import`), поэтому модуль подменяем:
+// иначе тест поднял бы настоящего клиента Prisma и полез в базу.
+vi.mock('@/lib/db/prisma', () => ({ prisma: { document: { findMany: liveFindMany } } }));
 vi.mock('@/lib/services/documents/status', () => ({ setDocumentStatus }));
 vi.mock('@/lib/logging', () => ({
   log: { warn: logWarn, error: logError, info: logInfo },
 }));
 
-import { runExpireProposals } from '@/worker/processors/expire-proposals';
+import { runExpireProposals, expireProposalsProcessor } from '@/worker/processors/expire-proposals';
 import { expiredProposalsWhere } from '@/lib/documents/proposalExpiry';
 
 /**
@@ -148,5 +152,32 @@ describe('runExpireProposals — одна плохая строка не руш�
       expect.stringContaining('expire-proposals'),
       expect.objectContaining({ expired: 1, found: 1 })
     );
+  });
+});
+
+/**
+ * Обёртка задачи: что именно она берёт и чем зовёт работу.
+ *
+ * Обёртка крошечная, но у неё есть своё обещание — **«сейчас» берётся в момент
+ * запуска, а не в момент сборки модуля**. Возьми она время загрузки воркера, и
+ * долгоживущий процесс каждую ночь истекал бы бумаги по вчерашней дате.
+ */
+describe('expireProposalsProcessor — обёртка задачи', () => {
+  it('идёт в живую базу и считает срок от текущего момента', async () => {
+    liveFindMany.mockClear();
+    const before = Date.now();
+
+    const res = await expireProposalsProcessor();
+
+    expect(res).toEqual({ expired: 0, skippedNoActor: 0, failed: 0 });
+    expect(liveFindMany).toHaveBeenCalledTimes(1);
+
+    // Условие выборки строит общее правило `expiredProposalsWhere`; сверяем
+    // его с тем, что оно даёт для «сейчас», — так тест не повторяет чужую
+    // логику границы суток, а проверяет, что момент взят свежий.
+    const passed = JSON.stringify(
+      (liveFindMany.mock.calls[0] as unknown as [{ where: unknown }])[0].where
+    );
+    expect(passed).toBe(JSON.stringify(expiredProposalsWhere(new Date(before))));
   });
 });

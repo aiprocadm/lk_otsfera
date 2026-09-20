@@ -163,3 +163,50 @@ describe('нажатие кнопки', () => {
     expect(screen.getByRole('alert').textContent).toContain('Нет прав выгружать документы в 1С');
   });
 });
+
+/**
+ * Прежняя версия уже в 1С (`У-251`).
+ *
+ * Документ перевыпустили, а в учётной системе лежит старая бумага. Сама она
+ * туда не поедет — и человек обязан узнать об этом **на карточке**, а не когда
+ * бухгалтер найдёт расхождение. Поэтому и предупреждение, и другая подпись у
+ * кнопки: «Выгрузить повторно» вместо «Выгрузить в 1С».
+ */
+describe('прежняя версия в 1С', () => {
+  const withVersion = (version: number | null, p = push()) =>
+    render(
+      <DocumentOneCPushBlock
+        documentId="doc1"
+        push={p}
+        pushRuleHref={null}
+        pushedVersionInOneC={version}
+      />
+    );
+
+  it('предупреждение называет номер версии и говорит, что делать', () => {
+    withVersion(2);
+
+    expect(screen.getByText(/В 1С ушла версия 2/)).toBeTruthy();
+    expect(screen.getByText(/выгрузите её заново/)).toBeTruthy();
+  });
+
+  it('кнопка называется «Выгрузить повторно», а не «Выгрузить в 1С»', () => {
+    withVersion(2);
+
+    expect(screen.getByRole('button', { name: 'Выгрузить повторно' })).toBeTruthy();
+  });
+
+  it('прежней версии в 1С нет — ни предупреждения, ни особой подписи', () => {
+    withVersion(null);
+
+    expect(screen.queryByText(/В 1С ушла версия/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Выгрузить в 1С' })).toBeTruthy();
+  });
+
+  it('эта версия уже уехала — предупреждать не о чем', () => {
+    withVersion(3, push({ status: 'pushed', externalId: '1c-77' }));
+
+    // Иначе блок пугал бы человека сразу после удачной выгрузки.
+    expect(screen.queryByText(/В 1С ушла версия/)).toBeNull();
+  });
+});

@@ -1,13 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const { recordNotificationMock, deliverToUserMock } = vi.hoisted(() => ({
+const { recordNotificationMock, deliverToUserMock, cachedIntegrationSetting } = vi.hoisted(() => ({
   recordNotificationMock: vi.fn(),
   deliverToUserMock: vi.fn(),
+  cachedIntegrationSetting: vi.fn(),
 }));
 vi.mock('@/lib/notifications', () => ({
   recordNotification: recordNotificationMock,
   deliverNotificationToUser: deliverToUserMock,
 }));
+// `У-126`: адресаты и реквизиты бота задаются в форме «Здоровье системы →
+// Оповещения». По умолчанию настройки нет — тогда действует прежнее поведение.
+vi.mock('@/lib/config/integrationSettingsCache', () => ({ cachedIntegrationSetting }));
 
 import { deliverAlert } from '@/lib/monitoring/deliver';
 
@@ -22,6 +26,7 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue({ row: { id: 'alert-notif' }, deduped: false });
   deliverToUserMock.mockReset().mockResolvedValue(undefined);
+  cachedIntegrationSetting.mockReset().mockReturnValue(undefined);
   delete process.env.ALERT_TELEGRAM_BOT_TOKEN;
   delete process.env.ALERT_TELEGRAM_CHAT_ID;
   vi.unstubAllGlobals();
@@ -131,5 +136,114 @@ describe('deliverAlert', () => {
     ).resolves.toBeUndefined();
     expect(recordNotificationMock).not.toHaveBeenCalled();
     expect(deliverToUserMock).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Кому уходят ops-оповещения (`У-126`).
+ *
+ * Умолчание — всем активным администраторам, как было до появления формы.
+ * Заданный список адресов его заменяет, и это **замена, а не добавление**:
+ * иначе выключить рассылку администратору было бы нечем.
+ *
+ * Адрес без активной учётной записи молча пропускается: слать почту «в никуда»
+ * бессмысленно, а оповещение об инфраструктуре не должно падать из-за опечатки
+ * в списке — как раз тогда, когда что-то уже сломалось.
+ */
+describe('deliverAlert — адресаты из настройки', () => {
+  /** База, запоминающая условие выборки получателей. */
+  function db(ids: string[]) {
+    // Параметр объявлен типом функции: у `vi.fn` без него кортеж аргументов
+    // пустой, и обращение `calls[0][0]` не проходит проверку типов.
+    const findMany = vi.fn<(args?: { where?: unknown }) => Promise<Array<{ id: string }>>>(
+      async () => ids.map((id) => ({ id }))
+    );
+    return { prisma: { user: { findMany } } as never, findMany };
+  }
+
+  /**
+   * Настройка отвечает ТОЛЬКО на свой ключ.
+   *
+   * Общий `mockReturnValue` возвращал бы то же значение и на
+   * `alerts.telegramBotToken` — бот «оказался бы настроен», и тест ушёл бы в
+   * настоящую сеть к api.telegram.org. Один раз так и вышло: прогон занял две
+   * секунды и упёрся в таймаут соединения.
+   */
+  const setting = (values: Record<string, string>) =>
+    cachedIntegrationSetting.mockImplementation((key: string) => values[key]);
+
+  it('настройки нет — пишем всем активным администраторам', async () => {
+    const { prisma, findMany } = db(['a1']);
+
+    await deliverAlert(prisma, { kind: 'fire', message: 'boom' });
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: { role: 'admin', isActive: true },
+      select: { id: true },
+    });
+  });
+
+  it('список задан — ищем этих людей по почте, без учёта регистра', async () => {
+    setting({ 'alerts.emailRecipients': ' Ops@X.RU , dev@x.ru ' });
+    const { prisma, findMany } = db(['u1', 'u2']);
+
+    await deliverAlert(prisma, { kind: 'fire', message: 'boom' });
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: { isActive: true, email: { in: ['ops@x.ru', 'dev@x.ru'], mode: 'insensitive' } },
+      select: { id: true },
+    });
+    // Роль не проверяется: оповещения об инфраструктуре могут идти дежурному,
+    // который администратором в системе не является.
+    expect(recordNotificationMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ['запятые', 'a@x.ru,b@x.ru'],
+    ['точки с запятой', 'a@x.ru;b@x.ru'],
+    ['переводы строк', 'a@x.ru\nb@x.ru'],
+    ['всё вперемешку', ' a@x.ru ;, \n b@x.ru '],
+  ])('список через %s разбирается одинаково', async (_name, raw) => {
+    setting({ 'alerts.emailRecipients': raw });
+    const { prisma, findMany } = db(['u1']);
+
+    await deliverAlert(prisma, { kind: 'fire', message: 'boom' });
+
+    expect(findMany.mock.calls[0]?.[0]).toMatchObject({
+      where: { isActive: true, email: { in: ['a@x.ru', 'b@x.ru'], mode: 'insensitive' } },
+    });
+  });
+
+  it('список из одних разделителей равен «списка нет»', async () => {
+    setting({ 'alerts.emailRecipients': ' , ; ' });
+    const { prisma, findMany } = db(['a1']);
+
+    await deliverAlert(prisma, { kind: 'fire', message: 'boom' });
+
+    // Иначе выборка ушла бы с пустым `in: []` и не нашла НИКОГО — оповещения
+    // молча перестали бы приходить.
+    expect(findMany).toHaveBeenCalledWith({
+      where: { role: 'admin', isActive: true },
+      select: { id: true },
+    });
+  });
+
+  it('ни один адрес не совпал — никого не дёргаем, но и не падаем', async () => {
+    setting({ 'alerts.emailRecipients': 'опечатка@x.ru' });
+    const { prisma } = db([]);
+
+    await expect(deliverAlert(prisma, { kind: 'fire', message: 'boom' })).resolves.toBeUndefined();
+
+    expect(recordNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it('реквизиты бота берутся из настройки, а не только из переменных сервера', async () => {
+    setting({ 'alerts.telegramBotToken': 'тайна', 'alerts.telegramChatId': '-100' });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await deliverAlert(db(['a1']).prisma, { kind: 'fire', message: 'boom' });
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/botтайна/sendMessage');
   });
 });
