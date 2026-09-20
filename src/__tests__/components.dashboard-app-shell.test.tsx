@@ -155,15 +155,18 @@ describe('AppShell', () => {
     expect(html).not.toContain('data-testid="notification-bell"');
   });
 
-  it('прокидывает признак руководителя в реестр меню', async () => {
-    // `isPartnerAdmin` больше не передаётся: признак `partnerAdminOnly` удалён
-    // этапом 9 — его не носил ни один пункт меню с этапа 4.
+  it('состав меню зависит только от роли — признаков-условий у пунктов больше нет', async () => {
+    // Реестр меню знал три признака-условия: `partnerAdminOnly` (снят этапом
+    // 9), `leaderOnly` и `hiddenWhenFlag` (сняты прогоном сопровождения №34).
+    // Ни один пункт их не носил, и все три проверки не срабатывали ни разу.
+    // Поэтому оболочка спрашивает состав меню ПО РОЛИ и ничего больше не
+    // передаёт: лишний аргумент создавал бы иллюзию, что он на что-то влияет.
     getSession.mockResolvedValue({ sub: 'u4', role: 'manager', name: 'M', partnerRole: 'admin' });
     isManagerLeader.mockReturnValue(true);
     navItemsFor.mockReturnValue([]);
 
     await AppShell({ children: 'c' });
 
-    expect(navItemsFor).toHaveBeenCalledWith('manager', { isManagerLeader: true });
+    expect(navItemsFor).toHaveBeenCalledWith('manager');
   });
 });

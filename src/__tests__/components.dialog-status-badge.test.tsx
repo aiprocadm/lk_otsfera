@@ -15,9 +15,10 @@ import { renderToString } from 'react-dom/server';
 import { DialogStatusBadge } from '@/components/manager/messengers/dialog-status-badge';
 
 const html = (status: string, overdue: string) =>
-  renderToString(
-    <DialogStatusBadge status={status as never} overdue={overdue as never} />
-  ).replace(/<!-- -->/g, '');
+  renderToString(<DialogStatusBadge status={status as never} overdue={overdue as never} />).replace(
+    /<!-- -->/g,
+    ''
+  );
 
 describe('Ждём ответа сотрудника', () => {
   it('просрочка — красный и прямая приписка «просрочен»', () => {

@@ -14,9 +14,7 @@ type FindManyArgs = { where?: Record<string, unknown>; take?: number; cursor?: u
 function db(rows: Array<{ id: string }>) {
   // Параметр объявлен явно: у `vi.fn` без него кортеж аргументов пустой, и
   // обращение `calls[0][0]` не проходит проверку типов.
-  const findMany = vi.fn<(args?: FindManyArgs) => Promise<Array<{ id: string }>>>(
-    async () => rows
-  );
+  const findMany = vi.fn<(args?: FindManyArgs) => Promise<Array<{ id: string }>>>(async () => rows);
   return {
     db: { order: { findMany }, company: { findMany: vi.fn(async () => []) } } as never,
     findMany,
