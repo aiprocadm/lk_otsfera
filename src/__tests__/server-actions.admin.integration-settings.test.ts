@@ -67,6 +67,8 @@ import {
   resetSettingToServerValueAction,
   generateWebhookSecretAction,
   registerWebhookAction,
+  sendSelfTestMessageAction,
+  checkWebhookAction,
 } from '@/server-actions/admin/integrationSettings';
 
 function fd(entries: Record<string, string>): FormData {
@@ -233,5 +235,49 @@ describe('Секрет вебхука', () => {
 
     expect(res).toEqual({ ok: false, error: 'provider_error' });
     expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+
+/**
+ * `У-213` — две разные проверки канала: путь **наружу** (наше сообщение дошло
+ * до клиента) и путь **внутрь** (провайдер достучался до нас). Их легко
+ * перепутать, а лечатся они по-разному: наружу — токен и права бота, внутрь —
+ * адрес вебхука и секрет.
+ *
+ * Канал приходит от кнопки на странице, поэтому проверяется здесь: полагаться
+ * на то, что неизвестное значение «всё равно провалится дальше», — значит
+ * держать защиту на случайности.
+ */
+describe('Самопроверка каналов', () => {
+  beforeEach(() => {
+    mocks.sendSelfTestMessage.mockResolvedValue({ ok: true, detail: 'ушло' });
+    mocks.checkWebhook.mockResolvedValue({ ok: true, detail: 'адрес наш' });
+  });
+
+  it('проверка наружу зовёт свой сервис', async () => {
+    const res = await sendSelfTestMessageAction('telegram', new FormData());
+
+    expect(res).toEqual({ ok: true, detail: 'ушло' });
+    expect(mocks.sendSelfTestMessage).toHaveBeenCalledWith({}, { sub: 'admin-1' }, 'telegram');
+    expect(mocks.checkWebhook).not.toHaveBeenCalled();
+  });
+
+  it('проверка внутрь зовёт свой — и не требует сессии в аргументах', async () => {
+    const res = await checkWebhookAction('telegram', new FormData());
+
+    expect(res).toEqual({ ok: true, detail: 'адрес наш' });
+    expect(mocks.checkWebhook).toHaveBeenCalledWith('telegram');
+    expect(mocks.sendSelfTestMessage).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['наружу', sendSelfTestMessageAction],
+    ['внутрь', checkWebhookAction],
+  ])('придуманный канал (%s) отсекается сразу', async (_name, action) => {
+    const res = await action('голубиная почта', new FormData());
+
+    expect(res).toEqual({ ok: false, error: 'channel_unavailable' });
+    expect(mocks.requireAdmin).not.toHaveBeenCalled();
   });
 });
