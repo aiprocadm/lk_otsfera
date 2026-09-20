@@ -203,3 +203,96 @@ describe('ответ клиенту (этап 6, У-238)', () => {
     expect(screen.queryByRole('button', { name: 'Отклонить' })).toBeNull();
   });
 });
+
+/**
+ * Отклонение обращения и сбои сети (`У-116`).
+ *
+ * Про отклонение важно одно: **отмена окна причины — это отмена действия**.
+ * Пустая строка («причину не написал») и нажатие «Отмена» выглядят похоже, но
+ * означают разное: первое — «отклоняю без объяснения», второе — «передумал».
+ * Спутать их значит отклонить обращение, которого никто не отклонял.
+ */
+describe('ClientRequestStaffActions — отклонение и сбои', () => {
+  it('причина уходит на сервер вместе с действием', async () => {
+    const prompt = vi.spyOn(window, 'prompt').mockReturnValue('дубль обращения');
+
+    renderActions();
+    fireEvent.click(screen.getByRole('button', { name: 'Отклонить' }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    const body = JSON.parse(
+      String((vi.mocked(fetch).mock.calls[0]![1] as RequestInit).body)
+    ) as Record<string, unknown>;
+    expect(body).toEqual({ action: 'reject', reason: 'дубль обращения' });
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Обращение отклонено'));
+    prompt.mockRestore();
+  });
+
+  it('пустая причина — это всё же отклонение', async () => {
+    const prompt = vi.spyOn(window, 'prompt').mockReturnValue('');
+
+    renderActions();
+    fireEvent.click(screen.getByRole('button', { name: 'Отклонить' }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    prompt.mockRestore();
+  });
+
+  it('отмена окна — на сервер ничего не уходит', async () => {
+    const prompt = vi.spyOn(window, 'prompt').mockReturnValue(null);
+
+    renderActions();
+    fireEvent.click(screen.getByRole('button', { name: 'Отклонить' }));
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(toastSuccess).not.toHaveBeenCalled();
+    prompt.mockRestore();
+  });
+
+  it('сервер ответил отказом — видна его причина, а не «что-то пошло не так»', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 409, json: async () => ({ error: 'wrong_status' }) }))
+    );
+
+    renderActions();
+    fireEvent.click(screen.getByRole('button', { name: 'Принять → создать лид' }));
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось: wrong_status'));
+  });
+
+  it('отказ без причины — показываем хотя бы код ответа', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) }))
+    );
+
+    renderActions();
+    fireEvent.click(screen.getByRole('button', { name: 'Принять → создать лид' }));
+
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось: 500'));
+  });
+
+  it('сеть отвалилась — честная «Сетевая ошибка», а не тишина', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('offline');
+      })
+    );
+
+    renderActions();
+    fireEvent.click(screen.getByRole('button', { name: 'Принять → создать лид' }));
+
+    // Молчание оставило бы человека нажимать кнопку снова и снова.
+    await waitFor(() => expect(toastError).toHaveBeenCalledWith('Сетевая ошибка'));
+  });
+
+  it('«Взять в работу» есть только у нового обращения', () => {
+    renderActions();
+    expect(screen.getByRole('button', { name: 'Взять в работу' })).toBeTruthy();
+
+    renderActions({ status: 'converted' });
+    expect(screen.queryAllByRole('button', { name: 'Взять в работу' })).toHaveLength(1);
+  });
+});

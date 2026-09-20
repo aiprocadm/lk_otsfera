@@ -222,3 +222,83 @@ describe('saveSettings', () => {
     expect(prisma.integrationSetting.upsert).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Настройки, у которых переменной сервера нет вовсе (`envVar: null`).
+ *
+ * Таких большинство среди новых: их завели сразу «из интерфейса», и падать
+ * им некуда. Ветка отката обязана это учитывать — иначе чтение уходит в
+ * `process.env[undefined]` и возвращает мусор вместо честного «не задано».
+ *
+ * Отдельно — **строка помнит СВОЙ `isSecret`**, тот, с которым её записали.
+ * Настройка может перестать быть секретной (`У-131`), и тогда в базе остаётся
+ * зашифрованное значение: прочитать его как обычный текст значит показать
+ * человеку шифротекст и предложить «поправить».
+ */
+describe('Настройки без переменной сервера', () => {
+  it('нет ни строки, ни переменной — честное «не задано»', async () => {
+    const prisma = makePrisma();
+
+    await expect(getSettingValue(prisma, 'bitrix.portalUrl')).resolves.toBeNull();
+  });
+
+  it('испорченный секрет без переменной отката — тоже «не задано», а не падение', async () => {
+    const prisma = makePrisma({
+      findUnique: vi.fn().mockResolvedValue({ value: 'CORRUPTED', isSecret: true }),
+    });
+
+    await expect(getSettingValue(prisma, 'bitrix.webhookUrl')).resolves.toBeNull();
+  });
+
+  it('форма: источник «none», когда переменной нет и строки нет', async () => {
+    const prisma = makePrisma();
+
+    const [row] = await getSettingsView(prisma, ['bitrix.portalUrl']);
+
+    expect(row).toMatchObject({ source: 'none', isSet: false, value: null });
+  });
+});
+
+describe('Строка помнит свой признак секрета', () => {
+  it('значение осталось зашифрованным после отмены секретности — расшифровываем', async () => {
+    const prisma = makePrisma({
+      findMany: vi
+        .fn()
+        .mockResolvedValue([
+          { key: 'bitrix.portalUrl', value: 'ENC(https://portal)', isSecret: true },
+        ]),
+    });
+
+    const [row] = await getSettingsView(prisma, ['bitrix.portalUrl']);
+
+    // Настройка НЕсекретная, поэтому значение показывается — но расшифрованным,
+    // а не как «ENC(...)».
+    expect(row).toMatchObject({ value: 'https://portal', isSecret: false, source: 'db' });
+  });
+
+  it('расшифровать не вышло — «не задано», а не шифротекст на экране', async () => {
+    const prisma = makePrisma({
+      findMany: vi
+        .fn()
+        .mockResolvedValue([{ key: 'bitrix.portalUrl', value: 'CORRUPTED', isSecret: true }]),
+    });
+
+    const [row] = await getSettingsView(prisma, ['bitrix.portalUrl']);
+
+    expect(row?.value).toBeNull();
+    // Строка в базе есть — значит настройка «задана», просто нечитаема.
+    expect(row?.isSet).toBe(true);
+  });
+
+  it('пустая строка в базе равна «значения нет»', async () => {
+    const prisma = makePrisma({
+      findMany: vi
+        .fn()
+        .mockResolvedValue([{ key: 'bitrix.portalUrl', value: '', isSecret: false }]),
+    });
+
+    const [row] = await getSettingsView(prisma, ['bitrix.portalUrl']);
+
+    expect(row).toMatchObject({ value: null, isSet: false, source: 'none' });
+  });
+});

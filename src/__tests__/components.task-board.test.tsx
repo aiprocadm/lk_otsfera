@@ -413,3 +413,58 @@ describe('TaskBoard', () => {
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Не удалось переместить задачу.'));
   });
 });
+
+/**
+ * Незакрытый чек-лист при завершении задачи (`У-219`).
+ *
+ * Чек-лист **не запрещает** завершить задачу — он переспрашивает. Запрет
+ * означал бы, что человек не может закрыть сделанную работу из-за забытой
+ * галочки; молчаливое согласие означало бы, что напоминание бесполезно.
+ *
+ * Согласие уходит ВТОРЫМ вызовом того же переноса с флагом «всё равно» —
+ * отдельного действия «принудительно» нет намеренно: это один и тот же
+ * перенос, и разводить их значит держать два пути к одному результату.
+ */
+describe('TaskBoard — чек-лист переспрашивает', () => {
+  // Свой сброс: моки живут на весь файл, и без него счётчик вызовов считает
+  // чужие переносы из соседних проверок.
+  beforeEach(() => vi.clearAllMocks());
+
+  const dropOnDone = () => {
+    render(React.createElement(TaskBoard, { board, options }));
+    const column = screen.getByText('Готово').closest('div')!.parentElement as HTMLElement;
+    fireEvent.drop(column, { dataTransfer: dataTransfer('task-1') });
+  };
+
+  it('человек согласился — тот же перенос уходит с флагом «всё равно»', async () => {
+    moveTaskAction
+      .mockResolvedValueOnce({ ok: false, error: 'checklist_incomplete' })
+      .mockResolvedValueOnce({ ok: true });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    dropOnDone();
+
+    await waitFor(() => expect(moveTaskAction).toHaveBeenCalledTimes(2));
+    expect(confirm).toHaveBeenCalledWith(
+      'В чек-листе остались невыполненные пункты. Завершить задачу всё равно?'
+    );
+    const second = moveTaskAction.mock.calls[1][0] as FormData;
+    expect(second.get('force')).toBe('true');
+    expect(second.get('taskId')).toBe('task-1');
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Задача перемещена.'));
+    confirm.mockRestore();
+  });
+
+  it('человек отказался — второго переноса нет и ругани тоже', async () => {
+    moveTaskAction.mockResolvedValue({ ok: false, error: 'checklist_incomplete' });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    dropOnDone();
+
+    await waitFor(() => expect(confirm).toHaveBeenCalled());
+    expect(moveTaskAction).toHaveBeenCalledTimes(1);
+    // Ошибки нет: человек сам решил не завершать — это не сбой.
+    expect(toastError).not.toHaveBeenCalled();
+    confirm.mockRestore();
+  });
+});

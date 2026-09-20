@@ -139,3 +139,91 @@ describe('EgrulFillDialog (У-94)', () => {
     await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Заполнено полей: 1.'));
   });
 });
+
+/**
+ * Что ещё умеет окно (`У-94`).
+ *
+ * Главное здесь — **ликвидированный тёзка**. У популярных названий десятки
+ * однофамильцев, и часть из них давно закрыта. Подставить реквизиты закрытой
+ * фирмы значит выставить счёт в никуда, поэтому состояние по ЕГРЮЛ печатается
+ * прямо в строке выбора, а не прячется за кнопкой «подробнее».
+ */
+describe('EgrulFillDialog — выбор из нескольких', () => {
+  it('ликвидированная организация подписана «не действует»', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      json: async () => ({
+        suggestions: [
+          { ...SUGGESTION, name: 'ООО «Ромашка» (старая)', status: 'LIQUIDATED' },
+          SUGGESTION,
+        ],
+      }),
+    }) as never;
+
+    const dialog = open();
+    fireEvent.click(dialog.getByRole('button', { name: 'Найти' }));
+
+    await waitFor(() => dialog.getByText(/не действует/));
+    // Действующая такой подписи не несёт — иначе пометка ничего не значила бы.
+    expect(dialog.getAllByText(/не действует/)).toHaveLength(1);
+  });
+
+  it('адреса нет — строка не превращается в «ИНН 770… · undefined»', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      json: async () => ({ suggestions: [{ ...SUGGESTION, address: null, status: null }] }),
+    }) as never;
+
+    const dialog = open();
+    fireEvent.click(dialog.getByRole('button', { name: 'Найти' }));
+
+    await waitFor(() => dialog.getByText('ООО «Ромашка»'));
+    expect(dialog.queryByText(/undefined|null/)).toBeNull();
+  });
+
+  it('ответ без списка подсказок — пустой экран с объяснением, а не падение', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ json: async () => ({}) }) as never;
+
+    const dialog = open();
+    fireEvent.click(dialog.getByRole('button', { name: 'Найти' }));
+
+    await waitFor(() =>
+      expect(dialog.getByText('Ничего не нашлось', { exact: false })).toBeTruthy()
+    );
+  });
+
+  it('«Заполнить» без выбора ничего не отправляет', async () => {
+    const dialog = open();
+    fireEvent.click(dialog.getByRole('button', { name: 'Найти' }));
+    await waitFor(() => dialog.getByText('ООО «Ромашка»'));
+
+    // Кнопка выключена, пока никто не выбран: нажатие вслепую заполнило бы
+    // карточку реквизитами первой попавшейся организации.
+    expect((dialog.getByRole('button', { name: 'Заполнить' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
+    expect(fillOrgFromEgrulAction).not.toHaveBeenCalled();
+  });
+
+  it('новый поиск сбрасывает прежний выбор', async () => {
+    const dialog = open();
+    await pickFirst(dialog);
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Найти' }));
+
+    // Иначе человек выбрал бы одну организацию, поискал другую и заполнил
+    // карточку реквизитами первой, не заметив этого.
+    await waitFor(() =>
+      expect(
+        (dialog.getByRole('button', { name: 'Заполнить' }) as HTMLButtonElement).disabled
+      ).toBe(true)
+    );
+  });
+
+  it('«Отмена» закрывает окно, ничего не отправив', async () => {
+    const dialog = open();
+    await pickFirst(dialog);
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Отмена' }));
+
+    expect(fillOrgFromEgrulAction).not.toHaveBeenCalled();
+  });
+});
