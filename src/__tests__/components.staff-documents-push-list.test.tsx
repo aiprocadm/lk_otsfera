@@ -10,12 +10,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
-const { requestDocumentPushManyAction, toastSuccess, refresh } = vi.hoisted(() => ({
-  requestDocumentPushManyAction: vi.fn(),
-  toastSuccess: vi.fn(),
-  refresh: vi.fn(),
-}));
+const { requestDocumentPushManyAction, sendDocumentsToClientsAction, toastSuccess, refresh } =
+  vi.hoisted(() => ({
+    requestDocumentPushManyAction: vi.fn(),
+    sendDocumentsToClientsAction: vi.fn(),
+    toastSuccess: vi.fn(),
+    refresh: vi.fn(),
+  }));
 vi.mock('@/server-actions/documents/pushToOneC', () => ({ requestDocumentPushManyAction }));
+vi.mock('@/server-actions/documents/send', () => ({ sendDocumentsToClientsAction }));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: vi.fn() } }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh, push: vi.fn() }) }));
 
@@ -225,5 +228,98 @@ describe('StaffDocumentsPushList', () => {
     mount([]);
     expect(screen.queryByText('Сбросить фильтр')).toBeNull();
     expect(screen.getByText('Ничего не нашлось')).toBeTruthy();
+  });
+});
+
+/**
+ * `У-258` — «Отправить клиенту» пачкой.
+ *
+ * Сервис сам решает, что годится, и возвращает пропущенные с причиной. Молча
+ * отправить часть и промолчать про остальное нельзя: сотрудник будет уверен,
+ * что клиент получил всё.
+ */
+describe('массовая отправка клиенту', () => {
+  /** Выбрать первую строку списка. */
+  function selectFirst() {
+    fireEvent.click(screen.getAllByRole('checkbox')[0]!);
+  }
+
+  it('уходят выбранные документы, итог называет число и число организаций', async () => {
+    sendDocumentsToClientsAction.mockResolvedValue({
+      ok: true,
+      sent: 2,
+      organizations: 1,
+      skipped: [],
+    });
+    mount([row({ id: 'a' }), row({ id: 'b' })]);
+    selectFirst();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить клиенту' }));
+
+    await waitFor(() => expect(sendDocumentsToClientsAction).toHaveBeenCalled());
+    expect(toastSuccess).toHaveBeenCalledWith('Отправлено документов: 2 в 1 орг.');
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it('часть пропущена — об этом говорят, а не умалчивают', async () => {
+    sendDocumentsToClientsAction.mockResolvedValue({
+      ok: true,
+      sent: 1,
+      organizations: 1,
+      skipped: [{ documentId: 'b', reason: 'no_recipients' }],
+    });
+    mount([row({ id: 'a' }), row({ id: 'b' })]);
+    selectFirst();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить клиенту' }));
+
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
+    expect(String(toastSuccess.mock.calls[0]?.[0])).toContain('Не отправлено: 1');
+  });
+
+  it('не ушло ничего — это отказ, а не тихий успех', async () => {
+    sendDocumentsToClientsAction.mockResolvedValue({
+      ok: true,
+      sent: 0,
+      organizations: 0,
+      skipped: [],
+    });
+    mount([row({ id: 'a' })]);
+    selectFirst();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить клиенту' }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    expect(screen.getByRole('alert').textContent).toContain('отправить нельзя');
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('отказ сервиса показывается по-русски', async () => {
+    sendDocumentsToClientsAction.mockResolvedValue({ ok: false, error: 'forbidden' });
+    mount([row({ id: 'a' })]);
+    selectFirst();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить клиенту' }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('без выбора кнопка не нажимается', () => {
+    mount([row({ id: 'a' })]);
+
+    const button = screen.getByRole('button', { name: 'Отправить клиенту' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+  });
+
+  it('«Выбрать все» и «Снять выбор» работают парой', () => {
+    mount([row({ id: 'a' }), row({ id: 'b' })]);
+    selectFirst();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Выбрать все' }));
+    expect(screen.getByText('Выбрано: 2')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Снять выбор' }));
+    expect(screen.getByText('Выбрано: 0')).toBeTruthy();
   });
 });
