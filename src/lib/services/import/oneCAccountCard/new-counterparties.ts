@@ -91,7 +91,10 @@ export async function collectNewCounterparties(
         seen.inn = validInn;
         seen.innSource = 'file';
       }
-      if (!seen.name && name) seen.name = name;
+      // Названия у уже виденного ключа не может не быть: пустое название даёт
+      // пустой ключ, и такая строка отброшена выше (`no_name`). Прежняя
+      // проверка `if (!seen.name)` не срабатывала ни разу — защита, которая
+      // выглядит как учтённый случай, но не исполняется.
       continue;
     }
     byKey.set(key, {
