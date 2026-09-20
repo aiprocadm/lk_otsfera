@@ -145,6 +145,15 @@ describe('деталка обращения у сотрудников ЦО (У-1
     expect(notFound).toHaveBeenCalled();
   });
 
+  it('вложения не отдались — карточка открывается без них, а не падает', async () => {
+    // Список файлов читается отдельной выборкой. Её отказ (нет прав на файлы,
+    // сбой хранилища) не должен уносить с собой само обращение: текст и
+    // действия сотруднику нужны в первую очередь.
+    listClientRequestAttachments.mockResolvedValue({ ok: false, error: 'forbidden' });
+    const { container } = await render(ManagerRequestDetailPage as never);
+    expect(container.textContent).toContain('Обучение по охране труда');
+  });
+
   it('закрытое обращение объясняет, почему кнопок нет (§15)', async () => {
     getClientRequest.mockResolvedValue({
       ok: true,

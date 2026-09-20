@@ -168,6 +168,26 @@ describe('«Моя организация» (У-100)', () => {
     expect(getOrgRequisites).toHaveBeenCalled();
   });
 
+  it('поиск и «показать ещё» из адреса доезжают до выборки сотрудников', async () => {
+    // Оба параметра живут в адресе, чтобы страницей можно было поделиться и
+    // чтобы работала кнопка «назад». Потеряйся они по дороге — человек,
+    // перейдя на вторую страницу списка, снова увидел бы первую.
+    await render({ tab: 'employees', q: 'петров', skip: '40' });
+    expect(listOrgCardEmployees.mock.calls[0]![2]).toMatchObject({ q: 'петров', skip: 40 });
+  });
+
+  it('мусор в параметрах не ломает список: поиска нет, начинаем с начала', async () => {
+    // Адрес правят руками и присылают ссылками. Отрицательный или нечисловой
+    // «пропустить» обязан означать «с начала», а не пустой экран.
+    await render({ tab: 'employees', q: ['а', 'б'] as never, skip: 'ещё' });
+    expect(listOrgCardEmployees.mock.calls[0]![2]).toMatchObject({ skip: 0 });
+    expect(listOrgCardEmployees.mock.calls[0]![2]).not.toHaveProperty('q');
+
+    listOrgCardEmployees.mockClear();
+    await render({ tab: 'employees', skip: '-5' });
+    expect(listOrgCardEmployees.mock.calls[0]![2]).toMatchObject({ skip: 0 });
+  });
+
   it('участник без прав видит реквизиты, но не форму (право решает роль в организации)', async () => {
     getOrgPageContext.mockResolvedValue(ctx('member'));
     const { container } = await render({ tab: 'settings' });
@@ -179,6 +199,16 @@ describe('«Моя организация» (У-100)', () => {
     const { container } = await render({ tab: 'settings' });
     expect(container.textContent).toContain('ФОРМА РЕКВИЗИТОВ');
     expect(container.textContent).toContain('ДОСТУП');
+  });
+
+  it('реквизиты не отдались — вкладка открывается, но без блока реквизитов', async () => {
+    // Отказ одной выборки не должен уносить всю вкладку: «Доступ в кабинет»
+    // и остальное человеку по-прежнему нужны.
+    getOrgRequisites.mockResolvedValue({ ok: false, error: 'forbidden' });
+    const { container } = await render({ tab: 'settings' });
+    expect(container.textContent).toContain('ДОСТУП');
+    expect(container.textContent).not.toContain('ФОРМА РЕКВИЗИТОВ');
+    expect(container.textContent).not.toContain('РЕКВИЗИТЫ ТОЛЬКО ЧТЕНИЕ');
   });
 
   it('чужая организация — «не найдено» (границу держит сервис)', async () => {

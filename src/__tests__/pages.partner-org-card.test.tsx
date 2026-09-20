@@ -146,6 +146,23 @@ describe('карточка организации у партнёра (У-96)', 
     expect(container.textContent).toContain('СОТРУДНИКИ:3');
   });
 
+  it('поиск и «показать ещё» из адреса доезжают до выборки сотрудников', async () => {
+    // Зеркало кабинета заказчика (§0.2): те же параметры в адресе и та же
+    // выборка. Разойдись они — у партнёра «показать ещё» листало бы на месте.
+    await render({ tab: 'employees', q: 'петров', skip: '40' });
+    expect(listOrgCardEmployees.mock.calls[0]![2]).toMatchObject({ q: 'петров', skip: 40 });
+  });
+
+  it('мусор в параметрах не ломает список: поиска нет, начинаем с начала', async () => {
+    await render({ tab: 'employees', q: ['а', 'б'] as never, skip: 'ещё' });
+    expect(listOrgCardEmployees.mock.calls[0]![2]).toMatchObject({ skip: 0 });
+    expect(listOrgCardEmployees.mock.calls[0]![2]).not.toHaveProperty('q');
+
+    listOrgCardEmployees.mockClear();
+    await render({ tab: 'employees', skip: '-5' });
+    expect(listOrgCardEmployees.mock.calls[0]![2]).toMatchObject({ skip: 0 });
+  });
+
   it('организация вне портфеля — отказ до обращения к карточке', async () => {
     canPartnerAccessOrg.mockResolvedValue(false);
     await expect(render()).rejects.toThrow('REDIRECT:/forbidden');

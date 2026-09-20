@@ -143,4 +143,29 @@ describe('OrganizationFinancePage — фильтры счетов (этап 6, �
       }
     );
   });
+
+  it('обе границы периода доезжают и до сервиса, и до подписи фильтра на экране', async () => {
+    // Верхнюю границу легко потерять: сервис её получает, а экран показывает
+    // «с 01.09», и человек уверен, что смотрит до сегодня.
+    getOrgPageContext.mockResolvedValue(CTX);
+    getOrgFinanceKpis.mockResolvedValue({ billed: '0', paid: '0', outstanding: '0' });
+    listOrgPayments.mockResolvedValue([]);
+    const { container } = await renderServerComponent(
+      OrganizationFinancePage({
+        searchParams: Promise.resolve({ from: '2026-09-01', to: '2026-09-30' }),
+      })
+    );
+    // Верхняя граница берётся КОНЦОМ дня: иначе счёт, выставленный 30-го,
+    // в отбор «по 30-е» не попал бы.
+    expect(listOrgInvoices.mock.calls.at(-1)![1]).toMatchObject({
+      from: new Date('2026-09-01T00:00:00.000Z'),
+      to: new Date('2026-09-30T23:59:59.999Z'),
+    });
+    // И в самой форме фильтра: поле «по» обязано остаться заполненным, иначе
+    // человек, поправив «с», случайно сбросит верхнюю границу.
+    const to = container.querySelector(
+      '[data-testid="org-invoices-filter"] input[name="to"]'
+    ) as HTMLInputElement | null;
+    expect(to?.getAttribute('value')).toBe('2026-09-30');
+  });
 });

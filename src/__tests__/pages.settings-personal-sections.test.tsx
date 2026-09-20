@@ -298,6 +298,23 @@ describe('реквизиты исполнителя', () => {
     expect(out).toContain('Реквизиты исполнителя: Без оформления');
   });
 
+  it('оформление не отдалось — реквизиты всё равно видны (оба кабинета)', async () => {
+    // Логотип и печать читаются отдельной выборкой. Её отказ не должен
+    // забирать с собой весь экран: реквизиты нужны чаще, чем оформление.
+    listCompanyBranding.mockResolvedValue({ ok: false, error: 'forbidden' });
+    listCompaniesRequisites.mockResolvedValue({
+      ok: true,
+      companies: [{ id: 'c1', name: 'Промтехносфера', phone: null, email: null, ...RULE }],
+    });
+
+    const admin = await renderServerComponent(AdminRequisitesPage());
+    expect(admin.container.textContent).toContain('Реквизиты исполнителя: Промтехносфера');
+
+    requireSettingsSection.mockResolvedValueOnce({ ...LEADER, companyId: 'c1' });
+    const leader = await renderServerComponent(LeaderRequisitesPage());
+    expect(leader.container.textContent).toContain('Реквизиты исполнителя: Промтехносфера');
+  });
+
   it('отказ сервиса не роняет страницу', async () => {
     listCompaniesRequisites.mockResolvedValue({ ok: false, error: 'forbidden' });
     const { container } = await renderServerComponent(AdminRequisitesPage());

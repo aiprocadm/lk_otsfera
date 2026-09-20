@@ -55,8 +55,9 @@ export default async function AdminOrderDetailPage({
     listManagerCandidates(prisma),
     getValuesForEntity(prisma, session, 'order', id),
     // Сделка, из которой вырос заказ (19.08.2026). Админ по Model A видит
-    // всё, поэтому границы компании у запроса нет.
-    true ? loadOrderDeal(prisma, id, { allCompanies: true }) : Promise.resolve(null),
+    // всё, поэтому границы компании у запроса нет и условия тоже: ветка
+    // «не спрашивать» осталась от прежней проверки флага и не срабатывала.
+    loadOrderDeal(prisma, id, { allCompanies: true }),
   ]);
   // `У-232` (спека §3.7): удалённый заказ → список раздела с плашкой
   // «объект недоступен», а не 404 (ссылка из уведомления не должна

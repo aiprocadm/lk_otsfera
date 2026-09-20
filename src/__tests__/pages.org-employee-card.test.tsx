@@ -128,11 +128,12 @@ describe('карточка сотрудника внутри карточки о
     expect(getOrgCardEmployee).not.toHaveBeenCalled();
   });
 
-  it('удостоверения не отдались — экран не падает, раздел просто пуст', async () => {
+  // Правило зеркала (§0.2): отказ выборки обязан выглядеть одинаково во ВСЕХ
+  // четырёх кабинетах. Раньше проверялся только менеджер, и падение страницы
+  // у партнёра или администратора прошло бы незамеченным.
+  it.each(CASES)('$name: удостоверения не отдались — экран не падает, раздел пуст', async (c) => {
     listCertificates.mockResolvedValue({ ok: false, error: 'forbidden' });
-    const { container } = await renderServerComponent(
-      ManagerPage({ params: Promise.resolve({ id: 'org-1', studentId: 'stu-1' }) })
-    );
+    const { container } = await renderServerComponent(c.render());
     expect(container.textContent).toContain('Нет удостоверений');
   });
 

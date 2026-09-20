@@ -207,6 +207,38 @@ describe('ManagerMessengerDialogPage', () => {
     expect(text).toContain('ДЕЙСТВИЯ:inbound:im-2:null:Иван Петров::MAX: x');
   });
 
+  it('канал принимает файлы — форма вложения есть; ответственный подставлен в задачи', async () => {
+    // Канал, где файлы можно отправить, обязан показать форму: без неё
+    // сотрудник отправит счёт «на словах». А задача, заведённая из диалога,
+    // по умолчанию идёт тому, кто этот диалог ведёт, — иначе она повиснет
+    // ничьей рядом с чужой перепиской.
+    getDialog.mockResolvedValue({
+      ok: true,
+      dialog: {
+        ...dialog,
+        attachmentsAllowed: true,
+        attachmentLimitMb: 20,
+        assignee: { id: 'u-otv', name: 'Пётр' },
+      },
+    });
+    const { container } = await renderServerComponent(
+      ManagerMessengerDialogPage({ params: Promise.resolve({ id: 'd1' }) })
+    );
+    const text = container.textContent ?? '';
+    expect(text).not.toContain('принимает только текст');
+    expect(text).toContain('ОТВЕТСТВЕННЫЙ:Пётр');
+  });
+
+  it('раздел задач выключен — блок задач не строится и сервис не спрашивается', async () => {
+    // Ссылки из блока вели бы на выключенный экран, а лишний запрос в сервис
+    // задач — это работа ради ничего.
+    isFeatureEnabled.mockImplementation((flag: string) => flag !== 'internal_tasks');
+    await renderServerComponent(
+      ManagerMessengerDialogPage({ params: Promise.resolve({ id: 'd1' }) })
+    );
+    expect(listLinkedTasks).not.toHaveBeenCalled();
+  });
+
   it('WhatsApp: телефон собеседника попадает в заготовку лида', async () => {
     getDialog.mockResolvedValue({
       ok: true,
