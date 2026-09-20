@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { RestOneCAdapter } from '@/lib/services/oneCSync/adapter-rest';
+import { OneCMethodNotImplementedError } from '@/lib/services/oneCSync/adapter';
 import { documentPushPayload } from '@/__tests__/helpers/oneCDocumentPush';
 import {
   buildLeadBody,
@@ -363,5 +364,63 @@ describe('buildLeadBody (Q5 partner key)', () => {
     }) as Record<string, unknown>;
     expect(body.partnerSlug).toBeUndefined();
     expect(JSON.parse(JSON.stringify(body))).not.toHaveProperty('partnerSlug');
+  });
+});
+
+/**
+ * Долги контрагентов (`У-257`).
+ *
+ * Метод на стороне 1С ещё не сделан, и это **не поломка обмена**. Отличать
+ * «метода нет» (`404`/`501`) от «1С недоступна» (всё остальное) обязан именно
+ * адаптер: если сверка примет отказ сети за отсутствие метода, она молча
+ * успокоится и перестанет сообщать о настоящем сбое — а деньги при этом
+ * останутся несверенными.
+ */
+describe('RestOneCAdapter.pullDebts (У-257)', () => {
+  /** Ответ 1С с заданным кодом. */
+  const respond = (status: number) =>
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status,
+        headers: { get: () => null },
+        json: async () => ({}),
+      })
+    );
+
+  it('долги приходят списком, как остальные выгрузки', async () => {
+    const debt = { organizationExternalId: '1c-org-1', amount: 1000, overdueAmount: 0 };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => [debt] });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const rows = await new RestOneCAdapter(config).pullDebts({ since: '2026-09-01T00:00:00Z' });
+
+    expect(rows).toEqual([debt]);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/api/debts');
+  });
+
+  it.each([
+    ['маршрута нет', 404],
+    ['не реализовано', 501],
+  ])('%s (%i) — это «метод не подключён», а не сбой', async (_name, status) => {
+    respond(status);
+
+    await expect(new RestOneCAdapter(config).pullDebts({})).rejects.toBeInstanceOf(
+      OneCMethodNotImplementedError
+    );
+  });
+
+  it.each([
+    ['1С упала', 500],
+    ['нет доступа', 403],
+  ])('%s (%i) — остаётся ошибкой обмена', async (_name, status) => {
+    respond(status);
+
+    const err = await new RestOneCAdapter(config).pullDebts({}).catch((e) => e);
+
+    // Принять это за «метода нет» значило бы молча похоронить сверку денег.
+    expect(err).not.toBeInstanceOf(OneCMethodNotImplementedError);
+    expect(String(err)).toContain(String(status));
   });
 });

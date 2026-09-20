@@ -379,6 +379,31 @@ describe('валидация строки', () => {
     expect(recordAuditMock).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['количество', { quantity: '1000000' }, 'Количество: не больше 999 999'],
+    ['цена', { unitPrice: '1000000000' }, 'Цена: не больше 999 999 999,99'],
+  ])('запредельное %s объясняется по-русски, а не падает 500-й', async (_name, over, message) => {
+    // Колонки в базе — `Decimal` с фиксированной шириной. Без своей границы
+    // перебор улетал бы в ошибку сервера вместо понятного объяснения (§15).
+    const c = makePrisma();
+
+    const res = await addOrderLine(c.prisma, admin, 'ord-1', { ...VALID, ...over });
+
+    expect(res).toMatchObject({ ok: false, error: 'validation', messages: [message] });
+    expect(c.lineCreate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['количество', { quantity: '999999' }],
+    ['цена', { unitPrice: '999999999.99' }],
+  ])('ровно предельное %s проходит — граница включительная', async (_name, over) => {
+    const c = makePrisma();
+
+    const res = await addOrderLine(c.prisma, admin, 'ord-1', { ...VALID, ...over });
+
+    expect(res).toMatchObject({ ok: true });
+  });
+
   it('наименование длиннее 300 символов отбивается так же, как пустое', async () => {
     const c = makePrisma();
     const res = await addOrderLine(c.prisma, admin, 'ord-1', { ...VALID, title: 'я'.repeat(301) });

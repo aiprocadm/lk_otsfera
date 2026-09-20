@@ -314,6 +314,57 @@ describe('acceptProposal — что попадает в заказ', () => {
     expect((orderCreate.mock.calls[0]![0].data as Record<string, unknown>).partnerId).toBe('p-1');
   });
 
+  it('ни сделки, ни отправителя — ответственным становится автор предложения', async () => {
+    const { prisma, orderCreate } = makePrisma({ doc: { sentById: null } });
+    await acceptProposal(prisma, STAFF(), { documentId: 'kp-1' });
+    // Инициатором НЕ становится тот, кто нажал: принять предложение может сам
+    // заказчик, и его пользователь стал бы менеджером заказа.
+    expect((orderCreate.mock.calls[0]![0].data as Record<string, unknown>).managerId).toBe(
+      'u-author'
+    );
+  });
+
+  it('никого из троих нет — заказ создаётся без ответственного, а не падает', async () => {
+    const { prisma, orderCreate } = makePrisma({ doc: { sentById: null, uploadedById: null } });
+    await acceptProposal(prisma, STAFF(), { documentId: 'kp-1' });
+    expect((orderCreate.mock.calls[0]![0].data as Record<string, unknown>).managerId).toBeNull();
+  });
+
+  it('у предложения нет номера — заказ получает понятное название, а не «КП null»', async () => {
+    const { prisma, orderCreate } = makePrisma({ doc: { number: null } });
+    await acceptProposal(prisma, STAFF(), { documentId: 'kp-1' });
+    expect((orderCreate.mock.calls[0]![0].data as Record<string, unknown>).title).toBe(
+      'Заказ по коммерческому предложению'
+    );
+  });
+
+  it('предложение без строк создаёт заказ без состава, а не пустую вставку', async () => {
+    const { prisma, orderCreate } = makePrisma({ doc: { lines: [] } });
+    await acceptProposal(prisma, STAFF(), { documentId: 'kp-1' });
+    const data = orderCreate.mock.calls[0]![0].data as Record<string, unknown>;
+    // Ключа `lines` нет вовсе: `create: []` — лишний поход в базу и повод для
+    // расхождения между «строк нет» и «строки есть, но пустые».
+    expect(data).not.toHaveProperty('lines');
+    expect(data.totalAmount).toBe('0.00');
+  });
+
+  it('строка без скидки и без ставки НДС переносится как «не задано»', async () => {
+    const { prisma, orderCreate } = makePrisma({
+      doc: {
+        lines: [{ ...LINE, discountPercent: null, vatRate: null }],
+      },
+    });
+    await acceptProposal(prisma, STAFF(), { documentId: 'kp-1' });
+    const lines = (
+      (orderCreate.mock.calls[0]![0].data as Record<string, unknown>).lines as {
+        create: Array<Record<string, unknown>>;
+      }
+    ).create;
+    // `null`, а не `'0'`: «скидки нет» и «скидка ноль процентов» — разные вещи
+    // для печатной формы, а «не облагается» и «ставка 0 %» — разные для НДС.
+    expect(lines[0]).toMatchObject({ discountPercent: null, vatRate: null });
+  });
+
   it('компания берётся у ДОКУМЕНТА, а не у организации', async () => {
     // У организации поле компании необязательное — заказ мог бы остаться без
     // компании-исполнителя.
