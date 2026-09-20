@@ -136,6 +136,49 @@ describe('ZipDownloadButton (У-252)', () => {
     vi.unstubAllGlobals();
   });
 
+  it('сервер не прислал счётчик — пишем ноль, а не «undefined документов»', async () => {
+    // Заголовка может не быть у старого ответа или прокси, срезающего
+    // нестандартные заголовки. Подпись всё равно должна остаться читаемой.
+    mockDownloadPlumbing();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        blob: async () => new Blob(['zip']),
+        headers: { get: () => null },
+      }))
+    );
+
+    render(<ZipDownloadButton ids={['d1']} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Скачать выбранные (ZIP)' }));
+
+    // Файл всё равно сохранён: счётчик — подпись, а не условие скачивания.
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Архив собран: 0 документов.'));
+  });
+
+  it('заголовок пропусков есть, но пропусков ноль — про них молчим', async () => {
+    mockDownloadPlumbing();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        blob: async () => new Blob(['zip']),
+        headers: {
+          get: (name: string) =>
+            name === 'x-documents-count'
+              ? '2'
+              : JSON.stringify({ noAccess: 0, pending: 0, infected: 0, unavailable: 0 }),
+        },
+      }))
+    );
+
+    render(<ZipDownloadButton ids={['d1', 'd2']} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Скачать выбранные (ZIP)' }));
+
+    // «Не вошло — ничего» звучало бы как сбой там, где всё хорошо.
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Архив собран: 2 документов.'));
+  });
+
   it('отказ сервера показывается его же словами', async () => {
     vi.stubGlobal(
       'fetch',
