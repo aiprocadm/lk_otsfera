@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Badge, Button, EmptyState, Input, Textarea } from '@/components/ui';
 import { PageHeader } from '@/components/ui/page-header';
+import { str } from '@/lib/actions/form';
 import { useFormAction } from '@/lib/ui/useFormAction';
 import { buildSettingsBreadcrumbs } from '@/lib/navigation/settings';
 import type { ReplyTemplateRow } from '@/lib/services/replyTemplates/crud';
@@ -43,11 +44,14 @@ function TemplateForm({
     action: (formData) =>
       saveReplyTemplateAction({
         id: template?.id ?? null,
-        title: String(formData.get('title') ?? ''),
-        body: String(formData.get('body') ?? ''),
+        // `str` вместо `String(fd.get(x) ?? '')`: общий помощник (§12b) и
+        // заодно без ветки `?? ''`, в которую из этой формы не попасть —
+        // поля в разметке есть всегда.
+        title: str(formData, 'title'),
+        body: str(formData, 'body'),
         channels: [],
         isActive: formData.get('isActive') === 'on',
-        sortOrder: Number(formData.get('sortOrder') ?? 0) || 0,
+        sortOrder: Number(str(formData, 'sortOrder')) || 0,
       }),
     errorMap: ERROR_LABEL,
     refresh: true,
