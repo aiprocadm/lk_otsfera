@@ -175,6 +175,95 @@ describe('getDialog', () => {
   });
 });
 
+describe('getDialog — ответственный, файл и пороги', () => {
+  // Свой сброс: общий стоит внутри соседнего describe, и без него счётчик
+  // вызовов считает чужие походы в базу.
+  beforeEach(() => {
+    vi.clearAllMocks();
+    isMessengerAvailable.mockReturnValue(true);
+    userFindMany.mockResolvedValue([]);
+    companyFindUnique.mockResolvedValue(null);
+  });
+
+  it('ответственный есть — подписан именем', async () => {
+    dialogFindUnique.mockResolvedValue({
+      ...baseRow,
+      assigneeId: 'mgr-1',
+      assignee: { id: 'mgr-1', name: '  Мария Смирнова  ', email: 'm@t.test' },
+    });
+
+    const res = await getDialog(prisma, session, 'd1');
+    if (!res.ok) throw new Error('ожидался ok');
+
+    // Пробелы по краям срезаются: в списке ответственных они дают «дыру».
+    expect(res.dialog.assignee).toEqual({ id: 'mgr-1', name: 'Мария Смирнова' });
+  });
+
+  it('имени у ответственного нет — подписываем почтой, а не пустотой', async () => {
+    dialogFindUnique.mockResolvedValue({
+      ...baseRow,
+      assigneeId: 'mgr-2',
+      assignee: { id: 'mgr-2', name: '   ', email: 'm2@t.test' },
+    });
+
+    const res = await getDialog(prisma, session, 'd1');
+    if (!res.ok) throw new Error('ожидался ok');
+
+    expect(res.dialog.assignee).toEqual({ id: 'mgr-2', name: 'm2@t.test' });
+  });
+
+  it('файл в сообщении доезжает вместе с вердиктом антивируса', async () => {
+    dialogFindUnique.mockResolvedValue({
+      ...baseRow,
+      _count: { messages: 1 },
+      messages: [
+        {
+          id: 'm1',
+          direction: 'in',
+          body: 'вот счёт',
+          createdAt: t(1),
+          deliveryStatus: 'sent',
+          authorId: null,
+          inboundMessageId: null,
+          attachmentName: 'счёт.pdf',
+          attachmentSize: 2048,
+          scanStatus: 'clean',
+        },
+      ],
+    });
+
+    const res = await getDialog(prisma, session, 'd1');
+    if (!res.ok) throw new Error('ожидался ok');
+
+    // Без вердикта экран не отличил бы проверенный файл от заражённого.
+    expect(res.dialog.messages[0]?.attachment).toEqual({
+      name: 'счёт.pdf',
+      size: 2048,
+      scanStatus: 'clean',
+    });
+  });
+
+  it('пороги подсветки берутся у компании, а не из умолчаний схемы', async () => {
+    companyFindUnique.mockResolvedValue({ slaResponseHours: 1, slaWarningHours: 1 });
+    dialogFindUnique.mockResolvedValue(baseRow);
+
+    await getDialog(prisma, session, 'd1');
+
+    expect(companyFindUnique).toHaveBeenCalledWith({
+      where: { id: 'c1' },
+      select: { slaResponseHours: true, slaWarningHours: true },
+    });
+  });
+
+  it('у роли нет компании — за порогами не ходим вовсе', async () => {
+    dialogFindUnique.mockResolvedValue({ ...baseRow, companyId: null });
+
+    await getDialog(prisma, { ...session, companyId: null } as typeof session, 'd1');
+
+    expect(companyFindUnique).not.toHaveBeenCalled();
+  });
+});
+
 describe('markDialogRead', () => {
   it('обнуляет непрочитанное только в скоупе и только когда есть что обнулять', async () => {
     dialogUpdateMany.mockResolvedValue({ count: 1 });
