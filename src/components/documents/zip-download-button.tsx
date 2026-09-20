@@ -28,6 +28,11 @@ export function ZipDownloadButton({
   const [busy, setBusy] = useState(false);
 
   async function download() {
+    // Кнопка при пустом выборе уже `disabled`, поэтому сюда с нулём строк не
+    // попасть — проверка стоит на случай нового вызывающего. Через интерфейс
+    // она недостижима, и честнее пометить её так, чем изображать покрытие
+    // тестом, который на самом деле кликает по выключенной кнопке.
+    /* v8 ignore next */
     if (ids.length === 0) return;
     setBusy(true);
     try {

@@ -82,6 +82,42 @@ describe('DocumentsList — группировка (У-253)', () => {
     expect(screen.getByText('Без заказа · 3')).toBeTruthy();
   });
 
+  it('память браузера недоступна — экран работает, просто не запоминает выбор', () => {
+    // В приватном окне и при запрете на данные сайта `localStorage` бросает на
+    // ЧТЕНИИ и на ЗАПИСИ. Экран группировки из-за этого падать не должен: он
+    // остаётся на умолчании и продолжает переключаться в этой сессии.
+    const store = window.localStorage;
+    const boom = () => {
+      throw new Error('доступ к хранилищу запрещён');
+    };
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: { getItem: boom, setItem: boom, removeItem: boom, clear: boom },
+    });
+    try {
+      render(<DocumentsList rows={ROWS} grouping />);
+      expect(screen.getByText('Без заказа · 3')).toBeTruthy();
+
+      fireEvent.click(screen.getByRole('button', { name: 'по типу' }));
+      expect(screen.getByText('Счёт · 2')).toBeTruthy();
+    } finally {
+      Object.defineProperty(window, 'localStorage', { configurable: true, value: store });
+    }
+  });
+
+  it('незнакомый тип документа подписывается своим кодом, а не пустой полкой', () => {
+    // Тип приходит из 1С и может оказаться новым. Полка без названия выглядит
+    // как поломка, а документы в ней — как потерянные.
+    render(
+      <DocumentsList
+        rows={[{ ...base, id: 'x', name: 'Неизвестное.pdf', type: 'protocol' as never }]}
+        grouping
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'по типу' }));
+    expect(screen.getByText('protocol · 1')).toBeTruthy();
+  });
+
   it('выбранная кнопка помечена для тех, кто не видит цвет', () => {
     render(<DocumentsList rows={ROWS} grouping />);
     const byType = screen.getByRole('button', { name: 'по типу' });

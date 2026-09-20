@@ -117,6 +117,28 @@ describe('KpiSettingsScreen', () => {
     expect(toastSuccess).toHaveBeenCalled();
   });
 
+  it('копирование не удалось — отказ показывается, планы не «скопированы» молча', async () => {
+    // Успешный тост при отказе — худший исход: человек уверен, что планы на
+    // месте, и обнаружит пустую таблицу только в конце месяца.
+    copyTargets.mockResolvedValueOnce({ ok: false, error: 'forbidden' });
+    render(React.createElement(KpiSettingsScreen, { view: view() }));
+    fireEvent.click(screen.getByRole('button', { name: 'Скопировать с прошлого месяца' }));
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    expect(toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it('отказ БЕЗ кода причины всё равно объясняется словами', async () => {
+    // Действие может вернуть `{ ok: false }` без поля `error` (например, из
+    // общей обёртки). Без запасного значения человек увидел бы пустой тост.
+    setActive.mockResolvedValueOnce({ ok: false });
+    render(React.createElement(KpiSettingsScreen, { view: view() }));
+    fireEvent.click(screen.getByTestId('metric-certificates_issued'));
+    await waitFor(() => expect(toastError).toHaveBeenCalled());
+    const text = String(toastError.mock.calls[0][0]);
+    expect(text.length).toBeGreaterThan(5);
+    expect(/[а-яА-Я]/.test(text)).toBe(true);
+  });
+
   it('ничего не выбрано — объяснение и что нажать, а не пустая рамка (У-74)', () => {
     render(React.createElement(KpiSettingsScreen, { view: view({ active: [] }) }));
     expect(screen.getByText('Показатели не выбраны')).toBeTruthy();

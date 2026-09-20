@@ -115,6 +115,7 @@ import LeaderPersonalSettingsPage from '@/app/leader/settings/personal/page';
 import { personalSettingsTabsFor } from '@/lib/navigation/personalSettings';
 import AdminRequisitesPage from '@/app/admin/settings/catalogs/requisites/page';
 import LeaderRequisitesPage from '@/app/leader/settings/catalogs/requisites/page';
+import { RequisitesScreen } from '@/components/settings/requisites-screen';
 import LeaderIntegrationsPage from '@/app/leader/settings/integrations/page';
 import AdminFeatureFlagsPage from '@/app/admin/settings/system/feature-flags/page';
 
@@ -276,6 +277,25 @@ describe('реквизиты исполнителя', () => {
     expect(
       container.querySelectorAll('[data-testid^="company-onec-push-rule-form-"]')
     ).toHaveLength(2);
+  });
+
+  it('у компании нет ни одного файла оформления — экран рисуется, а не падает', async () => {
+    // Экран презентационный, и набор файлов ему приходит словарём по компаниям.
+    // Компания, которой в словаре нет вовсе (ничего не загружали), обязана
+    // получить пустой список: иначе блок «Оформление документов» уронил бы всю
+    // страницу реквизитов.
+    const { renderToString } = await import('react-dom/server');
+    const out = renderToString(
+      React.createElement(RequisitesScreen, {
+        cabinet: 'admin' as const,
+        hasCompany: true,
+        companies: [
+          { id: 'c-empty', name: 'Без оформления', phone: null, email: null, ...RULE },
+        ] as never,
+        brandingByCompany: {},
+      })
+    );
+    expect(out).toContain('Реквизиты исполнителя: Без оформления');
   });
 
   it('отказ сервиса не роняет страницу', async () => {

@@ -53,6 +53,25 @@ function submitPreview() {
   fireEvent.submit(form);
 }
 
+/**
+ * Кладёт в поле файл с ПОДДЕЛАННЫМ размером.
+ *
+ * Настоящие 26 МБ в памяти теста — непозволительная плата за одну проверку,
+ * поэтому размер правим на внутреннем объекте jsdom: именно его читает и
+ * `input.files`, и сборка `FormData` формой.
+ */
+function pickOversizedFile(sizeBytes: number) {
+  const input = dialog().getByTestId('import-catalog-file') as HTMLInputElement;
+  const file = new File(['x'], 'прайс.xlsx');
+  const implSymbol = Object.getOwnPropertySymbols(file)[0]!;
+  const fileImpl = (file as unknown as Record<symbol, object>)[implSymbol]!;
+  Object.defineProperty(fileImpl, 'size', { value: sizeBytes });
+  const fileList = input.files as unknown as File[];
+  const flImplSymbol = Object.getOwnPropertySymbols(fileList)[0]!;
+  (fileList as unknown as Record<symbol, unknown[]>)[flImplSymbol]!.push(fileImpl);
+  fireEvent.change(input);
+}
+
 function okPreview(over: Partial<Record<string, unknown>> = {}) {
   return {
     ok: true as const,
@@ -105,6 +124,20 @@ describe('ImportCatalogDialog — первый шаг «проверить фа�
     expect(fd.get('companyId')).toBe(COMPANY);
     // Файл едет в той же FormData (имя поля читает previewCatalogImportAction).
     expect(fd.has('file')).toBe(true);
+  });
+
+  it('слишком большой файл отсекается ДО отправки — с объяснением, а не сетевой ошибкой', async () => {
+    // Файл больше предела Next отбрасывает раньше входа в действие, и человек
+    // увидел бы «сетевая ошибка» вместо «разбейте на части». Поэтому предел
+    // проверяется на экране.
+    renderDialog();
+    openDialog();
+    pickOversizedFile(26 * 1024 * 1024);
+    submitPreview();
+
+    await waitFor(() => expect(dialog().getByRole('alert')).toBeTruthy());
+    expect(dialog().getByRole('alert').textContent).toContain('разбейте на части');
+    expect(previewAction).not.toHaveBeenCalled();
   });
 
   it('разбитый файл показывает ошибки в error-регионе, а форма остаётся', async () => {

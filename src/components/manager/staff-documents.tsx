@@ -165,7 +165,10 @@ export function StaffDocuments({
 }) {
   const base = `/${cabinet}/documents`;
   // Активный фильтр выгрузки: пустой результат покажет кнопку «Сбросить фильтр».
-  const pushFilterActive = parseOneCPushStatus(sp.oneCPushStatus) !== undefined;
+  // Держим сам РАЗОБРАННЫЙ статус, а не признак «фильтр есть»: иначе ниже
+  // пришлось бы городить запасное значение для строки, которой не бывает.
+  const pushFilter = parseOneCPushStatus(sp.oneCPushStatus);
+  const pushFilterActive = pushFilter !== undefined;
   const yearOptions = documentYearOptions().map((y) => ({ value: String(y), label: String(y) }));
 
   if (data.tab === 'general') {
@@ -249,7 +252,7 @@ export function StaffDocuments({
     if (sp.direction) p.set('direction', sp.direction);
     if (sp.status) p.set('status', sp.status);
     if (sp.source) p.set('source', sp.source);
-    if (pushFilterActive && !opts?.withoutPush) p.set('oneCPushStatus', sp.oneCPushStatus ?? '');
+    if (pushFilter !== undefined && !opts?.withoutPush) p.set('oneCPushStatus', pushFilter);
     for (const [k, v] of Object.entries(extra ?? {})) p.set(k, v);
     const qs = p.toString();
     return qs ? `${base}?${qs}` : base;

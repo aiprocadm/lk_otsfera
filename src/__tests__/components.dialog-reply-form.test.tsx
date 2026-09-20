@@ -143,6 +143,26 @@ describe('DialogReplyForm — шаблоны', () => {
     expect(textarea.value).toBe('мой текст');
   });
 
+  it('форму закрыли, пока шаблон грузился — в память о набранном ложится пустая строка', async () => {
+    // Человек выбрал шаблон и ушёл со страницы. Ссылка на поле к моменту
+    // ответа сервера уже мертва; без запасного значения здесь было бы падение
+    // прямо в обработчике — на экране, которого уже нет.
+    let release: (v: unknown) => void = () => {};
+    actions.applyReplyTemplateAction.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      })
+    );
+    const { unmount } = render(<DialogReplyForm dialogId="d1" templates={TEMPLATES} />);
+    fireEvent.change(screen.getByLabelText('Шаблон ответа'), { target: { value: 't1' } });
+    await waitFor(() => expect(actions.applyReplyTemplateAction).toHaveBeenCalled());
+
+    unmount();
+    release({ ok: true, text: 'Здравствуйте!', empty: [] });
+    // Главное — обработчик дожил до конца и не бросил исключение.
+    await waitFor(() => expect(toastMock.error).not.toHaveBeenCalled());
+  });
+
   it('в режиме заметки шаблоны не предлагаются — это заготовки для клиента', () => {
     render(<DialogReplyForm dialogId="d1" templates={TEMPLATES} />);
     expect(screen.getByLabelText('Шаблон ответа')).toBeTruthy();

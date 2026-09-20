@@ -414,6 +414,29 @@ describe('`У-169`: состояние выгрузки в 1С в списке �
     expect(screen.getByText('Выбрано: 0')).toBeTruthy();
   });
 
+  it('повторный щелчок по флажку снимает выбор именно с этой строки', () => {
+    // Флажок обязан работать в обе стороны: передумал — снял. Если щелчок
+    // только добавляет, человек, ошибившийся строкой, вынужден снимать выбор
+    // со ВСЕГО списка и отмечать заново.
+    render(
+      <DocumentsList
+        rows={[
+          { ...base, id: 'a', name: 'А.pdf' },
+          { ...base, id: 'b', name: 'Б.pdf' },
+        ]}
+        zipDownload
+      />
+    );
+    fireEvent.click(screen.getByLabelText('Выбрать А.pdf'));
+    fireEvent.click(screen.getByLabelText('Выбрать Б.pdf'));
+    expect(screen.getByText('Выбрано: 2')).toBeTruthy();
+
+    fireEvent.click(screen.getByLabelText('Выбрать А.pdf'));
+    expect(screen.getByText('Выбрано: 1')).toBeTruthy();
+    expect((screen.getByLabelText('Выбрать А.pdf') as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByLabelText('Выбрать Б.pdf') as HTMLInputElement).checked).toBe(true);
+  });
+
   it('без `zipDownload` флажков и кнопки архива нет', () => {
     render(<DocumentsList rows={[{ ...base, id: 'a', name: 'А.pdf' }]} />);
     expect(screen.queryByLabelText('Выбрать А.pdf')).toBeNull();

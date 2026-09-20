@@ -107,6 +107,10 @@ export function EgrulFillDialog({
   }
 
   function choose(index: number) {
+    // Индекс приходит из отрисованного списка, поэтому элемент всегда есть —
+    // проверка нужна только типам (`noUncheckedIndexedAccess`), в бою она не
+    // срабатывает.
+    /* v8 ignore next */
     const s = items[index];
     if (!s) return;
     setPicked(index);
@@ -117,6 +121,9 @@ export function EgrulFillDialog({
   }
 
   function submit() {
+    // Кнопка «Заполнить» выключена, пока подсказка не выбрана, поэтому обе
+    // проверки ниже недостижимы через интерфейс и стоят ради типов.
+    /* v8 ignore next 2 */
     const s = picked !== null ? items[picked] : undefined;
     if (!s) return;
     const values: Record<string, string> = {};

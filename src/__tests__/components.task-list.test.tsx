@@ -238,4 +238,19 @@ describe('TaskList', () => {
     const last = taskDialogSpy.mock.calls.at(-1)![0];
     expect(last.target?.id).toBe('t1');
   });
+
+  it('`У-218`: клик по названию уводит на страницу задачи и НЕ открывает диалог', () => {
+    // Название — ссылка внутри кликабельной строки. Не остановить всплытие —
+    // и человек уйдёт на страницу задачи, получив поверх неё диалог быстрого
+    // редактирования.
+    const c = card({ id: 't1', title: 'Проверить документы' });
+    render(<TaskList board={makeBoard([c])} options={options} />);
+    taskDialogSpy.mockClear();
+
+    const link = screen.getByRole('link', { name: 'Проверить документы' });
+    expect(link.getAttribute('href')).toBe('/manager/tasks/t1');
+    fireEvent.click(link);
+
+    expect(taskDialogSpy).not.toHaveBeenCalled();
+  });
 });

@@ -114,6 +114,33 @@ describe('DialogThread', () => {
     expect(html).not.toContain('/manager/inbox?message=');
   });
 
+  it('внутренняя заметка без автора подписана «Сотрудник», а не пустотой', () => {
+    // Заметку мог оставить уволенный или удалённый сотрудник — имени тогда
+    // нет. Подпись «Заметка ·  · клиент не видит» с дырой посередине выглядит
+    // сломанным экраном; важнее всего в ней вторая половина — что клиент этого
+    // не видит.
+    const html = renderToString(
+      <DialogThread
+        dialogId="d1"
+        messages={[
+          {
+            id: 'n1',
+            direction: 'note',
+            body: 'перезвонить после обеда',
+            createdAt: at,
+            deliveryStatus: 'sent',
+            deliveryError: null,
+            authorName: null,
+            inboundMessageId: null,
+            attachment: null,
+          },
+        ]}
+        hiddenCount={0}
+      />
+    );
+    expect(html.replace(/<!-- -->/g, '')).toContain('Заметка · Сотрудник · клиент не видит');
+  });
+
   it('пометка о скрытых старых сообщениях', () => {
     // renderToString разделяет соседние текстовые узлы комментариями — снимаем их.
     const html = renderToString(

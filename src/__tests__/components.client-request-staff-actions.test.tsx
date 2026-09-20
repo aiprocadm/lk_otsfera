@@ -164,6 +164,39 @@ describe('ClientRequestStaffActions — «принять и выставить �
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
     expect(screen.queryByTestId('proposal-dialog')).toBeNull();
   });
+
+  it('«Взять в работу» меняет статус и обновляет экран, не трогая форму КП', async () => {
+    // Промежуточный шаг «взял, но лида ещё нет» нужен, когда обращение надо
+    // за собой закрепить, а разбираться позже. Кнопка есть только у обращения
+    // в статусе «отправлено» — у взятого закреплять уже нечего.
+    // Тип аргументов объявлен явно: без него `mock.calls` получает пустой
+    // кортеж, и обращение к `calls[0][1]` не проходит проверку типов.
+    const fetchMock = vi.fn<(url: string, init: { body: string }) => Promise<unknown>>(
+      async () => okResponse({})
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    renderActions();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Взять в работу' }));
+
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+    expect(JSON.parse(fetchMock.mock.calls[0]![1].body)).toEqual({
+      action: 'takeInTriage',
+    });
+    expect(toastSuccess).toHaveBeenCalledWith('Обращение взято в работу');
+    expect(screen.queryByTestId('proposal-dialog')).toBeNull();
+  });
+
+  it('у взятого в работу обращения кнопки «Взять в работу» уже нет', () => {
+    render(
+      React.createElement(ClientRequestStaffActions, {
+        request: { id: 'cr-1', status: 'in_triage' },
+        leadHrefBase: '/manager/leads',
+        canIssueProposal: true,
+      })
+    );
+    expect(screen.queryByRole('button', { name: 'Взять в работу' })).toBeNull();
+  });
 });
 
 describe('ответ клиенту (этап 6, У-238)', () => {

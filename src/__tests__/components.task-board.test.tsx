@@ -298,6 +298,16 @@ describe('TaskBoard', () => {
     );
   });
 
+  it('`У-218`: клик по заголовку НЕ открывает диалог — всплытие остановлено', () => {
+    // Если клик по ссылке всплывёт до карточки, человек одновременно уйдёт на
+    // страницу задачи и получит поверх неё диалог быстрого редактирования —
+    // и закроет его, не поняв, что произошло.
+    render(React.createElement(TaskBoard, { board, options }));
+    taskDialogSpy.mockClear();
+    fireEvent.click(screen.getByRole('link', { name: 'Проверить документы' }));
+    expect(taskDialogSpy).not.toHaveBeenCalled();
+  });
+
   it('`У-219`: прогресс чек-листа виден на карточке, а без чек-листа подписи нет', () => {
     const { unmount } = render(React.createElement(TaskBoard, { board, options }));
     // Обе цифры 0 — чек-листа у задачи нет, и пустое «0/0» на карточке только мешало бы.

@@ -213,6 +213,14 @@ describe('DocumentTemplateField — редактор одного пункта',
     await waitFor(() => expect(f.getByText('Свой текст, редакция 4')).toBeTruthy());
   });
 
+  it('свой текст без номера редакции подписан прочерком, а не «редакция null»', async () => {
+    // Номера нет у текстов, приехавших из прежних версий и из импорта. Строка
+    // «редакция null» читается как поломка; прочерк честно говорит «номер
+    // неизвестен», не мешая понять главное — текст свой, а не стандартный.
+    const f = fieldOf(PAYMENT, rowFor(PAYMENT, { isCustom: true, revision: null }));
+    expect(f.getByText('Свой текст, редакция —')).toBeTruthy();
+  });
+
   it('после сохранения «Сохранить» гаснет: повтор сжёг бы ещё один номер редакции', async () => {
     saveDocumentTemplateAction.mockResolvedValue({ ok: true, revision: 4 });
     const f = fieldOf(PAYMENT);

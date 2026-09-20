@@ -156,6 +156,28 @@ describe('OrderLessUploadForm (interactive, jsdom)', () => {
     vi.unstubAllGlobals();
   });
 
+  it('форма без дополнительных полей и без своего словаря ошибок работает', async () => {
+    // Оба необязательных параметра нужны не всем вызывающим: у партнёрской
+    // формы нет ни одного скрытого поля, а коды ошибок ей хватает общих.
+    // Без этого пути `fields` подставилось бы как `undefined` в `Object.entries`
+    // и форма упала бы при первой же отправке.
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      React.createElement(OrderLessUploadForm, { url: '/api/partner/documents/upload' })
+    );
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    pickFile(fileInput, makeFile('scan.pdf'));
+
+    fireEvent.click(screen.getByText('Загрузить'));
+
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
+    const sent = fetchMock.mock.calls[0]![1].body as FormData;
+    expect([...sent.keys()].sort()).toEqual(['docType', 'file']);
+    vi.unstubAllGlobals();
+  });
+
   it('not_found from the API renders the form-local text «Организация не найдена.»', async () => {
     const fetchMock = vi
       .fn()

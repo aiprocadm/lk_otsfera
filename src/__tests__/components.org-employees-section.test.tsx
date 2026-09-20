@@ -60,6 +60,14 @@ describe('OrgEmployeesSection (У-97)', () => {
     expect(screen.getByTestId('add-org-1')).toBeTruthy();
   });
 
+  it('пустой список БЕЗ права на запись — объяснение без кнопки, а не тупик с ней', () => {
+    // Кнопка «Добавить сотрудника» тому, кто не может добавлять, — это обман:
+    // человек нажмёт и получит отказ. Объяснение при этом остаётся.
+    render(<OrgEmployeesSection {...base} rows={[]} total={0} canWrite={false} />);
+    expect(screen.getByText('Сотрудников пока нет')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Добавить сотрудника/ })).toBeNull();
+  });
+
   it('пустой результат поиска отличается от пустого списка', () => {
     render(
       <OrgEmployeesSection {...base} searchParams={{ q: 'петров' }} rows={[]} total={0} canWrite />
