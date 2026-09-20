@@ -276,6 +276,26 @@ it('деактивированное направление позиции не 
   expect(within(dialog).getByText('Снятое направление (неактивно)')).toBeTruthy();
 });
 
+it('у снятого направления нет даже названия — пишем «направление (неактивно)»', async () => {
+  // Название приходит связью; если направление удалили, а не выключили, его
+  // не будет. Пустая опция «(неактивно)» выглядела бы как сломанный список, и
+  // человек снял бы связь руками — а по ней работает «Собрать строки».
+  render(
+    React.createElement(CatalogItemDialog, {
+      cabinet: 'admin' as const,
+      companyId: 'co-1',
+      directions: DIRECTIONS,
+      item: makeItem({ directionId: 'dir-gone', directionName: null }),
+    })
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Изменить' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Изменить услугу' });
+  expect((within(dialog).getByLabelText('Направление') as HTMLSelectElement).value).toBe(
+    'dir-gone'
+  );
+  expect(within(dialog).getByText('направление (неактивно)')).toBeTruthy();
+});
+
 describe('CatalogItemActiveButton', () => {
   it('деактивация — в два клика: сначала подтверждение, потом action', async () => {
     setActiveAction.mockResolvedValue({ ok: true });

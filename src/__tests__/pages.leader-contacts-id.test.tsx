@@ -83,6 +83,14 @@ describe('LeaderContactPage', () => {
     listContactOrgOptions.mockResolvedValue([]);
   });
 
+  it('раздел контактов выключен флагом → notFound ДО проверки роли', async () => {
+    // Порядок важен: флаг гасит раздел раньше, чем спрашивается сессия, —
+    // иначе существование выключенного раздела утекало бы разницей ответов.
+    isFeatureEnabled.mockReturnValue(false);
+    await expect(open('k1')).rejects.toThrow('NOTFOUND');
+    expect(getContact).not.toHaveBeenCalled();
+  });
+
   it('нет права crm.contacts → notFound без похода в сервисы', async () => {
     canUseContacts.mockReturnValue(false);
     await expect(open('k1')).rejects.toThrow('NOTFOUND');

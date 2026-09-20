@@ -150,3 +150,20 @@ describe('страж: таблица маршрутов уведомлений (
     );
   });
 });
+
+describe('страж: раздел «Сообщения» есть у ОБОИХ клиентских кабинетов', () => {
+  it('иначе ссылка из уведомления об ответе менеджера ведёт в никуда', () => {
+    // Правило `inbound_reply` строит адрес от раздела «Сообщения» и опирается
+    // на то, что он объявлен и у заказчика, и у партнёра. Уберут у одного —
+    // ссылка из уведомления перестанет открываться, а человек решит, что ему
+    // не ответили. Поэтому инвариант проверяется здесь, а не догадкой в коде.
+    for (const cabinet of ['organization', 'partner'] as const) {
+      expect(notificationRoute('inbound_reply', { dialogId: 'd1' }, cabinet), cabinet).toBe(
+        `/${cabinet}/messages?tab=manager&dialog=d1`
+      );
+      expect(notificationRoute('inbound_reply', {}, cabinet), cabinet).toBe(
+        `/${cabinet}/messages?tab=manager`
+      );
+    }
+  });
+});

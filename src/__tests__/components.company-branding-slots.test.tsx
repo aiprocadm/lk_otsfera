@@ -232,6 +232,28 @@ describe('CompanyBrandingSlots', () => {
     );
   });
 
+  it('незнакомый код отказа удаления переводится общим словарём', async () => {
+    // В словаре экрана перечислены только особые причины; всё прочее обязано
+    // получить человеческую фразу, иначе в плашке появится английский код.
+    deleteAction.mockResolvedValue({ ok: false, error: 'internal' });
+    const { container } = mount([view()]);
+    fireEvent.click(
+      within(
+        container.querySelector('[data-testid="branding-slot-logo"]') as HTMLElement
+      ).getByRole('button', { name: 'Удалить' })
+    );
+    await waitFor(() =>
+      expect(
+        container.querySelector('[data-testid="branding-slot-logo"] [role="alert"]')
+      ).toBeTruthy()
+    );
+    const text =
+      container.querySelector('[data-testid="branding-slot-logo"] [role="alert"]')?.textContent ??
+      '';
+    expect(text).not.toBe('internal');
+    expect(/[а-яА-Я]/.test(text)).toBe(true);
+  });
+
   it('удаление зовёт действие с кабинетом и слотом; отказ показывается', async () => {
     const { container } = mount([view()]);
     fireEvent.click(

@@ -269,6 +269,9 @@ export async function getOrganizationCard(
   // карточки продолжал фильтровать по закреплению — гард пускал, карточка
   // отдавала null, и страница показывала «не найдено». Поймано живой проверкой
   // на стенде 30.07.2026.
+  // Личный список закреплений партнёрского пользователя: пустой означает
+  // «весь портфель», непустой — только перечисленное.
+  const assignedOrgIds = session.assignedOrgIds ?? [];
   const visible =
     session.role === 'admin'
       ? // Model A: администратор работает через зеркало `/admin`, скоуп ему
@@ -283,8 +286,10 @@ export async function getOrganizationCard(
             // персональный скоуп (`assignedOrgIds`) сужает её ещё раз.
             !!session.partnerId &&
             org.partnerId === session.partnerId &&
-            ((session.assignedOrgIds ?? []).length === 0 ||
-              (session.assignedOrgIds ?? []).includes(orgId))
+            // Список читаем ОДИН раз: два `?? []` подряд означали бы, что
+            // второй запасной список достижим, а его не бывает — до него
+            // доходит только непустой список.
+            (assignedOrgIds.length === 0 || assignedOrgIds.includes(orgId))
           : teamMode
             ? !!session.companyId && org.companyId === session.companyId
             : canSeeOrganization(session, orgId) || isLeaderSameCompany(session, org.companyId);

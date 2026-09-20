@@ -123,6 +123,24 @@ describe('OrgCardTabs — header + nav', () => {
     expect(html).toContain('data-testid="org-tab-orders" data-active="true"');
     expect(html).toContain('data-testid="org-tab-history" data-active="false"');
   });
+
+  it('свой сборщик адресов вкладок уважается — карточка живёт в разных кабинетах', () => {
+    // По умолчанию вкладка переключается параметром `?tab=`. У партнёра
+    // карточка организации лежит глубже (`/partner/portfolio/<id>`), и адрес
+    // строит вызывающий. Проигнорируй компонент этот параметр — вкладки увели
+    // бы человека из его кабинета.
+    const card = makeCard({});
+    const html = renderToString(
+      React.createElement(OrgCardTabs, {
+        card,
+        activeTab: 'orders',
+        tabs: MANAGER_TABS,
+        hrefFor: (key: string) => `/partner/portfolio/org-1?tab=${key}`,
+      })
+    );
+    expect(html).toContain('href="/partner/portfolio/org-1?tab=orders"');
+    expect(html).not.toContain('href="?tab=orders"');
+  });
 });
 
 describe('OrgCardTabs — orders section', () => {

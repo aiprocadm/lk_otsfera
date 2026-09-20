@@ -101,4 +101,27 @@ describe('PartnerMessagesPage', () => {
       'REDIRECT:/partner/messages?tab=manager&missing=1'
     );
   });
+
+  it('`?dialog=` открывает выбранную переписку, а не только список', async () => {
+    // Ссылку на переписку присылают в уведомлении. Не подставь страница сам
+    // диалог — человек попадал бы в список и искал бы нужный разговор заново.
+    flags({ cabinet_questions: true });
+    await render({ dialog: 'd1' });
+    expect(getCabinetDialog).toHaveBeenCalledWith({}, SESSION, 'd1');
+  });
+
+  it('вкладка из адреса, которой нет под флагами, открывает доступную', async () => {
+    // `?tab=orders` при выключенном чате — обычная старая ссылка. Пустой
+    // экран вместо переписки был бы тупиком (§15).
+    flags({ cabinet_questions: true });
+    const { container } = await render({ tab: 'orders' });
+    expect(container.textContent).toContain('Переписка с менеджером');
+    expect(container.querySelector('[data-testid="order-threads"]')).toBeNull();
+  });
+
+  it('пришёл по недоступной ссылке — объяснение на экране, а не пустой список', async () => {
+    flags({ cabinet_questions: true });
+    const { container } = await render({ missing: '1' });
+    expect(container.textContent).toContain('Переписка');
+  });
 });

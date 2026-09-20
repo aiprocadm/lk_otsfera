@@ -69,7 +69,10 @@ const input = (code: string, over: Partial<CatalogItemInput> = {}): CatalogItemI
 });
 const row = (line: number, code: string): CatalogImportRow => ({ line, input: input(code) });
 
-function fakePrisma(existing: Array<{ id: string; code: string }> = []) {
+function fakePrisma(
+  existing: Array<{ id: string; code: string }> = [],
+  beforeOver: Record<string, unknown> = {}
+) {
   // Первый findMany — сопоставление по code (preview), второй — снимок «как
   // было» для per-item аудита обновлений (Decimal-поля мокаются toFixed'ом).
   const beforeRows = existing.map((e) => ({
@@ -80,6 +83,7 @@ function fakePrisma(existing: Array<{ id: string; code: string }> = []) {
     vatRate: null,
     vatIncluded: true,
     unit: 'person',
+    ...beforeOver,
   }));
   const findMany = vi
     .fn()
@@ -191,6 +195,50 @@ describe('parseCatalogWorkbook — разбор файла', () => {
     const res = await parseCatalogWorkbook(buf, DIRS);
     if (!res.ok) throw new Error('ожидали ok');
     expect(res.rows.map((r) => r.input.unit)).toEqual(['hour', 'person']);
+  });
+
+  it('ставка долей («0.2») понимается так же, как процентом («20%»)', async () => {
+    // Шаблон заполняют и бухгалтеры, и менеджеры: одни пишут «20%», другие
+    // копируют долю из 1С. Понять надо оба вида, иначе половина файлов
+    // отвергается без внятной причины.
+    const buf = await buildXlsx([['А', 'C-1', '', '100', '0.2', '', '', '', '']]);
+    const res = await parseCatalogWorkbook(buf, DIRS);
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.rows[0]!.input.vatRate).toBe('0.2');
+  });
+
+  it('ставка словами — построчная ошибка, а не «не облагается» молча', async () => {
+    // Подставить null означало бы выставить клиенту счёт без НДС по строке,
+    // где НДС есть. Человек должен поправить файл, а не узнать об этом от
+    // бухгалтерии клиента.
+    const buf = await buildXlsx([['А', 'C-1', '', '100', 'двадцать процентов', '', '', '', '']]);
+    const res = await parseCatalogWorkbook(buf, DIRS);
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.rows).toHaveLength(0);
+    expect(res.errors.join(' ')).toMatch(/ставк/i);
+  });
+
+  it('файл только с обязательными колонками разбирается — остальные необязательны', async () => {
+    // Шаблон можно урезать: у половины компаний нет ни направлений, ни
+    // описаний. Отсутствующая колонка обязана читаться как пустая ячейка.
+    const buf = await buildXlsx(
+      [['А', 'C-1', '100']],
+      [
+        `${CATALOG_IMPORT_COLUMNS.name}*`,
+        `${CATALOG_IMPORT_COLUMNS.code}*`,
+        `${CATALOG_IMPORT_COLUMNS.price}*`,
+      ]
+    );
+    const res = await parseCatalogWorkbook(buf, DIRS);
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.errors).toEqual([]);
+    expect(res.rows[0]!.input).toMatchObject({
+      unit: 'person',
+      vatIncluded: true,
+      directionId: null,
+      description: null,
+      sortOrder: 0,
+    });
   });
 
   it('неизвестные единица/ставка/булево/направление — построчные ошибки, разбор продолжается', async () => {
@@ -343,6 +391,21 @@ describe('importCatalogItems — шаг записи', () => {
       entityId: 'co-1',
       after: { created: 1, updated: 1 },
     });
+  });
+
+  it('прежняя ставка НДС попадает в журнал числом, а не объектом Decimal', async () => {
+    // История цены — то, по чему потом объясняют клиенту, почему счёт другой.
+    // Объект вместо «0.2000» сделал бы запись нечитаемой, а отличить «ставки
+    // не было» от «ставка была 0 %» стало бы нельзя.
+    const { prisma } = fakePrisma([{ id: 'ci-1', code: 'OT-101' }], {
+      vatRate: { toFixed: () => '0.2000' },
+    });
+    await importCatalogItems(prisma, leaderSession(), {
+      companyId: 'co-1',
+      rows: [row(2, 'OT-101')],
+    });
+    const upd = recordAuditMock.mock.calls.find((c) => c[1].action === 'catalog_item_updated');
+    expect(upd![1].before.vatRate).toBe('0.2000');
   });
 
   it('пустой список строк — без транзакции, но аудит с нулями пишется', async () => {

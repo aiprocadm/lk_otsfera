@@ -456,23 +456,41 @@ function isGroupMode(value: string): value is GroupMode {
 const groupStore = {
   listeners: new Set<() => void>(),
 
+  /**
+   * Выбор, который НЕ УДАЛОСЬ сохранить.
+   *
+   * В приватном окне и при запрете данных сайта `localStorage` бросает и на
+   * записи. Читай экран только хранилище — переключатель стал бы мёртвой
+   * кнопкой: нажимается и ничего не меняет. Поэтому неудавшаяся запись живёт
+   * в памяти до перезагрузки. Когда запись прошла, память не нужна и
+   * обнуляется: источник истины один, и разъехаться им негде.
+   */
+  memory: null as GroupMode | null,
+
   subscribe(onChange: () => void): () => void {
     groupStore.listeners.add(onChange);
-    // Соседняя вкладка того же кабинета меняет выбор — подхватываем.
-    window.addEventListener('storage', onChange);
+    // Соседняя вкладка того же кабинета меняет выбор — подхватываем. Её
+    // значение свежее нашего, поэтому сессионный слепок сбрасываем.
+    const onStorage = () => {
+      // Значение соседней вкладки свежее нашей памяти.
+      groupStore.memory = null;
+      onChange();
+    };
+    window.addEventListener('storage', onStorage);
     return () => {
       groupStore.listeners.delete(onChange);
-      window.removeEventListener('storage', onChange);
+      window.removeEventListener('storage', onStorage);
     };
   },
 
   read(): GroupMode {
     try {
       const saved = window.localStorage.getItem(GROUP_STORAGE_KEY);
-      return saved && isGroupMode(saved) ? saved : DEFAULT_GROUP_MODE;
+      if (saved && isGroupMode(saved)) return saved;
     } catch {
-      return DEFAULT_GROUP_MODE;
+      /* хранилище недоступно — ниже ответит память сессии */
     }
+    return groupStore.memory ?? DEFAULT_GROUP_MODE;
   },
 
   /** На сервере хранилища нет — там всегда умолчание. */
@@ -483,8 +501,10 @@ const groupStore = {
   write(mode: GroupMode): void {
     try {
       window.localStorage.setItem(GROUP_STORAGE_KEY, mode);
+      groupStore.memory = null;
     } catch {
-      /* не сохранилось — экран всё равно перерисуется на выбранный режим */
+      // Не сохранилось на следующий раз — но в этой сессии выбор действует.
+      groupStore.memory = mode;
     }
     for (const listener of groupStore.listeners) listener();
   },

@@ -150,6 +150,9 @@ async function callProvider(
       error: err instanceof Error ? err.message : String(err),
     });
     return { ok: false, error: 'provider_error' };
+    // Все пути `try`/`catch` выше завершаются `return`, поэтому «обычного»
+    // входа в `finally` не бывает: v8 такую ветку считает, а достичь её нечем.
+    /* v8 ignore next */
   } finally {
     clearTimeout(timer);
   }

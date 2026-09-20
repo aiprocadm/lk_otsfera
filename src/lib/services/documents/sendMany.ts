@@ -127,7 +127,10 @@ export async function sendDocumentsToClients(
   let sent = 0;
   let organizations = 0;
   for (const [, docs] of byOrg) {
+    // Группы собираются из самих документов, поэтому пустой не бывает:
+    // проверка стоит ради типов (`noUncheckedIndexedAccess`).
     const head = docs[0];
+    /* v8 ignore next */
     if (!head) continue;
     /**
      * Первый документ организации несёт письмо, остальные едут приложениями

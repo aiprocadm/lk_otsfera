@@ -53,6 +53,9 @@ export async function createOrgFromQueueRow(
   // `У-89`: пустой ИНН разрешён — организация заводится по названию (в карточке
   // счёта 51 ИНН чаще всего нет). `bad_inn` остаётся для НЕПУСТОГО кривого:
   // человек вписал цифры, и молча их проглотить нельзя.
+  // ИНН у аргумента обязателен (пустая строка означает «его нет»), поэтому
+  // запасное значение недостижимо и стоит ради типов.
+  /* v8 ignore next */
   const raw = normalizeInn(args.inn ?? '');
   const inn = raw === '' ? null : raw;
   if (inn !== null && !isValidInn(inn)) return { ok: false, error: 'bad_inn' };

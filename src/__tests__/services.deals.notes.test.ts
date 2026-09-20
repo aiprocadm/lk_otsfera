@@ -145,6 +145,21 @@ describe('listDealNotes', () => {
     expect(noteFindMany).not.toHaveBeenCalled();
   });
 
+  it('заметка без автора подписана «Импорт из Битрикс24», а не пустотой', async () => {
+    // Перенесённые заметки автора не имеют: в Битрикс24 его могли удалить.
+    // Пустая подпись читается как ошибка переноса — а перенос как раз в
+    // порядке, и заметку надо показать.
+    const t = new Date('2026-07-20T10:00:00.000Z');
+    const { prisma } = makePrisma({
+      deal: { id: 'd-1' },
+      notes: [{ id: 'n-1', body: 'Из Битрикса', createdAt: t, author: null }],
+    });
+    expect(await listDealNotes(prisma, MGR, { dealId: 'd-1' })).toEqual({
+      ok: true,
+      rows: [{ id: 'n-1', body: 'Из Битрикса', authorName: 'Импорт из Битрикс24', createdAt: t }],
+    });
+  });
+
   it('маппинг рядов: author.name → authorName; сортировка desc и take 200', async () => {
     const t1 = new Date('2026-07-20T10:00:00.000Z');
     const t2 = new Date('2026-07-21T10:00:00.000Z');

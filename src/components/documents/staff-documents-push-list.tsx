@@ -116,6 +116,10 @@ export function StaffDocumentsPushList({
   }
 
   async function pushSelected() {
+    // Кнопка при пустом наборе `disabled`, поэтому через интерфейс сюда не
+    // попасть: проверка стоит на случай нового вызывающего (§11b — помечаем
+    // недостижимое, а не изображаем покрытие кликом по выключенной кнопке).
+    /* v8 ignore next */
     if (pushable.length === 0) return;
     setBusy(true);
     setError(null);
@@ -148,6 +152,8 @@ export function StaffDocumentsPushList({
    * остальное нельзя: сотрудник будет уверен, что клиент получил всё.
    */
   async function sendSelected() {
+    // Та же история, что и у выгрузки в 1С: кнопка без выбора `disabled`.
+    /* v8 ignore next */
     if (selected.size === 0) return;
     setSending(true);
     setError(null);

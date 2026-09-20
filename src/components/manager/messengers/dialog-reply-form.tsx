@@ -65,6 +65,11 @@ export function DialogReplyForm({
 
   const note = useFormAction<{ messageId: string }>({
     action: (formData) =>
+      // Поле `text` есть в форме в обоих режимах и помечено `required`, а
+      // повторный сабмит во время отправки React отбрасывает — поэтому `null`
+      // сюда не приходит, и запасное значение недостижимо. Убирать его нельзя:
+      // без него `String(null)` отправил бы коллегам заметку со словом «null».
+      /* v8 ignore next */
       addDialogNoteAction({ dialogId, text: String(formData.get('text') ?? '') }),
     errorMap: ERROR_LABEL,
     refresh: true,

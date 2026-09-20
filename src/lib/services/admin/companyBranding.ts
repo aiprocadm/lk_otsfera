@@ -197,7 +197,7 @@ const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
  * (XXE), встроенный HTML через `foreignObject`, ссылки на скрипты, SMIL-
  * анимация атрибутов, `data:`-документы.
  */
-const SVG_DANGEROUS: Array<{ re: RegExp; why: string }> = [
+const SVG_DANGEROUS: Array<{ re: RegExp; why: string; on?: 'squashed' }> = [
   // `NS` — необязательный префикс пространства имён: `<svg:script>` исполняется
   // так же, как `<script>`, а простой поиск `<script` его не видит (второй
   // заход ревью PR-3).
@@ -205,8 +205,11 @@ const SVG_DANGEROUS: Array<{ re: RegExp; why: string }> = [
   // Разделителем перед обработчиком годится и пробел, и слэш, и кавычка
   // (`<svg/onload=`, `<set attributeName="onload"`).
   { re: /[\s/"']on[a-z]+\s*=/i, why: 'обработчик события' },
-  { re: /javascript\s*:/i, why: 'javascript-ссылка' },
-  { re: /data\s*:\s*text\/html/i, why: 'встроенный HTML-документ' },
+  // Схемы ссылок проверяются по «сжатой» копии текста (см. ниже): браузер
+  // выбрасывает пробельные и управляющие символы ВНУТРИ схемы, поэтому
+  // `java&#9;script:` для него — обычный `javascript:`.
+  { re: /javascript:/i, why: 'javascript-ссылка', on: 'squashed' },
+  { re: /data:text\/html/i, why: 'встроенный HTML-документ', on: 'squashed' },
   { re: /<\s*(?:[a-z0-9_-]+:)?foreignObject/i, why: 'встроенный HTML' },
   { re: /<!\s*ENTITY/i, why: 'внешняя сущность (XXE)' },
   { re: /<!\s*DOCTYPE[^>]*\[/i, why: 'внутреннее подмножество DTD' },
@@ -258,7 +261,11 @@ function validateImage(
       return { ok: false, message: 'Файл не похож на SVG.' };
     }
     const text = decodeEntities(buffer.toString('utf8'));
-    const hit = SVG_DANGEROUS.find(({ re }) => re.test(text));
+    // Копия без пробельных и управляющих символов — для проверки схем ссылок.
+    // Остальным признакам пробел нужен как разделитель (`<svg/onload=`),
+    // поэтому их проверяем по исходному тексту.
+    const squashed = text.replace(/[\s\u0000-\u001f]+/g, '');
+    const hit = SVG_DANGEROUS.find(({ re, on }) => re.test(on === 'squashed' ? squashed : text));
     if (hit) {
       return { ok: false, message: `SVG отклонён: ${hit.why} внутри файла.` };
     }

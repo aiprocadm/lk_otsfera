@@ -126,6 +126,20 @@ describe('notifyManagersClientRequestSubmitted — org-заявка', () => {
     });
   });
 
+  it('заявка с сайта у организации: исключать некого — ключ «кроме автора» не шлём', async () => {
+    // У заявки с сайта автора-пользователя нет. Передай мы `excludeUserId:
+    // undefined`, выборка получателей поняла бы это как «исключить никого» —
+    // но `exactOptionalPropertyTypes` различает отсутствие ключа и undefined,
+    // и в аргументах он появляться не должен вовсе.
+    resolveOrgManagerRecipients.mockResolvedValue([{ id: 'm1' }]);
+    const { prisma } = db();
+    await notifyManagersClientRequestSubmitted(
+      prisma,
+      request({ source: 'website', organizationId: 'o1', partnerId: null, submittedByUserId: null })
+    );
+    expect(resolveOrgManagerRecipients).toHaveBeenCalledWith(prisma, 'o1', {});
+  });
+
   it('повтор за час (deduped: true) — строка «×N», доставка этому получателю не зовётся', async () => {
     resolveOrgManagerRecipients.mockResolvedValue([{ id: 'm1' }, { id: 'm2' }]);
     recordNotification
@@ -190,6 +204,17 @@ describe('notifyManagersClientRequestSubmitted — партнёрская зая
     expect(resolveOrgManagerRecipients).not.toHaveBeenCalled();
     expect(omFindMany).not.toHaveBeenCalled();
     expect(recordNotification).not.toHaveBeenCalled();
+  });
+
+  it('организация исчезла — событие правилам уходит без компании, а не падает', async () => {
+    // Между приёмом обращения и рассылкой организацию могли удалить. Событие
+    // автоматизации при этом не должно ронять приём: правило просто не найдёт
+    // компанию и не сработает.
+    resolveOrgManagerRecipients.mockResolvedValue([]);
+    const { prisma } = db({ organization: { findUnique: vi.fn().mockResolvedValue(null) } });
+    await expect(
+      notifyManagersClientRequestSubmitted(prisma, request({ organizationId: 'o-gone' }))
+    ).resolves.toBeUndefined();
   });
 
   it('best-effort: сбой резолва получателей проглатывается с log.warn', async () => {

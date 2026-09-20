@@ -113,6 +113,43 @@ describe('loadQueuePage (У-90)', () => {
     });
   });
 
+  it('организацию-кандидата удалили между запросами — имя null, строка не пропадает', async () => {
+    // Список строк и список имён читаются двумя запросами. Организацию могли
+    // удалить между ними: строка очереди обязана остаться на экране (её ещё
+    // разбирать), просто без подсказки-имени.
+    listQueue.mockResolvedValue({
+      rows: [
+        {
+          id: 'r9',
+          externalId: '0000-9',
+          paidAt: new Date('2026-06-03T00:00:00.000Z'),
+          amount: '500',
+          isRefund: false,
+          purpose: null,
+          counterpartyName: 'ООО «Исчезнувшая»',
+          counterpartyInn: null,
+          counterpartyKey: 'ИСЧЕЗНУВШАЯ',
+          accountCandidates: null,
+          candidateOrgId: 'org-gone',
+          candidateOrderId: null,
+          matchMethod: 'name_fuzzy',
+          batch: { companyId: 'co-1' },
+        },
+      ],
+      total: 1,
+    });
+    listQueueOrgNames.mockResolvedValue(new Map());
+
+    const res = await loadQueuePage({} as never, session, {});
+
+    expect(res.rows[0]).toMatchObject({
+      candidateOrgId: 'org-gone',
+      candidateOrgName: null,
+      // Списка счетов в строке тоже может не быть — экран ждёт массив.
+      accountCandidates: [],
+    });
+  });
+
   it('строка без кандидата не тянет имена организаций', async () => {
     listQueue.mockResolvedValue({
       rows: [

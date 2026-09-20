@@ -73,4 +73,22 @@ describe('PaymentQueueTable', () => {
     expect(html).toContain('Очередь пуста');
     expect(html).not.toContain('Привязать');
   });
+
+  it('пусто ПОД ФИЛЬТРОМ — это не «всё сопоставлено», а «снимите фильтр»', () => {
+    // Два разных сообщения не для красоты: «очередь пуста» под активным
+    // фильтром означало бы, что работы нет, и человек ушёл бы, не разобрав
+    // оставшиеся оплаты.
+    const html = renderToString(
+      <PaymentQueueTable
+        rows={[]}
+        total={0}
+        take={50}
+        skip={0}
+        basePath="/x"
+        searchParams={{ inn: '7707083893' }}
+      />
+    );
+    expect(html).toContain('снимите фильтры');
+    expect(html).not.toContain('все оплаты сопоставлены');
+  });
 });

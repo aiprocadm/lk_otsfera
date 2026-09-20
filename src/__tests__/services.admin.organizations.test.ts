@@ -93,6 +93,18 @@ describe('listOrganizations()', () => {
     expect(whereArg.partnerId).toBe('p42');
   });
 
+  it('фильтр «без ИНН» отбирает именно пустые, а не «любые»', async () => {
+    // Это рабочий список для дозаполнения реквизитов: потеряйся условие —
+    // сотрудник получил бы ВСЕ организации и не понял бы, какие чинить.
+    const findMany = vi.fn().mockResolvedValue([]);
+    const count = vi.fn().mockResolvedValue(0);
+    const prisma = makePrisma({ organization: { findMany, count } });
+
+    await listOrganizations(prisma, { withoutInn: true });
+
+    expect(findMany.mock.calls[0][0].where.inn).toBeNull();
+  });
+
   it('withRateOverride:true maps to where.partnerCommissionRate = { not: null }', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const count = vi.fn().mockResolvedValue(0);

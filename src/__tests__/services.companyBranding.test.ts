@@ -306,6 +306,12 @@ describe('uploadCompanyBrandingAsset — формат и содержимое', 
       // Префикс пространства имён: `<svg:script>` исполняется так же, как
       // `<script>`, а простой поиск `<script` его не видел (второй заход ревью).
       '<svg:svg xmlns:svg="http://www.w3.org/2000/svg"><svg:script>alert(1)</svg:script></svg:svg>',
+      // Именованные сущности: `java&tab;script:` и `java&newline;script:`
+      // браузер читает как `javascript:` — пробельный символ внутри схемы он
+      // выбрасывает. Ищи мы только числовые сущности, эти два прошли бы.
+      '<svg xmlns="http://www.w3.org/2000/svg"><a href="java&tab;script:alert(1)">x</a></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg"><a href="java&newline;script:alert(1)">x</a></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg"><a href="javascript&colon;alert(1)">x</a></svg>',
     ];
     for (const svg of bad) {
       const res = await uploadCompanyBrandingAsset(f.prisma, adminSession(), 'co-1', 'stamp', {
@@ -427,6 +433,36 @@ describe('uploadCompanyBrandingAsset — формат и содержимое', 
     expect(recordAudit).toHaveBeenCalledWith(
       f.prisma,
       expect.objectContaining({ action: 'company_branding_uploaded' })
+    );
+  });
+
+  it('сбои не-Error читаются строкой в журнале, а не «[object Object]»', async () => {
+    // И клиент хранилища, и клиент очереди умеют бросать строку. Расследовать
+    // «почему логотип не загрузился» по записи «[object Object]» невозможно.
+    const f = fake();
+    upload.mockRejectedValueOnce('хранилище закрыто');
+    expect(
+      await uploadCompanyBrandingAsset(f.prisma, adminSession(), 'co-1', 'logo', {
+        buffer: PNG,
+        mime: 'image/png',
+      })
+    ).toEqual({ ok: false, error: 'storage' });
+    expect(logError).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ error: 'хранилище закрыто' })
+    );
+
+    const g = fake();
+    queueAdd.mockRejectedValueOnce('очередь закрыта');
+    expect(
+      await uploadCompanyBrandingAsset(g.prisma, adminSession(), 'co-1', 'logo', {
+        buffer: PNG,
+        mime: 'image/png',
+      })
+    ).toEqual({ ok: true });
+    expect(logWarn).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ error: 'очередь закрыта' })
     );
   });
 

@@ -97,6 +97,25 @@ describe('ManagerOrdersTable', () => {
     expect(html).toContain('cursor=cur1');
   });
 
+  it('фильтр по компании переживает пагинацию, а пустая компания строки — прочерк', () => {
+    // Админ смотрит заказы всех компаний и отбирает по одной. Потеряйся
+    // `companyId` в ссылке «Дальше» — вторая страница показала бы заказы
+    // ЧУЖИХ компаний, и человек решил бы, что фильтр не работает.
+    const html = renderToString(
+      React.createElement(ManagerOrdersTable, {
+        // Колонка компании — расширение строки, поэтому склеиваем её отдельно.
+        rows: [{ ...makeRow({}), company: null }],
+        nextCursor: 'cur1',
+        searchParams: { companyId: 'co-7' },
+        showCompany: true,
+      })
+    );
+    expect(html).toContain('companyId=co-7');
+    expect(html).toContain('cursor=cur1');
+    // Колонка компании есть, но у заказа её нет — честный прочерк, а не пусто.
+    expect(html).toContain('—');
+  });
+
   it('respects a custom basePath for both row and next-page links', () => {
     const rows = [makeRow({})];
     const html = renderToString(

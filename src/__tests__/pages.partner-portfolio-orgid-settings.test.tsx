@@ -123,6 +123,24 @@ describe('OrgSettingsPage', () => {
     expect(container.textContent).not.toContain('Ставка комиссии партнёра для этой организации');
   });
 
+  it('у организации нет своей ставки — показываем «базовая», а не ноль процентов', async () => {
+    // `null` и `0` — разные вещи: ноль означал бы «партнёру не платим».
+    // `Number(null)` дал бы именно ноль, поэтому проверка на `null` здесь не
+    // формальность.
+    requirePartnerAdmin.mockResolvedValue(SESSION);
+    canPartnerAccessOrg.mockResolvedValue(true);
+    getOrgCard.mockResolvedValue({
+      ...BASE_CARD,
+      partnerCommissionRate: null,
+      partnerCommissionRateNote: null,
+    });
+
+    const { container } = await renderServerComponent(
+      OrgSettingsPage({ params: Promise.resolve({ orgId: 'org-1' }) })
+    );
+    expect(container.textContent).not.toContain('0 %');
+  });
+
   it('§15: экран объясняет себя подзаголовком', async () => {
     requirePartnerAdmin.mockResolvedValue(SESSION);
     canPartnerAccessOrg.mockResolvedValue(true);

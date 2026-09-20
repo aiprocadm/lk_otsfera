@@ -36,6 +36,19 @@ describe('listUsers', () => {
     expect(findManyArgs.where).toMatchObject({ role: 'partner', isActive: true });
   });
 
+  it('фильтр по компании доезжает до выборки', async () => {
+    // У администратора компаний несколько, и список сотрудников без этого
+    // условия показал бы чужих — с правом на них, но не из той компании.
+    const prisma = {
+      user: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) },
+    } as unknown as Parameters<typeof listUsers>[0];
+
+    await listUsers(prisma, ADMIN_SESSION, { companyId: 'co-7' });
+
+    const findManyArgs = (prisma.user.findMany as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(findManyArgs.where).toMatchObject({ companyId: 'co-7' });
+  });
+
   it('собирает OR-clause для q-поиска по email и name', async () => {
     const prisma = {
       user: {

@@ -396,6 +396,60 @@ describe('acceptProposal — статус, журнал и уведомлени�
     });
   });
 
+  it('скидка строки переезжает в заказ, а не теряется по дороге', async () => {
+    // Клиент видел цену со скидкой в предложении. Потеряй её заказ — счёт
+    // выставится на полную сумму, и разбираться будет уже бухгалтерия клиента.
+    const { prisma, orderCreate } = makePrisma({
+      doc: { lines: [{ ...LINE, discountPercent: '15.00', vatRate: '0.1000' }] },
+    });
+    await acceptProposal(prisma, STAFF(), { documentId: 'kp-1' });
+    const data = orderCreate.mock.calls[0]![0].data as {
+      lines: { create: Array<Record<string, unknown>> };
+    };
+    expect(String(data.lines.create[0]!.discountPercent)).toBe('15.00');
+    expect(String(data.lines.create[0]!.vatRate)).toBe('0.1000');
+  });
+
+  it('документ исчез между проверкой и сменой статуса → «не найдено», а не «переход запрещён»', async () => {
+    // Это разные новости: «переход запрещён» человек пойдёт чинить статусами,
+    // а документа уже нет вовсе. Заказ здесь НЕ создаётся (сделка уже несёт
+    // заполненный) — иначе ответом был бы `status_failed` с его id.
+    setDocumentStatus.mockResolvedValue({ ok: false, error: 'not_found' });
+    const { prisma } = makePrisma({
+      doc: { dealId: 'deal-1' },
+      deal: {
+        id: 'deal-1',
+        companyId: 'co-A',
+        organizationId: 'org-1',
+        managerId: null,
+        orderId: 'ord-old',
+      },
+      order: { id: 'ord-old', externalId: null, _count: { lines: 3 } },
+    });
+    expect(await acceptProposal(prisma, STAFF(), { documentId: 'kp-1' })).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+
+    // И обратная сторона: любой другой отказ матрицы — «переход запрещён».
+    setDocumentStatus.mockResolvedValue({ ok: false, error: 'forbidden' });
+    const second = makePrisma({
+      doc: { dealId: 'deal-1' },
+      deal: {
+        id: 'deal-1',
+        companyId: 'co-A',
+        organizationId: 'org-1',
+        managerId: null,
+        orderId: 'ord-old',
+      },
+      order: { id: 'ord-old', externalId: null, _count: { lines: 3 } },
+    });
+    expect(await acceptProposal(second.prisma, STAFF(), { documentId: 'kp-1' })).toEqual({
+      ok: false,
+      error: 'invalid_transition',
+    });
+  });
+
   it('в журнале видно, создан ли заказ и сколько строк переехало', async () => {
     const { prisma } = makePrisma();
     await acceptProposal(prisma, STAFF(), { documentId: 'kp-1' });
@@ -404,6 +458,14 @@ describe('acceptProposal — статус, журнал и уведомлени�
       entity: 'document',
       entityId: 'kp-1',
       after: { orderId: 'ord-new', orderCreated: true, linesTransferred: 1 },
+    });
+  });
+
+  it('уведомление бросило не-Error — принятие всё равно состоялось', async () => {
+    notifyManagers.mockRejectedValue('почта недоступна');
+    const { prisma } = makePrisma();
+    expect(await acceptProposal(prisma, STAFF(), { documentId: 'kp-1' })).toMatchObject({
+      ok: true,
     });
   });
 

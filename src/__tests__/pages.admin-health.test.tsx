@@ -39,16 +39,21 @@ vi.mock('@/components/admin/retry-all-button', () => ({
 // `У-126`: форма оповещений — клиентский компонент, ей нужен роутер. Тест
 // проверяет серверную страницу, а не её внутренности.
 vi.mock('@/components/admin/alert-settings-form', () => ({
-  AlertSettingsForm: (props: { initial: { queueWaitingMax: string } }) =>
+  AlertSettingsForm: (props: { initial: Record<string, string>; telegramTokenSet: boolean }) =>
     React.createElement(
       'div',
-      { 'data-testid': 'alert-settings-form' },
-      props.initial.queueWaitingMax
+      { 'data-testid': 'alert-settings-form', 'data-token-set': String(props.telegramTokenSet) },
+      JSON.stringify(props.initial)
     ),
 }));
 
 // Настройки читаются со страницы; пустой список = умолчания из кода.
-vi.mock('@/lib/config/integrationSettings', () => ({ getSettingsView: async () => [] }));
+// `У-126`: пороги и канал доставки читаются той же витриной настроек. По
+// умолчанию строк нет — форма показывает пустые поля.
+const { getSettingsView } = vi.hoisted(() => ({
+  getSettingsView: vi.fn(async () => [] as Array<Record<string, unknown>>),
+}));
+vi.mock('@/lib/config/integrationSettings', () => ({ getSettingsView }));
 
 vi.mock('@/components/admin/alerts-section', () => ({
   AlertsSection: (props: { alerts: unknown[] }) =>
@@ -77,6 +82,7 @@ describe('AdminHealthPage', () => {
     listAlertStates.mockResolvedValue({ ok: true, alerts: [] });
     listSyncErrors.mockReset();
     listSyncErrors.mockResolvedValue([]);
+    getSettingsView.mockReset().mockResolvedValue([]);
   });
 
   it('renders sync lag rows with lag label/badge tiers (seconds/minutes/hours/days) and error highlight', async () => {
@@ -144,6 +150,31 @@ describe('AdminHealthPage', () => {
     const { container } = await renderServerComponent(AdminHealthPage());
 
     expect(container.querySelector('[data-testid="alerts-section"]')?.textContent).toBe('[]');
+  });
+
+  it('`У-126`: сохранённые пороги подставляются в форму, а токен виден как «задан»', async () => {
+    // Пустые поля при заданных порогах — тихая потеря настроек: человек решит,
+    // что ничего не настроено, введёт заново и перезапишет чужие значения.
+    // Токен при этом не показывается: форме достаточно знать, что он есть.
+    requireSettingsSection.mockResolvedValue(SESSION);
+    getSyncLag.mockResolvedValue([]);
+    getQueueStats.mockResolvedValue([]);
+    getDlq.mockResolvedValue([]);
+    getSettingsView.mockResolvedValue([
+      { key: 'alerts.queueWaitingMax', value: '500', isSet: true },
+      { key: 'alerts.telegramChatId', value: '-100123', isSet: true },
+      { key: 'alerts.telegramBotToken', value: null, isSet: true },
+    ]);
+
+    const { container } = await renderServerComponent(AdminHealthPage());
+
+    const form = container.querySelector('[data-testid="alert-settings-form"]')!;
+    const initial = JSON.parse(form.textContent ?? '{}') as Record<string, string>;
+    expect(initial.queueWaitingMax).toBe('500');
+    expect(initial.telegramChatId).toBe('-100123');
+    // Ключа в базе нет — поле пустое, а не «null».
+    expect(initial.dlqMax).toBe('');
+    expect(form.getAttribute('data-token-set')).toBe('true');
   });
 
   it('renders lagMs:null as em-dash badge, empty sync/queue/dlq states, and catches all section rejections', async () => {

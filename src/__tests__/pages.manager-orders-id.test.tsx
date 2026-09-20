@@ -309,6 +309,22 @@ describe('ManagerOrderDetailPage', () => {
     expect(getDealActivity).not.toHaveBeenCalled();
   });
 
+  it('сотрудник без компании: сделку не спрашиваем вовсе (деградация в «ничего»)', async () => {
+    // Без компании границы изоляции нет. Спросить сделку «как получится»
+    // значило бы показать чужую — поэтому цепочка «обращение → лид → сделка»
+    // просто не строится, а страница открывается.
+    requireManager.mockResolvedValue({ sub: 'u1', role: 'manager' as const, companyId: null });
+    loadManagerOrderDetail.mockResolvedValue(BASE_DATA);
+    listDirections.mockResolvedValue({ ok: false, error: 'forbidden' });
+    getValuesForEntity.mockResolvedValue({ ok: false, error: 'forbidden' });
+    getDealActivity.mockResolvedValue({ ok: false, error: 'forbidden' });
+    isFeatureEnabled.mockReturnValue(false);
+
+    await renderServerComponent(ManagerOrderDetailPage({ params: Promise.resolve({ id: 'o1' }) }));
+
+    expect(loadOrderDeal).not.toHaveBeenCalled();
+  });
+
   it('renders the order detail view with a /manager/orders back link, using org-scoped students when organizationId is present', async () => {
     requireManager.mockResolvedValue(SESSION);
     loadManagerOrderDetail.mockResolvedValue(BASE_DATA);

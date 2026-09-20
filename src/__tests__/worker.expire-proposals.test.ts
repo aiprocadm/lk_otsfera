@@ -1,17 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 
-const { setDocumentStatus, logWarn, logError, logInfo, liveFindMany } = vi.hoisted(() => ({
-  setDocumentStatus: vi.fn(),
-  logWarn: vi.fn(),
-  logError: vi.fn(),
-  logInfo: vi.fn(),
-  liveFindMany: vi.fn(async () => [] as Array<{ id: string }>),
-}));
+const { setDocumentStatus, logWarn, logError, logInfo, liveFindMany, emitAutomationEvent } =
+  vi.hoisted(() => ({
+    setDocumentStatus: vi.fn(),
+    // Тип объявлен явно: без параметров `mock.calls` получает пустой кортеж,
+    // и обращение к `calls[0][1]` не проходит проверку типов.
+    emitAutomationEvent: vi.fn<(prisma: unknown, args: unknown) => Promise<number>>(async () => 0),
+    logWarn: vi.fn(),
+    logError: vi.fn(),
+    logInfo: vi.fn(),
+    liveFindMany: vi.fn(async () => [] as Array<{ id: string }>),
+  }));
 // Обёртка задачи берёт базу сама (`await import`), поэтому модуль подменяем:
 // иначе тест поднял бы настоящего клиента Prisma и полез в базу.
 vi.mock('@/lib/db/prisma', () => ({ prisma: { document: { findMany: liveFindMany } } }));
 vi.mock('@/lib/services/documents/status', () => ({ setDocumentStatus }));
+// `У-222`: истечение предложения — событие для правил автоматизации. Без мока
+// диспетчер полез бы в отсутствующие таблицы мок-базы и молча вернул ноль, и
+// проверить содержимое события было бы нечем.
+vi.mock('@/lib/automation/dispatch', () => ({ emitAutomationEvent }));
 vi.mock('@/lib/logging', () => ({
   log: { warn: logWarn, error: logError, info: logInfo },
 }));
@@ -29,7 +37,18 @@ import { expiredProposalsWhere } from '@/lib/documents/proposalExpiry';
  */
 const NOW = new Date('2026-09-16T22:00:00.000Z');
 
-function makePrisma(docs: Array<{ id: string; sentById: string | null }>) {
+type DocRow = {
+  id: string;
+  sentById: string | null;
+  counterpartyType?: string;
+  counterpartyId?: string | null;
+  number?: string;
+  companyId?: string;
+  orderId?: string | null;
+  leadId?: string | null;
+};
+
+function makePrisma(docs: DocRow[]) {
   // Аргумент объявлен явно: без него `mock.calls` получает пустой кортеж, и
   // обращение к `calls[0][0]` не собирается.
   const findMany = vi.fn(async (args: { where?: unknown; take?: number; orderBy?: unknown }) => {
@@ -43,6 +62,7 @@ function makePrisma(docs: Array<{ id: string; sentById: string | null }>) {
 beforeEach(() => {
   vi.clearAllMocks();
   setDocumentStatus.mockResolvedValue({ ok: true });
+  emitAutomationEvent.mockResolvedValue(0);
 });
 
 describe('runExpireProposals — выборка', () => {
@@ -125,6 +145,58 @@ describe('runExpireProposals — одна плохая строка не руш�
       failed: 1,
     });
     expect(logWarn).toHaveBeenCalled();
+  });
+
+  it('событие правилам несёт организацию ТОЛЬКО когда адресат — организация', async () => {
+    // Предложение выставляют и лиду, и организации. Подставить `counterpartyId`
+    // лида в поле `organizationId` — значит отправить правило искать
+    // организацию с идентификатором лида: правило либо не сработает, либо
+    // сработает не на том клиенте.
+    const { prisma } = makePrisma([
+      {
+        id: 'd-org',
+        sentById: 'u1',
+        number: 'КП-1',
+        companyId: 'co-1',
+        counterpartyType: 'organization',
+        counterpartyId: 'org-7',
+        orderId: 'ord-1',
+        leadId: null,
+      },
+      {
+        id: 'd-lead',
+        sentById: 'u1',
+        number: 'КП-2',
+        companyId: 'co-1',
+        counterpartyType: 'lead',
+        counterpartyId: 'lead-9',
+        orderId: null,
+        leadId: 'lead-9',
+      },
+    ]);
+
+    await runExpireProposals(prisma, NOW);
+
+    expect(emitAutomationEvent).toHaveBeenCalledTimes(2);
+    expect(emitAutomationEvent.mock.calls[0]![1]).toMatchObject({
+      trigger: 'proposal_no_answer',
+      payload: expect.objectContaining({ documentId: 'd-org', organizationId: 'org-7' }),
+    });
+    expect(emitAutomationEvent.mock.calls[1]![1]).toMatchObject({
+      payload: expect.objectContaining({ documentId: 'd-lead', organizationId: null }),
+    });
+  });
+
+  it('исключение не-Error на бумаге тоже читается строкой', async () => {
+    // Иначе в журнале ночного захода вместо причины окажется «[object Object]»,
+    // и утром никто не поймёт, почему документ не истёк.
+    setDocumentStatus.mockRejectedValueOnce('пользователь удалён');
+    const { prisma } = makePrisma([{ id: 'd1', sentById: 'u1' }]);
+    expect(await runExpireProposals(prisma, NOW)).toMatchObject({ expired: 0, failed: 1 });
+    expect(logError).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ error: 'пользователь удалён' })
+    );
   });
 
   it('исключение на одной бумаге тоже не останавливает остальные', async () => {

@@ -281,6 +281,32 @@ describe('добавление строки', () => {
     expect(refresh).toHaveBeenCalled();
   });
 
+  it('все поля формы правятся руками — строка не обязана повторять каталог', async () => {
+    // Позиция каталога — только заготовка: в заказе бывают и другая единица
+    // измерения, и скидка, и своя ставка НДС, и место в списке. Поле, которое
+    // не редактируется, заставило бы человека заводить строку «мимо каталога».
+    renderSection();
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить строку' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Новая строка' });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Обучение по охране труда/ }));
+
+    fireEvent.change(within(dialog).getByLabelText('Единица'), { target: { value: 'hour' } });
+    fireEvent.change(within(dialog).getByLabelText(/Скидка/), { target: { value: '15' } });
+    fireEvent.change(within(dialog).getByLabelText('Ставка НДС'), { target: { value: '0.1' } });
+    fireEvent.change(within(dialog).getByLabelText(/Порядок/), { target: { value: '3' } });
+    fireEvent.click(within(dialog).getByLabelText(/в сумме|включ/i));
+    fireEvent.submit(within(dialog).getByRole('button', { name: 'Добавить' }).closest('form')!);
+
+    await waitFor(() => expect(addAction).toHaveBeenCalled());
+    const fd = addAction.mock.calls[0]![1] as FormData;
+    expect(fd.get('unit')).toBe('hour');
+    expect(fd.get('discountPercent')).toBe('15');
+    expect(fd.get('vatRate')).toBe('0.1');
+    expect(fd.get('sortOrder')).toBe('3');
+    // Галочку сняли — признак «цена с НДС» в форму не уходит вовсе.
+    expect(fd.get('vatIncluded')).toBeNull();
+  });
+
   it('позиция без НДС подставляет «не облагается» и снимает галочку', async () => {
     renderSection();
     fireEvent.click(screen.getByRole('button', { name: 'Добавить строку' }));

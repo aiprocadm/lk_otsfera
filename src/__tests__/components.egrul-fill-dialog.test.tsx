@@ -115,6 +115,49 @@ describe('EgrulFillDialog (У-94)', () => {
     await waitFor(() => dialog.getByText('уже занят другой организацией', { exact: false }));
   });
 
+  it('незнакомый код отказа не показывается кодом — есть общая понятная фраза', async () => {
+    // В словаре окна перечислены только особые причины. Всё прочее обязано
+    // получить человеческий текст, иначе в окне появится слово вроде
+    // `internal`, по которому непонятно даже, повторять попытку или нет.
+    fillOrgFromEgrulAction.mockResolvedValue({ ok: false, error: 'internal' });
+    const dialog = open();
+    await pickFirst(dialog);
+    fireEvent.click(dialog.getByRole('button', { name: 'Заполнить' }));
+
+    await waitFor(() => dialog.getByText('Не удалось заполнить реквизиты.'));
+  });
+
+  it('название можно поправить руками — ищем не только по имени карточки', async () => {
+    // Поле предзаполнено названием организации, но в ЕГРЮЛ она может быть
+    // записана иначе («Ромашка» против «Ромашка-Плюс»). Без правки поля
+    // человек не нашёл бы ничего и решил бы, что поиск сломан.
+    const dialog = open();
+    const input = dialog.getByLabelText('Название организации') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'Ромашка-Плюс' } });
+    expect(input.value).toBe('Ромашка-Плюс');
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Найти' }));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+    expect(
+      String((global.fetch as unknown as { mock: { calls: string[][] } }).mock.calls[0]![0])
+    ).toContain(encodeURIComponent('Ромашка-Плюс'));
+  });
+
+  it('Escape закрывает окно — из него всегда есть выход', async () => {
+    // `У-74`/§15: окно без выхода, кроме единственной кнопки, — тупик.
+    // Нативный `<dialog>` закрывается по Escape, и компонент обязан узнать об
+    // этом, иначе состояние «открыто» разъедется с тем, что видит человек.
+    const dialog = open();
+    await pickFirst(dialog);
+    const el = document.querySelector('dialog[open]') as HTMLDialogElement;
+    // Escape в нативном `<dialog>` приходит событием `cancel`.
+    fireEvent(el, new Event('cancel', { cancelable: true }));
+
+    await waitFor(() => expect(document.querySelector('dialog[open]')).toBeNull());
+    expect(fillOrgFromEgrulAction).not.toHaveBeenCalled();
+    void dialog;
+  });
+
   it('подсказки не отдались — можно внести вручную, экран не падает', async () => {
     global.fetch = vi.fn().mockRejectedValue(new Error('network')) as never;
     const dialog = open();

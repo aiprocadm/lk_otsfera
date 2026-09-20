@@ -357,6 +357,26 @@ describe('почта в файле уникальна в пределах орг
     expect(res.preview.errors[0]).toContain('Иванов Иван');
   });
 
+  it('сотрудник без почты в справочнике не мешает найти настоящего владельца', async () => {
+    // Поиск владельца почты идёт по всему справочнику, а в нём почты нет у
+    // большинства. Сравнение с такими записями обязано просто не совпадать —
+    // иначе первый же безпочтовый сотрудник «забрал» бы чужую почту, и строка
+    // ушла бы в ошибки с ЕГО фамилией.
+    const { prisma } = prismaWith([
+      { id: 'no-mail', name: 'Безпочтовый Борис', snils: null, birthDate: null, email: null },
+      { id: 'owner', name: 'Иванов Иван', snils: null, birthDate: null, email: 'otdel@firma.ru' },
+    ]);
+    const res = await previewStudentImport(prisma, admin(), {
+      organizationId: ORG,
+      teamMode: false,
+      rows: [ROW],
+    });
+
+    if (!res.ok) throw new Error('ожидали ok');
+    expect(res.preview.errors[0]).toContain('Иванов Иван');
+    expect(res.preview.errors[0]).not.toContain('Борис');
+  });
+
   it('две строки файла с одной почтой: вторая показывает номер первой строки', async () => {
     const { prisma } = prismaWith();
     const res = await previewStudentImport(prisma, admin(), {

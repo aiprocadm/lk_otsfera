@@ -44,6 +44,13 @@ const {
   return m;
 });
 
+// Срок жизни кода и число попыток настраиваются из админки (`У-124`). По
+// умолчанию настройки нет — работают значения из кода.
+const { cachedIntegrationSetting } = vi.hoisted(() => ({
+  cachedIntegrationSetting: vi.fn<(key: string) => string | undefined>(() => undefined),
+}));
+vi.mock('@/lib/config/integrationSettingsCache', () => ({ cachedIntegrationSetting }));
+
 const mockPrisma = {
   twoFactorChallenge: {
     upsert: chUpsert,
@@ -100,6 +107,29 @@ describe('createTwoFactorChallenge', () => {
     const ttl = arg.create.expiresAt.getTime() - before;
     expect(ttl).toBeGreaterThanOrEqual(10 * 60_000 - 100);
     expect(ttl).toBeLessThanOrEqual(10 * 60_000 + 1000);
+  });
+
+  it('срок из настроек важнее умолчания, а мусор в настройке — нет', async () => {
+    // Настройку правят руками в админке. Ноль, минус и «полчаса» обязаны
+    // означать «оставить как было»: код со сроком 0 минут не сработал бы
+    // никогда, и сотрудники перестали бы входить вовсе.
+    chUpsert.mockResolvedValue(undefined);
+    cachedIntegrationSetting.mockReturnValue('3');
+    const before = Date.now();
+    await createTwoFactorChallenge(mockPrisma, 'u1');
+    const ttl = chUpsert.mock.calls[0][0].create.expiresAt.getTime() - before;
+    expect(ttl).toBeGreaterThanOrEqual(3 * 60_000 - 100);
+    expect(ttl).toBeLessThanOrEqual(3 * 60_000 + 1000);
+
+    for (const bad of ['0', '-5', 'полчаса', '']) {
+      chUpsert.mockClear();
+      cachedIntegrationSetting.mockReturnValue(bad);
+      const t0 = Date.now();
+      await createTwoFactorChallenge(mockPrisma, 'u1');
+      const back = chUpsert.mock.calls[0][0].create.expiresAt.getTime() - t0;
+      expect(back, bad).toBeGreaterThanOrEqual(10 * 60_000 - 100);
+    }
+    cachedIntegrationSetting.mockReturnValue(undefined);
   });
 });
 

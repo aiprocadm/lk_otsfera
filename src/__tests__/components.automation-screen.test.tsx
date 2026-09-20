@@ -102,6 +102,28 @@ describe('AutomationScreen — три вопроса и пустые состо�
     );
     expect(screen.getByText('Правил пока нет')).toBeTruthy();
     expect(screen.getByText(/счёт выставлен — через пять дней/i)).toBeTruthy();
+
+    // Кнопка на пустом экране обязана РАБОТАТЬ, а не просто быть нарисованной:
+    // это единственный вход в раздел, пока правил нет (`У-74`).
+    const buttons = screen.getAllByRole('button', { name: '+ Новое правило' });
+    fireEvent.click(buttons[buttons.length - 1]!);
+    expect(screen.getByTestId('rule-form').textContent).toContain('new');
+  });
+
+  it('счётчик срабатываний без даты последнего — прочерк, а не «Invalid Date»', () => {
+    // Строки прежних версий помнят число запусков, но не момент последнего.
+    // `new Date(null)` дал бы «01.01.1970», и человек решил бы, что правило
+    // не работает с семидесятого года.
+    render(
+      <AutomationScreen
+        cabinet="leader"
+        companyId="co-1"
+        companies={[]}
+        rules={[rule({ isActive: true, runsTotal: 5, lastRunAt: null })]}
+        runs={[]}
+      />
+    );
+    expect(screen.getByText(/Срабатывало 5 раз, последний — —/)).toBeTruthy();
   });
 
   it('у руководителя без компании — объяснение, а не пустой список правил', () => {

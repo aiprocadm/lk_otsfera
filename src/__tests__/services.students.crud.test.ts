@@ -391,6 +391,29 @@ describe('почта сотрудника уникальна в организа
     ).resolves.toEqual({ ok: false, error: 'email_taken' });
   });
 
+  it('правка: чужое ограничение и ошибка без meta не выдаются за занятую почту', async () => {
+    // Без края `String(undefined)` дал бы строку «undefined», и проверка
+    // «похоже на email» могла бы совпасть с ней — человек увидел бы «почта
+    // занята» там, где сломалось совсем другое.
+    for (const err of [
+      p2002(['externalStudentId']),
+      Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }),
+      Object.assign(new Error('Unique constraint failed'), { code: 'P2003' }),
+    ]) {
+      const prisma = db();
+      vi.mocked(prisma.student.findUnique).mockResolvedValue({
+        id: 's1',
+        organizationId: ORG,
+        name: 'Петров Пётр',
+      } as never);
+      vi.mocked(prisma.student.update).mockRejectedValue(err);
+
+      await expect(
+        updateStudent(prisma, admin, { id: 's1', teamMode: false, name: 'Петров Пётр' })
+      ).rejects.toThrow('Unique constraint failed');
+    }
+  });
+
   it('создание: имя ограничения вместо списка полей разбирается так же', async () => {
     const prisma = db();
     vi.mocked(prisma.student.create).mockRejectedValue(p2002('Student_organizationId_email_key'));

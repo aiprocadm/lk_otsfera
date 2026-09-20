@@ -78,6 +78,32 @@ describe('notifyPartnerUsers — best-effort email failure', () => {
     consoleSpy.mockRestore();
   });
 
+  it('компания выключила почту правилом — строка есть, письма нет (`У-216`)', async () => {
+    // Правила доставки лежат отдельной таблицей и обязаны доехать до канального
+    // слоя. Не доехали — выключенный на экране канал продолжает слать письма.
+    sendDocMock.mockResolvedValue({ status: 'sent' });
+    const { db, create } = dbWith([{ id: 'u-rule', email: 'r@p.ru' }]);
+    (db as unknown as { notificationRule: unknown }).notificationRule = {
+      findMany: vi.fn().mockResolvedValue([{ companyId: null, channel: 'email', enabled: false }]),
+    };
+
+    const r = await notifyPartnerUsers(db, {
+      partnerId: 'p-1',
+      type: 'document_published',
+      payload: {
+        orderId: 'o-rule',
+        orderNumber: '77',
+        orderTitle: 'Тест',
+        documentName: 'act.pdf',
+        documentType: 'act',
+      },
+    });
+
+    expect(create).toHaveBeenCalledOnce();
+    expect(r.emailsSent).toBe(0);
+    expect(sendDocMock).not.toHaveBeenCalled();
+  });
+
   it('sendEmail returns status=skipped → emailsSkipped++', async () => {
     sendDocMock.mockResolvedValue({ status: 'skipped', reason: 'disabled' });
     const { db } = dbWith([{ id: 'u4', email: 'c@p.ru' }]);

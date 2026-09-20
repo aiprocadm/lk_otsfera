@@ -118,6 +118,29 @@ describe('ManagerMessengersPage', () => {
     expect(listDialogs).toHaveBeenCalledWith({}, SESSION, { page: 1, pageSize: 25 });
   });
 
+  it('фильтр «мои» и «ничьи» доезжает до выборки, чужое слово — нет', async () => {
+    // Это два главных фильтра экрана: «мои» показывает свою работу, «ничьи» —
+    // то, что никто не взял. Потеряйся значение по дороге — сотрудник увидел
+    // бы весь поток компании и решил, что фильтр не работает.
+    listDialogs.mockClear();
+    await renderServerComponent(
+      ManagerMessengersPage({ searchParams: Promise.resolve({ assignee: 'mine' }) })
+    );
+    expect(listDialogs.mock.calls[0]![2]).toMatchObject({ assignee: 'mine' });
+
+    listDialogs.mockClear();
+    await renderServerComponent(
+      ManagerMessengersPage({ searchParams: Promise.resolve({ assignee: 'unassigned' }) })
+    );
+    expect(listDialogs.mock.calls[0]![2]).toMatchObject({ assignee: 'unassigned' });
+
+    listDialogs.mockClear();
+    await renderServerComponent(
+      ManagerMessengersPage({ searchParams: Promise.resolve({ assignee: 'кто-то' }) })
+    );
+    expect(listDialogs.mock.calls[0]![2]).not.toHaveProperty('assignee');
+  });
+
   it('пусто под фильтром — другое объяснение', async () => {
     const { container } = await renderServerComponent(
       ManagerMessengersPage({ searchParams: Promise.resolve({ status: 'open' }) })

@@ -208,6 +208,30 @@ describe('sendInboundReply (service)', () => {
     );
   });
 
+  it('`У-205`: ключ диалога у почты — НОРМАЛИЗОВАННЫЙ адрес, а не сырой отправитель', async () => {
+    // Приём письма кладёт диалог под нормализованным адресом. Ответь мы под
+    // сырым — завёлся бы ВТОРОЙ диалог с тем же человеком, и переписка
+    // разошлась бы надвое: половина у клиента, половина у сотрудника.
+    inboundMessageFindUnique.mockResolvedValue({
+      id: 'im-1',
+      channel: 'email',
+      senderRef: '  Ivan.Petrov@Mail.RU ',
+      subject: 'Счёт',
+      companyId: 'company-a',
+      threadId: null,
+    });
+    replyToInbound.mockResolvedValue({ ok: true });
+
+    expect(
+      await sendInboundReply(prisma, session, { inboundMessageId: 'im-1', text: 'ответ' })
+    ).toEqual({ ok: true });
+
+    expect(recordOutboundInDialog).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ channel: 'email', peerRef: 'ivan.petrov@mail.ru' })
+    );
+  });
+
   it('mirrors into the thread and notifies org users when threadId is bound', async () => {
     inboundMessageFindUnique.mockResolvedValue({
       id: 'im-1',

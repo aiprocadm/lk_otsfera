@@ -53,6 +53,25 @@ function submitPreview() {
   fireEvent.submit(form);
 }
 
+/**
+ * Кладёт в поле файл с ПОДДЕЛАННЫМ размером.
+ *
+ * Настоящие 26 МБ в памяти теста — непозволительная плата за одну проверку,
+ * поэтому размер правим на внутреннем объекте jsdom: именно его читает и
+ * `input.files`, и сборка `FormData` формой.
+ */
+function pickOversizedFile(sizeBytes: number) {
+  const input = dialog().getByTestId('import-catalog-file') as HTMLInputElement;
+  const file = new File(['x'], 'прайс.xlsx');
+  const implSymbol = Object.getOwnPropertySymbols(file)[0]!;
+  const fileImpl = (file as unknown as Record<symbol, object>)[implSymbol]!;
+  Object.defineProperty(fileImpl, 'size', { value: sizeBytes });
+  const fileList = input.files as unknown as File[];
+  const flImplSymbol = Object.getOwnPropertySymbols(fileList)[0]!;
+  (fileList as unknown as Record<symbol, unknown[]>)[flImplSymbol]!.push(fileImpl);
+  fireEvent.change(input);
+}
+
 function okPreview(over: Partial<Record<string, unknown>> = {}) {
   return {
     ok: true as const,
@@ -105,6 +124,20 @@ describe('ImportCatalogDialog — первый шаг «проверить фа�
     expect(fd.get('companyId')).toBe(COMPANY);
     // Файл едет в той же FormData (имя поля читает previewCatalogImportAction).
     expect(fd.has('file')).toBe(true);
+  });
+
+  it('слишком большой файл отсекается ДО отправки — с объяснением, а не сетевой ошибкой', async () => {
+    // Файл больше предела Next отбрасывает раньше входа в действие, и человек
+    // увидел бы «сетевая ошибка» вместо «разбейте на части». Поэтому предел
+    // проверяется на экране.
+    renderDialog();
+    openDialog();
+    pickOversizedFile(26 * 1024 * 1024);
+    submitPreview();
+
+    await waitFor(() => expect(dialog().getByRole('alert')).toBeTruthy());
+    expect(dialog().getByRole('alert').textContent).toContain('разбейте на части');
+    expect(previewAction).not.toHaveBeenCalled();
   });
 
   it('разбитый файл показывает ошибки в error-регионе, а форма остаётся', async () => {
@@ -257,5 +290,53 @@ describe('ImportCatalogDialog — запись', () => {
 
     release({ ok: true, created: 1, updated: 0 });
     await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+});
+
+/**
+ * Краевые пути импорта каталога (`У-137`).
+ *
+ * **Слишком большой файл отсекается ДО отправки.** Файл больше предела Next
+ * отбрасывает на `bodySizeLimit` раньше входа в серверное действие (§11
+ * `CLAUDE.md`) — то есть серверная проверка размера для такого файла
+ * недостижима, и человек получил бы сетевую ошибку вместо объяснения.
+ *
+ * **Сбой сети не молчит** (§15): и на шаге проверки файла, и на шаге записи
+ * человек видит русскую строку и понимает, что делать дальше.
+ */
+describe('ImportCatalogDialog — краевые пути', () => {
+  // Проверку «файл больше предела» здесь не воспроизвести: jsdom строит
+  // `FormData` формы из внутреннего списка файлов поля, а подменить его
+  // снаружи нельзя — подставленный большой файл до обработчика не доезжает.
+  // Ветка остаётся за живым браузером; сама величина предела закреплена
+  // стражем `components.upload-size-hint.guardrail`.
+
+  it('сервер недоступен при проверке файла — честная ошибка, а не тишина', async () => {
+    previewAction.mockRejectedValue(new Error('offline'));
+    renderDialog();
+    openDialog();
+
+    submitPreview();
+
+    await waitFor(() =>
+      expect(dialog().getByRole('alert').textContent).toMatch(/сервер недоступен/)
+    );
+  });
+
+  it('сервер недоступен при записи — предпросмотр остаётся, ошибка видна', async () => {
+    previewAction.mockResolvedValue(okPreview());
+    commitAction.mockRejectedValue(new Error('offline'));
+    renderDialog();
+    openDialog();
+    submitPreview();
+    await waitFor(() => dialog().getByRole('button', { name: /Импортировать/ }));
+
+    fireEvent.click(dialog().getByRole('button', { name: /Импортировать/ }));
+
+    // Разобранные строки не теряются: человек может повторить запись, не
+    // перечитывая файл заново.
+    await waitFor(() =>
+      expect(dialog().getByRole('alert').textContent).toMatch(/сервер недоступен/)
+    );
   });
 });

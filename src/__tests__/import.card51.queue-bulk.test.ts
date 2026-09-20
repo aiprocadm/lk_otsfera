@@ -147,6 +147,54 @@ describe('createOrgsFromQueueRows — шаг 2', () => {
     expect(res.result).toMatchObject({ created: 1, bound: 2, failed: [] });
   });
 
+  it('`У-89`: контрагент БЕЗ ИНН создаётся, а его строки довязываются по ключу названия', async () => {
+    // Общего признака «ИНН» у такого контрагента нет — роль ключа играет
+    // нормализованное название. Сравнивай мы по ИНН, остальные платежи того
+    // же клиента остались бы в очереди, и оператор получил бы организацию
+    // вместе с ручной работой по её же платежам.
+    const { prisma } = db([
+      {
+        id: 'r1',
+        counterpartyName: 'ООО «Без ИНН»',
+        counterpartyInn: null,
+        counterpartyKey: 'БЕЗ ИНН',
+      },
+      {
+        id: 'r2',
+        counterpartyName: 'ООО «Без ИНН»',
+        counterpartyInn: null,
+        counterpartyKey: 'БЕЗ ИНН',
+      },
+    ]);
+    createOrgFromQueueRow.mockResolvedValue({ ok: true, organizationId: 'org-9', paymentId: 'p1' });
+    resolveQueueRow.mockResolvedValue({ ok: true, paymentId: 'p2' });
+
+    const res = await createOrgsFromQueueRows(prisma, SESSION, { rowIds: ['r1'] });
+    if (!res.ok) throw new Error('expected ok');
+
+    expect(createOrgFromQueueRow.mock.calls[0]![2]).toMatchObject({
+      name: 'ООО «Без ИНН»',
+      inn: '',
+    });
+    expect(res.result).toMatchObject({ created: 1, bound: 2 });
+  });
+
+  it('`У-89`: у неудачи контрагента без ИНН в списке стоит НАЗВАНИЕ, а не пустота', async () => {
+    const { prisma } = db([
+      {
+        id: 'r1',
+        counterpartyName: 'ООО «Без ИНН»',
+        counterpartyInn: null,
+        counterpartyKey: 'БЕЗ ИНН',
+      },
+    ]);
+    createOrgFromQueueRow.mockResolvedValue({ ok: false, error: 'company_required' });
+
+    const res = await createOrgsFromQueueRows(prisma, SESSION, { rowIds: ['r1'] });
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.result.failed).toEqual([{ label: 'ООО «Без ИНН»', error: 'company_required' }]);
+  });
+
   it('отказ создания попадает в список неудач и не роняет остальные', async () => {
     const { prisma } = db([
       { id: 'r1', counterpartyName: 'ООО «Альфа»', counterpartyInn: INN_A },

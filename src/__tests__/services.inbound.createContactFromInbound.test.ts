@@ -67,6 +67,26 @@ describe('createContactFromInbound', () => {
     });
   });
 
+  it('`У-212`: у обращения из кабинета канала связи нет — контакт заводится без него', async () => {
+    // Идентификатор пользователя кабинета в графе «Telegram» хуже пустой
+    // графы: по нему потом попытались бы написать — и не дошло бы.
+    inboundMessageFindUnique.mockResolvedValue({ channel: 'cabinet', senderRef: 'u-42' });
+    createContact.mockResolvedValue({ ok: true, contactId: 'k-1' });
+    bindInboundMessage.mockResolvedValue({ ok: true });
+
+    await createContactFromInbound(prisma, SESSION, {
+      inboundMessageId: 'im-1',
+      name: 'Иван',
+      organizationId: 'o1',
+    });
+
+    expect(createContact).toHaveBeenCalledWith(
+      prisma,
+      SESSION,
+      expect.objectContaining({ channels: [] })
+    );
+  });
+
   it('returns not_found when the inbound message does not exist', async () => {
     inboundMessageFindUnique.mockResolvedValue(null);
 

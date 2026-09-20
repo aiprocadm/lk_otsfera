@@ -117,6 +117,18 @@ describe('listOrganizationProposals', () => {
     });
   });
 
+  it('сотрудник БЕЗ компании не видит ничего, а не всё', async () => {
+    // `undefined` в условии снял бы границу целиком — та же грабля, что в C8.
+    // Пустая строка вместо компании гарантированно не совпадёт ни с чем.
+    const { prisma, documentFindMany } = makePrisma();
+    await listOrganizationProposals(
+      prisma,
+      { sub: 'm1', role: 'manager' } as unknown as SessionPayload,
+      { organizationId: 'org-1' }
+    );
+    expect((documentFindMany.mock.calls[0]![0].where as { companyId: string }).companyId).toBe('');
+  });
+
   it('администратор видит всё: компании в его сессии может не быть вовсе', async () => {
     const { prisma, documentFindMany } = makePrisma();
     await listOrganizationProposals(

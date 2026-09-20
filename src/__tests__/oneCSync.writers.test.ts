@@ -9,6 +9,12 @@ const { getQueue } = vi.hoisted(() => ({ getQueue: vi.fn() }));
 const { setDocumentStatus } = vi.hoisted(() => ({ setDocumentStatus: vi.fn() }));
 vi.mock('@/lib/services/oneCSync/resolve-org', () => ({ resolveOrganizationRef }));
 vi.mock('@/lib/notifications', () => ({ notifyOrgUsers, notifyManagers }));
+// Перенос контактов контрагента — свой сервис со своим набором тестов; здесь
+// проверяется только то, что его сбой не роняет запись организации.
+const { syncOrgContactsFromOneC } = vi.hoisted(() => ({
+  syncOrgContactsFromOneC: vi.fn(async () => ({ created: 0, updated: 0 })),
+}));
+vi.mock('@/lib/services/oneCSync/contacts', () => ({ syncOrgContactsFromOneC }));
 vi.mock('@/lib/services/oneCSync/document-fetch', () => ({ fetchAndStore1CDocument }));
 vi.mock('@/lib/jobs/queues', () => ({ getQueue }));
 vi.mock('@/lib/services/documents/status', () => ({ setDocumentStatus }));
@@ -240,6 +246,24 @@ describe('upsertOrgRecord', () => {
     });
     expect(sum.created).toBe(1);
   });
+  it('перенос контактов упал — организация всё равно записана (best-effort)', async () => {
+    // Контакты — сопутствующие данные: из-за них терять саму организацию
+    // нельзя, иначе один кривой телефон срывал бы весь ночной обмен.
+    // Не-Error в причине читается строкой: по «[object Object]» разбирать
+    // нечего.
+    syncOrgContactsFromOneC.mockRejectedValueOnce('телефон не разобран');
+    const d = odb();
+    const sum = emptySummary();
+    await upsertOrgRecord(
+      d,
+      { ...orgDto, contacts: [{ name: 'Иванова Мария', phone: '89001234567' }] },
+      sum,
+      { mode: 'live', notify: false, createCompanyId: 'co1' }
+    );
+    expect(sum.created).toBe(1);
+    expect(sum.failed).toBe(0);
+  });
+
   it('нет ни скоупа company, ни createCompanyId → failed: company_not_configured', async () => {
     const d = odb();
     const sum = emptySummary();
@@ -855,6 +879,32 @@ describe('upsertPaymentRecord', () => {
     const sum = emptySummary();
     await upsertPaymentRecord(d, payOrderDto, sum, { mode: 'live', notify: false });
     expect(d.payment.update).toHaveBeenCalled();
+    expect(sum.updated).toBe(1);
+  });
+
+  it('`У-148`: исправленная сумма тоже пробует закрыть счёт, и её сбой не роняет обмен', async () => {
+    // Оплату из 1С правят задним числом. Проверка «не закрылся ли теперь
+    // счёт» обязана идти и на обновлении — иначе документ навсегда останется
+    // «выставленным». Сама проверка — best-effort: её сбой не должен
+    // прерывать ночной обмен.
+    const d = pdb();
+    d.order.findUnique.mockResolvedValue({
+      id: 'ord',
+      organizationId: 'o',
+      orderNumber: 'O1',
+      title: 't',
+    });
+    d.payment.findUnique.mockResolvedValue({
+      id: 'pay-existing',
+      amount: 100,
+      paidAt: new Date('2026-04-01T00:00:00Z'),
+      purpose: null,
+    });
+    const sum = emptySummary();
+
+    await expect(
+      upsertPaymentRecord(d, payOrderDto, sum, { mode: 'live', notify: true })
+    ).resolves.toBeDefined();
     expect(sum.updated).toBe(1);
   });
 

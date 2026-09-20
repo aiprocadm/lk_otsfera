@@ -295,6 +295,46 @@ describe('POST /api/student/bridge/token', () => {
     expect(body.token_type).toBe('Bearer');
   });
 
+  it('без единого заголовка адреса ключ лимита не схлопывается в «clientId:»', async () => {
+    // Запрос может прийти вообще без адреса (прямое обращение мимо прокси).
+    // `clientIpFromHeaders` отдаёт тогда строку «unknown» — именно она и
+    // уходит в ключ ограничителя и в журнал. Пустой хвост ключа означал бы,
+    // что все безадресные запросы считаются одним источником по ошибке, а не
+    // осознанно.
+    isRateLimited.mockResolvedValue(true);
+
+    const res = await POST(
+      buildReq({ clientId: CLIENT_ID, secret: SHARED_SECRET, body: { code: 'c' } })
+    );
+    expect(res.status).toBe(429);
+    expect(isRateLimited).toHaveBeenCalledWith(`${CLIENT_ID}:unknown`, expect.any(Object));
+    expect(recordAudit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        action: 'STUDENT_BRIDGE_RATE_LIMITED',
+        after: expect.objectContaining({ ip: 'unknown', clientId: CLIENT_ID }),
+      })
+    );
+  });
+
+  it('журнал отказа без entityId подписывается идентификатором клиента', async () => {
+    // У отказа на этапе проверки клиента ещё нет `jti`, поэтому сущность в
+    // журнале опознаётся по клиенту. Пустая строка вместо него сделала бы
+    // запись нерасследуемой.
+    const res = await POST(
+      buildReq({ clientId: CLIENT_ID, secret: 'wrong', body: { code: 'c' }, ip: '5.6.7.8' })
+    );
+    expect(res.status).toBe(403);
+    expect(recordAudit).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        action: 'STUDENT_BRIDGE_CLIENT_DENIED',
+        entityId: CLIENT_ID,
+        after: expect.objectContaining({ ip: '5.6.7.8', entityId: CLIENT_ID }),
+      })
+    );
+  });
+
   it('uses x-real-ip when x-forwarded-for is absent', async () => {
     grantUpdateMany.mockResolvedValue({ count: 1 });
     grantFindUnique.mockResolvedValue({ jti: 'jti-ok', token: 'jwt' });

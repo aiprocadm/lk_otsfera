@@ -156,6 +156,32 @@ describe('runCreateTask', () => {
     expect(createTaskCore.mock.calls[0][1].dueDate).toBeNull();
   });
 
+  it('у компании своя доска — задача встаёт в её первую колонку, а не «в никуда»', async () => {
+    // Дефолтные колонки живут только в коде и имеют выдуманные идентификаторы
+    // (`default:new`), которых в базе нет. Настоящую колонку надо записать в
+    // `columnId`, иначе задача, созданная роботом, не попадёт ни в один
+    // столбец доски и человек её просто не увидит.
+    columnFindMany.mockResolvedValue([
+      {
+        id: 'col-inbox',
+        name: 'Входящие',
+        position: 0,
+        statusAnchor: 'open',
+        isDoneColumn: false,
+        color: null,
+      },
+    ]);
+    await runCreateTask(prisma, {
+      action: { kind: 'create_task', titleTemplate: 'Дело', assignee: 'role:leader' },
+      companyId: 'co-1',
+      ruleId: 'r1',
+      authorId: 'u',
+      payload: {},
+    });
+    expect(createTaskCore.mock.calls[0][1].columnId).toBe('col-inbox');
+    expect(createTaskCore.mock.calls[0][1].status).toBe('open');
+  });
+
   it('задача БЕЗ исполнителя создаётся, но журнал об этом говорит', async () => {
     userFindMany.mockResolvedValue([]);
     const res = await runCreateTask(prisma, {

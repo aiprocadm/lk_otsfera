@@ -252,7 +252,9 @@ async function resolveDocument(
   // кабинета у такого адресата нет: поля читают только сотрудники своей
   // компании (та же граница, что в `canReadDocument`).
   if (!doc.counterpartyType || !doc.counterpartyId) {
-    if (session.role === 'admin') return GRANTED;
+    // Администратор сюда не доходит: по Model A он отвечен раньше, у самого
+    // входа в `resolveEntityAccess`. Повторная проверка тут только выглядела
+    // бы как отдельное правило.
     if (!isStaffManagerSide(session)) return DENIED;
     return !!doc.companyId && doc.companyId === session.companyId ? GRANTED : DENIED;
   }

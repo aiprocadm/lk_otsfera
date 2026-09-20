@@ -99,6 +99,10 @@ export function ClientRequestStaffActions({
     } catch {
       toast.error('Сетевая ошибка');
       return false;
+      // Каждый путь `try`/`catch` выше завершается `return`, поэтому «обычного»
+      // входа в `finally` (без возврата) не бывает — эту ветку v8 считает, а
+      // достичь её нечем.
+      /* v8 ignore next */
     } finally {
       setBusy(false);
     }

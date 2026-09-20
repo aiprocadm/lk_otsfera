@@ -90,6 +90,9 @@ export async function listOrdersForAdmin(
 
   const hasMore = rows.length > opts.take;
   const sliced = hasMore ? rows.slice(0, opts.take) : rows;
+  // При `hasMore` порция заведомо непуста (в ней ровно `take` строк), поэтому
+  // запасное `null` у курсора недостижимо и стоит ради типов.
+  /* v8 ignore next */
   return { rows: sliced, nextCursor: hasMore ? (sliced[sliced.length - 1]?.id ?? null) : null };
 }
 

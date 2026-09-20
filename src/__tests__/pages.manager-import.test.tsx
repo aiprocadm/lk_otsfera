@@ -143,6 +143,15 @@ describe('вкладка «Выписка по счёту 51» раздела «
     expect(container.querySelector('[data-testid="queue"]')?.getAttribute('data-n')).toBe('3');
   });
 
+  it('страница открыта без единого параметра адреса — очередь всё равно строится', async () => {
+    // На экран заходят и по ссылке из меню, где параметров нет вовсе. Без
+    // запасного пустого набора разбор фильтров упал бы на `undefined`, и
+    // раздел открывался бы только «через фильтр».
+    loadQueuePage.mockResolvedValue({ rows: [], total: 0, take: 50, skip: 0 });
+    await renderServerComponent(ManagerPaymentsTab({}));
+    expect(loadQueuePage).toHaveBeenCalledWith(expect.anything(), expect.anything(), {});
+  });
+
   it('право проверяется и на выписке', async () => {
     mayImportOneC.mockReturnValue(false);
     await expect(renderServerComponent(ManagerPaymentsTab({}))).rejects.toThrow('REDIRECT');

@@ -290,6 +290,21 @@ describe('Строка помнит свой признак секрета', () 
     expect(row?.isSet).toBe(true);
   });
 
+  it('NULL в базе тоже равен «значения нет»', async () => {
+    // Колонка допускает NULL, и это не то же самое, что пустая строка: строку
+    // записал человек, NULL остался от удаления значения. Для экрана оба
+    // случая — «не задано», и `null` не должен доехать до расшифровки.
+    const prisma = makePrisma({
+      findMany: vi
+        .fn()
+        .mockResolvedValue([{ key: 'bitrix.portalUrl', value: null, isSecret: false }]),
+    });
+
+    const [row] = await getSettingsView(prisma, ['bitrix.portalUrl']);
+
+    expect(row).toMatchObject({ value: null, isSet: false, source: 'none' });
+  });
+
   it('пустая строка в базе равна «значения нет»', async () => {
     const prisma = makePrisma({
       findMany: vi

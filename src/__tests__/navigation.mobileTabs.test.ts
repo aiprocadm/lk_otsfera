@@ -99,6 +99,23 @@ describe('mobileTabsFor (У-117)', () => {
     expect(tabs.map((t) => t.sectionKey)).toEqual(['dashboard', 'orders', 'leads', 'calendar']);
   });
 
+  it('добор останавливается на четвёртой вкладке — лишние пункты меню в панель не лезут', () => {
+    // Панель узкая: пятая вкладка не поместилась бы на телефоне. Приоритет
+    // менеджера даёт здесь только две вкладки (остальных его разделов в меню
+    // нет), дальше работает добор — и ему есть из чего выбирать сверх нормы.
+    // Он обязан остановиться ровно на четвёртой, а не пройти список до конца.
+    const items = [
+      item('/manager/dashboard', 'dashboard'),
+      item('/manager/orders', 'orders'),
+      item('/manager/leads', 'leads'),
+      item('/manager/calendar', 'calendar'),
+      item('/manager/finance', 'finance'),
+    ];
+    const tabs = mobileTabsFor('manager', items);
+    expect(tabs).toHaveLength(4);
+    expect(tabs.map((t) => t.sectionKey)).toEqual(['dashboard', 'orders', 'leads', 'calendar']);
+  });
+
   it('`Д-40` на живом меню: с выключенными opt-in флагами четыре вкладки есть', () => {
     // Именно этот случай и был дефектом: у менеджера «Входящие» и «Задачи»
     // сидят под opt-in флагами, и панель показывала две вкладки из четырёх.

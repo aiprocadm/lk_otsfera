@@ -130,6 +130,12 @@ export function OneCAutoExchange({
 
   const paramOf = (key: string) => paramsView.find((r) => r.key === key)?.value ?? '';
   const patternOf = (schedulerId: string) =>
+    // Прочерк — на случай, если задача есть на экране, но её забыли завести в
+    // реестре расписаний. Такое уже случалось (повторяющиеся задачи), и теперь
+    // это ловит страж `jobs.all-schedules-complete`, поэтому ветка
+    // недостижима — но убирать её нельзя: без неё в подписи появилось бы
+    // слово «null».
+    /* v8 ignore next */
     patterns.get(schedulerId) ?? defaultPatternFor(schedulerId) ?? '—';
 
   const activeByQueue = new Map(queueStats.map((q) => [q.queue, q.counts.active]));

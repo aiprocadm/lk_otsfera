@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { DocumentsList } from '@/components/partner/documents-list';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
 
@@ -80,6 +80,60 @@ describe('DocumentsList — группировка (У-253)', () => {
     render(<DocumentsList rows={ROWS} grouping />);
     // Остаёмся на умолчании, а не падаем и не показываем пустоту.
     expect(screen.getByText('Без заказа · 3')).toBeTruthy();
+  });
+
+  it('память браузера недоступна — экран работает, просто не запоминает выбор', () => {
+    // В приватном окне и при запрете на данные сайта `localStorage` бросает на
+    // ЧТЕНИИ и на ЗАПИСИ. Экран группировки из-за этого падать не должен: он
+    // остаётся на умолчании и продолжает переключаться в этой сессии.
+    const store = window.localStorage;
+    const boom = () => {
+      throw new Error('доступ к хранилищу запрещён');
+    };
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: { getItem: boom, setItem: boom, removeItem: boom, clear: boom },
+    });
+    try {
+      render(<DocumentsList rows={ROWS} grouping />);
+      expect(screen.getByText('Без заказа · 3')).toBeTruthy();
+
+      fireEvent.click(screen.getByRole('button', { name: 'по типу' }));
+      expect(screen.getByText('Счёт · 2')).toBeTruthy();
+    } finally {
+      Object.defineProperty(window, 'localStorage', { configurable: true, value: store });
+    }
+    // Хранилище выбора модульное: возвращаем умолчание УДАВШЕЙСЯ записью,
+    // иначе «невыбранный» режим протёк бы в соседние тесты.
+    fireEvent.click(screen.getByRole('button', { name: 'по заказу' }));
+  });
+
+  it('соседняя вкладка сменила группировку — экран подхватывает её выбор', () => {
+    // Хранилище общее на весь браузер: сотрудник открыл два списка в двух
+    // вкладках и переключил группировку в одной. Вторая обязана показать то
+    // же самое — иначе один и тот же список выглядит по-разному.
+    render(<DocumentsList rows={ROWS} grouping />);
+    expect(screen.getByText('Без заказа · 3')).toBeTruthy();
+
+    window.localStorage.setItem('documents.groupBy', 'type');
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'documents.groupBy' }));
+    });
+
+    expect(screen.getByText('Счёт · 2')).toBeTruthy();
+  });
+
+  it('незнакомый тип документа подписывается своим кодом, а не пустой полкой', () => {
+    // Тип приходит из 1С и может оказаться новым. Полка без названия выглядит
+    // как поломка, а документы в ней — как потерянные.
+    render(
+      <DocumentsList
+        rows={[{ ...base, id: 'x', name: 'Неизвестное.pdf', type: 'protocol' as never }]}
+        grouping
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'по типу' }));
+    expect(screen.getByText('protocol · 1')).toBeTruthy();
   });
 
   it('выбранная кнопка помечена для тех, кто не видит цвет', () => {

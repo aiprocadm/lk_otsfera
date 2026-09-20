@@ -2,10 +2,8 @@ import type { Metadata } from 'next';
 import React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { requireSettingsSection } from '@/lib/auth/requireSettings';
-import { isManagerLeader } from '@/lib/auth/roleModel';
 import { getTelegramStatus } from '@/lib/services/telegram/link';
 import { getNotificationSettings } from '@/lib/services/notifications/preferences';
-import { getStaffInternalPhone } from '@/lib/services/manager/staffProfile';
 import { readPersonalSettingsTab } from '@/lib/navigation/personalSettingsTab';
 import { StaffPersonalSettings } from '@/components/settings/staff-personal-settings';
 
@@ -28,15 +26,15 @@ export default async function AdminPersonalSettingsPage({
   const session = await requireSettingsSection('personal.settings', 'admin');
   const tab = readPersonalSettingsTab((await searchParams).tab);
 
-  // Внутренний номер — только менеджерский контур: click-to-call через Mango
-  // инициирует руководитель, а `updateInternalPhoneAction` админа и не пустит.
-  const withPhone = isManagerLeader(session);
-
   const profile =
     tab === 'profile'
       ? {
           telegram: await getTelegramStatus(prisma, session),
-          internalPhone: withPhone ? await getStaffInternalPhone(prisma, session) : null,
+          // Внутренний номер — только менеджерский контур: click-to-call через
+          // Mango инициирует руководитель, а `updateInternalPhoneAction` админа
+          // и не пустит. В админский кабинет по `protectedPrefixes` попадает
+          // только роль `admin`, поэтому здесь номера нет никогда.
+          internalPhone: null,
         }
       : null;
   const notifications =
@@ -51,7 +49,7 @@ export default async function AdminPersonalSettingsPage({
     <StaffPersonalSettings
       cabinet="admin"
       activeTab={tab}
-      withPhone={withPhone}
+      withPhone={false}
       profile={profile}
       notifications={notifications}
       preferences={preferences}

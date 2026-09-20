@@ -97,6 +97,16 @@ describe('страж: «Мои KPI» — только свои цифры (У-24
     expect(rows.map((r) => r.metric)).toEqual(['revenue_paid']);
   });
 
+  it('компании нет в базе — показатели по умолчанию, а не падение', async () => {
+    // Компанию могли удалить, а сессия сотрудника ещё жива. Набор по
+    // умолчанию честнее, чем ошибка на главной странице кабинета: плитки
+    // покажут нули, и человек поймёт, что настройки нет.
+    companyFindUnique.mockResolvedValue(null);
+    const rows = await getMyKpi(prisma, { companyId: 'c1', managerId: OWN, year: 2026, month: 9 });
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((r) => typeof r.metric === 'string')).toBe(true);
+  });
+
   it('план берётся только свой — запрос ограничен своим идентификатором', async () => {
     await getMyKpi(prisma, { companyId: 'c1', managerId: OWN, year: 2026, month: 9 });
     expect(targetsWhere(), 'план спрашивается без границы по сотруднику').toMatchObject({

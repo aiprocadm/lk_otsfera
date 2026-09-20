@@ -1,5 +1,9 @@
 import type { PrismaClient } from '@prisma/client';
-import { DIALOG_CHANNEL_LABELS, isDialogChannel } from '@/lib/services/messengers/channels';
+import {
+  DIALOG_CHANNEL_LABELS,
+  isDialogChannel,
+  type DialogChannel,
+} from '@/lib/services/messengers/channels';
 
 /**
  * Метрики переписки и звонков (`У-243`, этап 7).
@@ -112,7 +116,9 @@ export async function getCommunications(
   const slaMinutes = slaHours * 60;
 
   type ChannelAcc = { dialogs: number; answers: number[]; overSla: number; noAnswer: number };
-  const byChannel = new Map<string, ChannelAcc>();
+  // Ключ — уже РАЗОБРАННЫЙ канал: незнакомая строка из базы сводится к
+  // «кабинету» строкой ниже, поэтому подписывать её отдельно нечем и незачем.
+  const byChannel = new Map<DialogChannel, ChannelAcc>();
   type ManagerAcc = { name: string; dialogs: number; answers: number[]; overSla: number };
   const byManager = new Map<string, ManagerAcc>();
 
@@ -167,7 +173,7 @@ export async function getCommunications(
     byChannel: [...byChannel]
       .map(([channel, a]) => ({
         channel,
-        channelLabel: isDialogChannel(channel) ? DIALOG_CHANNEL_LABELS[channel] : channel,
+        channelLabel: DIALOG_CHANNEL_LABELS[channel],
         dialogs: a.dialogs,
         answered: a.answers.length,
         avgFirstResponseMin: average(a.answers),

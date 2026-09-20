@@ -154,6 +154,15 @@ describe('OrganizationMessagesPage', () => {
     );
   });
 
+  it('чат отвечает отказом — список пуст, экран живёт (зеркало партнёра)', async () => {
+    // Отказ выборки обсуждений не должен уносить весь экран: вкладка
+    // «Переписка с менеджером» человеку по-прежнему нужна.
+    flags({ chat: true });
+    listThreads.mockResolvedValue({ ok: false, error: 'forbidden' });
+    const { container } = await render({ tab: 'orders' });
+    expect(container.querySelector('[data-testid="order-threads"]')?.textContent).toBe('0');
+  });
+
   it('пришёл по недоступной ссылке — объяснение на экране', async () => {
     flags({ cabinet_questions: true });
     const { container } = await render({ missing: '1' });

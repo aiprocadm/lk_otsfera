@@ -129,6 +129,16 @@ describe('rejectProposal — запись', () => {
       await rejectProposal(prisma, CLIENT(), { documentId: 'kp-1', reason: 'дорого' })
     ).toEqual({ ok: false, error: 'invalid_transition' });
   });
+
+  it('документ исчез между проверкой и сменой статуса → «не найдено»', async () => {
+    // Это не то же самое, что «переход запрещён»: во втором случае человек
+    // пойдёт разбираться со статусом бумаги, которой уже нет.
+    setDocumentStatus.mockResolvedValue({ ok: false, error: 'not_found' });
+    const { prisma } = makePrisma();
+    expect(
+      await rejectProposal(prisma, CLIENT(), { documentId: 'kp-1', reason: 'дорого' })
+    ).toEqual({ ok: false, error: 'not_found' });
+  });
 });
 
 /**

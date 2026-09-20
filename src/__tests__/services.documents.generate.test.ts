@@ -1345,4 +1345,224 @@ describe('`У-169`: правило `auto` — постановка в очере
     );
     expect(notifyOrgUsers).toHaveBeenCalled();
   });
+
+  it('постановка бросила НЕ-Error — в журнале читаемая строка, выпуск живой', async () => {
+    enqueueDocumentPush.mockRejectedValue('очередь закрыта');
+    const { prisma } = makePrisma({ company: companyWith('auto') });
+    const r = await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+    });
+    expect(r.ok).toBe(true);
+    expect(logWarn).toHaveBeenCalledWith(
+      '[documents/generate] auto push to 1C failed',
+      expect.objectContaining({ error: 'очередь закрыта' })
+    );
+  });
+});
+
+/**
+ * Края выпуска, каждый из которых ломается тихо.
+ *
+ * Общее у них одно: ошибка не роняет процесс и не видна человеку сразу —
+ * она превращается в кривой документ, письмо «от никого» или запись в журнале,
+ * по которой потом нечего расследовать.
+ */
+describe('generateOrderDocument — тихие края', () => {
+  it('сбои не-Error читаются строкой в журнале, а не «[object Object]»', async () => {
+    // Драйвер базы и клиент хранилища умеют бросать строку. Расследовать сбой
+    // выпуска по записи «[object Object]» невозможно.
+    uploadMock.mockRejectedValue('хранилище закрыто');
+    const { prisma } = makePrisma();
+    expect(
+      await generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice' })
+    ).toEqual({ ok: false, error: 'storage' });
+
+    logWarn.mockClear();
+    notifyOrgUsers.mockRejectedValue('почта недоступна');
+    uploadMock.mockResolvedValue(undefined);
+    const { prisma: p2 } = makePrisma();
+    expect(
+      (await generateOrderDocument(p2, manager(), { orderId: 'ord-1', docType: 'invoice' })).ok
+    ).toBe(true);
+    expect(logWarn).toHaveBeenCalled();
+  });
+
+  it('уборка осиротевшего файла упала НЕ-Error — исходная ошибка всё равно наружу', async () => {
+    const { prisma, tx } = makePrisma();
+    (
+      tx.document.create as unknown as { mockRejectedValue: (e: unknown) => void }
+    ).mockRejectedValue(new Error('db down'));
+    removeMock.mockRejectedValue('нет связи с хранилищем');
+    await expect(
+      generateOrderDocument(prisma, manager(), { orderId: 'ord-1', docType: 'invoice' })
+    ).rejects.toThrow('db down');
+  });
+
+  it('у сотрудника нет имени — в подписи КП «Менеджер», а не пустое место', async () => {
+    // Коммерческое предложение подписывается человеком. Имя берётся из сессии
+    // и у служебных учётных записей бывает пустым — клиент получил бы бумагу,
+    // у которой будто нет автора.
+    const { prisma } = makePrisma();
+    const r = await generateOrderDocument(
+      prisma,
+      { sub: 'm1', role: 'manager', companyId: 'co-A', name: '   ' } as never,
+      {
+        organizationId: 'org-1',
+        docType: 'commercial_proposal',
+        lines: [
+          {
+            title: 'Обучение',
+            quantity: '1',
+            unit: 'person' as const,
+            unitPrice: '5000.00',
+            discountPercent: null,
+            vatRate: '0.2000',
+            vatIncluded: true,
+          },
+        ],
+      }
+    );
+    expect(r.ok).toBe(true);
+    expect(renderProposalMock.mock.calls[0]![0].manager.name).toBe('Менеджер');
+  });
+
+  it('скидка и ставка НДС строки доезжают в снимок документа, отсутствие — как «нет»', async () => {
+    const { prisma, documentCreate } = makePrisma({
+      order: {
+        ...ORDER,
+        lines: [
+          line('Со скидкой', '5000', { discountPercent: 10, vatRate: 0.2 }),
+          line('Без скидки', '3000', { discountPercent: null, vatRate: null }),
+        ],
+      },
+    });
+    const r = await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+      // Строки дешевле суммы заказа — это отдельный вопрос `У-143`; здесь
+      // проверяется, что доезжает до печати.
+      onAmountMismatch: 'keep_order',
+    });
+    expect(r.ok).toBe(true);
+    // Снимок состава — то, что останется в документе навсегда (`У-146`).
+    const snapshot = (
+      documentCreate.mock.calls[0]![0] as { data: { lines: { create: Record<string, unknown>[] } } }
+    ).data.lines.create;
+    expect(snapshot[0]!.discountPercent).not.toBeNull();
+    expect(snapshot[1]!.discountPercent).toBeNull();
+    expect(snapshot[1]!.vatRate).toBeNull();
+  });
+});
+
+/**
+ * КП лида (`У-161`): клиент ещё не организация, поэтому у документа нет
+ * реквизитов — и это нормально. Ломается тут другое: связь со сделкой и
+ * подстановка названия компании клиента.
+ */
+describe('КП лида — название клиента и связь со сделкой', () => {
+  const LEAD_LINES = [
+    {
+      title: 'Обучение',
+      quantity: '1',
+      unit: 'person' as const,
+      unitPrice: '5000.00',
+      discountPercent: null,
+      vatRate: '0.2000',
+      vatIncluded: true,
+    },
+  ];
+
+  function leadPrisma(over: Record<string, unknown> = {}) {
+    const made = makePrisma({ organization: null, ...over });
+    return made;
+  }
+
+  it('у лида не указана компания — честный отказ, а не КП без адресата', async () => {
+    // Лид заводят по звонку, и названия компании может не быть вовсе. Выпустить
+    // КП «в никуда» хуже, чем сказать сотруднику, чего не хватает: такую бумагу
+    // всё равно пришлось бы переделывать после отправки клиенту.
+    resolveLeadIssueScope.mockResolvedValue({
+      ok: true,
+      companyId: 'co-A',
+      lead: {
+        id: 'lead-1',
+        clientCompanyName: null,
+        clientContactName: 'Иван',
+        organizationId: null,
+      },
+    });
+    const { prisma } = leadPrisma();
+    const r = await generateOrderDocument(prisma, manager(), {
+      leadId: 'lead-1',
+      docType: 'commercial_proposal',
+      lines: LEAD_LINES,
+    });
+    expect(r).toMatchObject({ ok: false, error: 'missing_requisites' });
+    expect(renderProposalMock).not.toHaveBeenCalled();
+  });
+
+  it('у лида есть название компании — оно и становится адресатом КП', async () => {
+    resolveLeadIssueScope.mockResolvedValue({
+      ok: true,
+      companyId: 'co-A',
+      lead: {
+        id: 'lead-1',
+        clientCompanyName: 'ООО Клиент',
+        clientContactName: 'Иван',
+        organizationId: null,
+      },
+    });
+    const { prisma } = leadPrisma();
+    const r = await generateOrderDocument(prisma, manager(), {
+      leadId: 'lead-1',
+      docType: 'commercial_proposal',
+      lines: LEAD_LINES,
+    });
+    expect(r.ok).toBe(true);
+    expect(renderProposalMock.mock.calls[0]![0].addressee).toMatchObject({
+      name: 'ООО Клиент',
+      contactName: 'Иван',
+    });
+  });
+
+  it('сделка лида связывается с документом; ЧУЖАЯ сделка — отказ', async () => {
+    // `dealId` приходит из формы, и подставить туда чужую сделку — способ
+    // привязать КП к переписке другого клиента.
+    resolveLeadIssueScope.mockResolvedValue({
+      ok: true,
+      companyId: 'co-A',
+      lead: {
+        id: 'lead-1',
+        clientCompanyName: 'ООО Клиент',
+        clientContactName: null,
+        organizationId: null,
+      },
+    });
+    const own = leadPrisma({
+      deal: { id: 'deal-1', companyId: 'co-A', organizationId: null, leadId: 'lead-1' },
+    });
+    expect(
+      (
+        await generateOrderDocument(own.prisma, manager(), {
+          leadId: 'lead-1',
+          dealId: 'deal-1',
+          docType: 'commercial_proposal',
+          lines: LEAD_LINES,
+        })
+      ).ok
+    ).toBe(true);
+
+    const foreign = leadPrisma({
+      deal: { id: 'deal-9', companyId: 'co-A', organizationId: null, leadId: 'lead-OTHER' },
+    });
+    expect(
+      await generateOrderDocument(foreign.prisma, manager(), {
+        leadId: 'lead-1',
+        dealId: 'deal-9',
+        docType: 'commercial_proposal',
+        lines: LEAD_LINES,
+      })
+    ).toEqual({ ok: false, error: 'deal_mismatch' });
+  });
 });

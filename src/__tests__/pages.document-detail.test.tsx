@@ -50,6 +50,19 @@ vi.mock('@/lib/services/customFields', () => ({
   getFieldsForEntity: async () => [],
 }));
 
+// `У-220`: блок «Задачи» на карточке живёт вместе с самим разделом задач, а он
+// под opt-in флагом. По умолчанию держим флаг выключенным — как в бою.
+const { isFeatureEnabled, listLinkedTasks } = vi.hoisted(() => ({
+  isFeatureEnabled: vi.fn(() => false),
+  // Тип аргументов объявлен явно: без него `mock.calls` — пустой кортеж, и
+  // обращение к `calls[0][2]` не проходит проверку типов.
+  listLinkedTasks: vi.fn<(prisma: unknown, session: unknown, link: unknown) => Promise<unknown[]>>(
+    async () => [{ id: 't1', title: 'Проверить оплату' }]
+  ),
+}));
+vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
+vi.mock('@/lib/services/tasks/board', () => ({ listLinkedTasks }));
+
 vi.mock('@/components/documents/document-detail-view', () => ({
   DocumentDetailView: (props: {
     backHref: string;
@@ -188,6 +201,57 @@ describe('Карточка документа — кабинет руковод�
     await expect(
       renderServerComponent(LeaderDocumentPage({ params: Promise.resolve({ id: 'x' }) }))
     ).rejects.toThrow('NEXT_NOT_FOUND');
+  });
+});
+
+describe('Карточка документа — задачи и история (`У-220`, `У-251`)', () => {
+  it('задачи спрашиваются только при включённом разделе — иначе блок пустой', async () => {
+    // Выключенный раздел задач и лишний запрос в него — разные вещи: спросить
+    // сервис при выключенном флаге значит показать человеку блок, которого в
+    // меню нет.
+    isFeatureEnabled.mockReturnValue(false);
+    await renderServerComponent(ManagerDocumentPage({ params: Promise.resolve({ id: 'd1' }) }));
+    expect(listLinkedTasks).not.toHaveBeenCalled();
+
+    isFeatureEnabled.mockReturnValue(true);
+    await renderServerComponent(ManagerDocumentPage({ params: Promise.resolve({ id: 'd1' }) }));
+    expect(listLinkedTasks).toHaveBeenCalledTimes(1);
+    expect(listLinkedTasks.mock.calls[0]![2]).toEqual({ documentId: 'd1' });
+
+    // Правило зеркала: у руководителя тот же экран и та же выборка.
+    listLinkedTasks.mockClear();
+    await renderServerComponent(LeaderDocumentPage({ params: Promise.resolve({ id: 'd1' }) }));
+    expect(listLinkedTasks.mock.calls[0]![2]).toEqual({ documentId: 'd1' });
+  });
+
+  it('история версий доезжает до экрана, когда выборка удалась', async () => {
+    // Отказ выборки проверяется остальными тестами файла (там она всегда
+    // отвечает отказом). Здесь — обратный случай: строки истории обязаны
+    // доехать, иначе «Кто скачивал» молча пуст у всех.
+    getDocumentHistory.mockResolvedValue({
+      ok: true as const,
+      history: { versions: [], downloads: [], pushedVersionInOneC: null },
+    } as never);
+    const { container } = await renderServerComponent(
+      ManagerDocumentPage({ params: Promise.resolve({ id: 'd1' }) })
+    );
+    // Оба блока приходят ДЕТЬМИ карточки; без истории их не было бы вовсе.
+    expect(container.querySelector('[data-testid="version-history"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="downloads"]')).toBeTruthy();
+
+    // Правило зеркала: у руководителя тот же экран и те же блоки.
+    const leader = await renderServerComponent(
+      LeaderDocumentPage({ params: Promise.resolve({ id: 'd1' }) })
+    );
+    expect(leader.container.querySelector('[data-testid="version-history"]')).toBeTruthy();
+
+    // И обратная сторона: отказ выборки не рисует пустых блоков-обманок.
+    getDocumentHistory.mockResolvedValue({ ok: false as const, error: 'not_found' } as never);
+    const denied = await renderServerComponent(
+      ManagerDocumentPage({ params: Promise.resolve({ id: 'd1' }) })
+    );
+    expect(denied.container.querySelector('[data-testid="version-history"]')).toBeNull();
+    expect(denied.container.querySelector('[data-testid="downloads"]')).toBeNull();
   });
 });
 

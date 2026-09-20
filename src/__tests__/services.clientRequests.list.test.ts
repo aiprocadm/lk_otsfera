@@ -128,6 +128,18 @@ describe('listClientRequests', () => {
     expect(res.nextCursor).toBeNull();
   });
 
+  it('автор ответа показывается, только когда ответ есть; уволенный — прочерк', async () => {
+    // Строка «ответил —» без самого ответа читается как «вам ответили, но
+    // текст потерялся». А сотрудник мог уволиться: связь есть, имени нет.
+    const { prisma } = db([
+      row('R1', { staffReply: 'Ответ', staffRepliedByUser: { name: 'Пётр' } }),
+      row('R2', { staffReply: 'Ответ', staffRepliedByUser: null }),
+      row('R3', { staffReply: null, staffRepliedByUser: { name: 'Пётр' } }),
+    ]);
+    const res = await listClientRequests(prisma, s({ role: 'admin' }), { take: 10 });
+    expect(res.rows.map((r) => r.staffRepliedByName)).toEqual(['Пётр', null, null]);
+  });
+
   it('PII-журнал: context=client_requests_list, subjectIds — только страница (без take+1 хвоста)', async () => {
     const { prisma } = db([row('R1'), row('R2'), row('R3')]);
     const session = s({ role: 'manager', companyId: 'c1' });

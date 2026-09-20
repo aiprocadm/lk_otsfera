@@ -1092,6 +1092,19 @@ describe('PaymentQueueTable — пакетное создание: краевы�
     expect(list.textContent).toContain('без названия');
   });
 
+  it('`У-89`: контрагент без ИНН помечен прямо в списке, а не выглядит обычным', async () => {
+    // Организацию без ИНН завести можно, но человек должен увидеть это ДО
+    // создания: потом искать её по ИНН и сверять с 1С будет нечем.
+    planQueueOrgCreationAction.mockResolvedValue({
+      ok: true,
+      candidates: [{ rowId: 'r1', name: 'ООО «Гамма»', inn: null, alsoRows: 0 }],
+    });
+    render(React.createElement(PaymentQueueTable, { ...tableProps, rows: [row()] }));
+    fireEvent.click(screen.getByTestId('bulk-create-orgs'));
+    const list = await screen.findByTestId('bulk-candidates');
+    expect(list.textContent).toContain('без ИНН — организация будет создана без него');
+  });
+
   it('диалог закрыли до ответа сервера — состояние размонтированного не трогаем', async () => {
     // Иначе React ругается на setState после размонтирования, а пользователь
     // видит призрачный список от прошлого открытия.

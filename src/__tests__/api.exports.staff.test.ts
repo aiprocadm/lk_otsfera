@@ -178,6 +178,20 @@ describe('GET /api/manager/orders/export', () => {
 });
 
 describe('GET /api/manager/organizations/[id]/certificates/export', () => {
+  it('401 без сессии, 403 клиентской роли — выборка ПДн даже не начинается', async () => {
+    // Выгрузка удостоверений — это файл с фамилиями живых людей, поэтому
+    // отказ обязан случиться ДО обращения к выборке: иначе чужой запрос
+    // успевал бы оставить след в журнале доступа к ПДн.
+    getSession.mockResolvedValue(null);
+    expect((await orgCertsExport(req('http://x/e'), params('org1'))).status).toBe(401);
+
+    getSession.mockResolvedValue(orgSession);
+    expect((await orgCertsExport(req('http://x/e'), params('org1'))).status).toBe(403);
+
+    expect(listCertificates).not.toHaveBeenCalled();
+    expect(recordPiiAccess).not.toHaveBeenCalled();
+  });
+
   it('404 для организации вне скоупа — существование не подтверждаем', async () => {
     getSession.mockResolvedValue(managerSession);
     canManagerAccessOrg.mockResolvedValue(false);

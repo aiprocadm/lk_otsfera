@@ -69,6 +69,21 @@ describe('loadDocumentBranding', () => {
     expect(warnMock).toHaveBeenCalled();
   });
 
+  it('сбой хранилища бросил НЕ-Error — в журнале читаемая строка', async () => {
+    // Клиент S3 умеет бросать строку. Слот всё равно останется пустым, но
+    // причину должно быть видно: иначе «почему на счёте нет печати» никто не
+    // разберёт.
+    const { prisma } = prismaWith([{ slot: 'logo', path: 'company/c1/branding/logo.png' }]);
+    downloadMock.mockRejectedValue('нет связи с хранилищем');
+
+    const branding = await loadDocumentBranding(prisma, 'c1');
+    expect(branding).toEqual({ logo: null, signature: null, stamp: null });
+    expect(warnMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ error: 'нет связи с хранилищем' })
+    );
+  });
+
   it('чужой формат отбрасывается ДО рендера', async () => {
     // Иначе `@react-pdf` упал бы уже внутри транзакции, когда номер счёта из
     // счётчика уже израсходован.

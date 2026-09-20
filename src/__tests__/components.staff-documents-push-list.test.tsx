@@ -217,6 +217,21 @@ describe('StaffDocumentsPushList', () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
+  it('незнакомый код отказа переводится общим словарём, а не показывается кодом', async () => {
+    // В экранном словаре перечислены только особые причины. Всё остальное
+    // (`internal`, `company_required`, …) обязано пройти через общий перевод —
+    // иначе человек увидит английский код и не поймёт, что делать.
+    requestDocumentPushManyAction.mockResolvedValue({ ok: false, error: 'internal' });
+    mount([row({ id: 'a' })]);
+    fireEvent.click(screen.getByLabelText('Выбрать a.pdf'));
+    fireEvent.click(screen.getByRole('button', { name: 'Выгрузить выбранные в 1С' }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    const text = screen.getByRole('alert').textContent ?? '';
+    expect(text).not.toBe('internal');
+    expect(/[а-яА-Я]/.test(text)).toBe(true);
+  });
+
   it('пустой результат при активном фильтре объясняет и даёт «Сбросить фильтр» (У-74)', () => {
     mount([], '/manager/documents?tab=general');
     expect(screen.getByText('По этому фильтру документов нет')).toBeTruthy();

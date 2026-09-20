@@ -33,7 +33,11 @@ export function PersonalSettings({
   team?: boolean;
 }) {
   const tabs = personalSettingsTabsFor({ team });
-  const current = tabs.find((t) => t.key === activeTab) ?? tabs[0];
+  // Реестр фильтрует только «Команду», остальные вкладки есть у всех ролей,
+  // поэтому список никогда не пуст, и первая вкладка существует. Незнакомый
+  // `?tab=` в адресе (чужая ссылка, опечатка) открывает её же — пустой экран
+  // без объяснения был бы тупиком (§15).
+  const current = tabs.find((t) => t.key === activeTab) ?? tabs[0]!;
 
   return (
     <div className="space-y-4">
@@ -43,9 +47,9 @@ export function PersonalSettings({
             key={t.key}
             href={`${basePath}?tab=${t.key}`}
             data-testid={`personal-tab-${t.key}`}
-            data-active={t.key === current?.key}
+            data-active={t.key === current.key}
             className={`px-3 py-2 text-sm -mb-px border-b-2 ${
-              t.key === current?.key
+              t.key === current.key
                 ? 'border-[#F97316] text-[#111111] font-medium'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
@@ -57,9 +61,9 @@ export function PersonalSettings({
 
       {/* §15 «что здесь делают»: одна строка под переключателем — у каждой
           вкладки своя, из реестра. */}
-      {current && <p className="text-sm text-gray-500">{current.description}</p>}
+      <p className="text-sm text-gray-500">{current.description}</p>
 
-      <div className="space-y-6">{current ? slots[current.key] : null}</div>
+      <div className="space-y-6">{slots[current.key]}</div>
     </div>
   );
 }

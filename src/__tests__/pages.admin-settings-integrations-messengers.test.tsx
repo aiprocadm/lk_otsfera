@@ -64,12 +64,22 @@ vi.mock('@/server-actions/admin/integrationSettings', () => ({
 const { getChannelHealth } = vi.hoisted(() => ({ getChannelHealth: vi.fn() }));
 vi.mock('@/lib/services/messengers/channelHealth', () => ({ getChannelHealth }));
 
-const { channelHealthRows } = vi.hoisted(() => ({ channelHealthRows: [] as unknown[] }));
+const { channelHealthRows, channelActions } = vi.hoisted(() => ({
+  channelHealthRows: [] as unknown[],
+  channelActions: {} as Record<string, boolean>,
+}));
 vi.mock('@/components/admin/channel-health-panel', async () => {
   const R = await import('react');
   return {
-    ChannelHealthPanel: (props: { rows: unknown[] }) => {
+    ChannelHealthPanel: (props: { rows: unknown[]; actionsFor?: (channel: string) => unknown }) => {
       channelHealthRows.splice(0, channelHealthRows.length, ...props.rows);
+      // Кнопки проверки строит страница, а не панель: зовём её сборщик за
+      // каждую строку — иначе «есть ли кнопка у этого канала» проверить нечем.
+      for (const key of Object.keys(channelActions)) delete channelActions[key];
+      for (const row of props.rows) {
+        const channel = (row as { channel: string }).channel;
+        channelActions[channel] = props.actionsFor?.(channel) !== null;
+      }
       return R.createElement('div', { 'data-testid': 'channel-health-panel' }, 'CHANNELS');
     },
   };
@@ -206,8 +216,27 @@ describe('AdminMessengersSettingsPage', () => {
       'email',
     ]);
 
+    // Кнопки «проверить» есть только у мессенджеров: почта приходит и уходит
+    // своим путём, и кнопка «отправить тестовое» у неё живёт на другом экране.
+    expect(channelActions).toEqual({ telegram: true, email: false });
+
     // Ключ шифрования на месте — предупреждения нет.
     expect(container.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it('ничего ещё не настроено — поля пустые, а не со словом «null»', async () => {
+    // Первое открытие экрана: в базе нет ни одной строки. Поле с текстом
+    // «null» человек примет за значение и оставит его — бот не заработает.
+    getSettingsView.mockImplementation(async (_prisma: unknown, keys: string[]) =>
+      viewFor(keys, () => ({ value: null, isSet: false, source: 'none' }))
+    );
+    await renderServerComponent(AdminMessengersSettingsPage());
+    const values = formProps
+      .flatMap((f) => f.fields ?? [])
+      .map((f) => f.initialValue)
+      .filter((v) => v !== undefined);
+    expect(values.length).toBeGreaterThan(0);
+    expect(values.every((v) => v === '')).toBe(true);
   });
 
   it('нет ключа шифрования — предупреждение до форм; отказ светофора — понятный текст', async () => {

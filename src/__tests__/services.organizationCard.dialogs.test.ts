@@ -163,6 +163,38 @@ describe('getOrganizationCard — вкладка «Диалоги» (У-210)', (
     ]);
   });
 
+  it('вкладка «Заявки на обучение» собирается из заявок, а не остаётся пустой', async () => {
+    // Вкладка собиралась без единого теста: сломайся маппинг — менеджер
+    // увидел бы пустой список и решил, что заявок нет.
+    const created = new Date('2026-09-01T10:00:00Z');
+    const prisma = makePrisma({
+      enrollmentRequest: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'e1',
+            status: 'submitted',
+            createdAt: created,
+            legacyCourseTitle: 'Охрана труда',
+            _count: { items: 3 },
+          },
+        ]),
+        count: vi.fn().mockResolvedValue(1),
+      },
+    });
+
+    const card = await getOrganizationCard(prisma, staffSession, 'o1');
+    expect(card?.enrollments).toEqual([
+      {
+        id: 'e1',
+        status: 'submitted',
+        createdAt: created,
+        courseTitle: 'Охрана труда',
+        studentsCount: 3,
+      },
+    ]);
+    expect(card?.tabTotals.enrollments).toBe(1);
+  });
+
   it('чтение переписки фиксируется в журнале ПДн (org_card_dialogs)', async () => {
     const prisma = makePrisma({
       messengerDialog: {
@@ -195,6 +227,31 @@ describe('getOrganizationCard — вкладка «Диалоги» (У-210)', (
         },
       })
     );
+  });
+
+  it('партнёр с личным закреплением видит ТОЛЬКО закреплённые организации', async () => {
+    // Портфель партнёра шире, чем охват конкретного сотрудника: у партнёрских
+    // пользователей бывает личный список организаций. Без его учёта рядовой
+    // сотрудник партнёра открыл бы карточку любого клиента портфеля.
+    const partnerOrg = { ...org, partnerId: 'p1' };
+    const prisma = makePrisma({
+      organization: { findUnique: vi.fn().mockResolvedValue(partnerOrg) },
+    });
+    const own = {
+      sub: 'pu1',
+      role: 'partner',
+      partnerId: 'p1',
+      assignedOrgIds: ['o1'],
+    } as SessionPayload;
+    const foreign = {
+      sub: 'pu2',
+      role: 'partner',
+      partnerId: 'p1',
+      assignedOrgIds: ['o-other'],
+    } as SessionPayload;
+
+    expect(await getOrganizationCard(prisma, own, 'o1')).not.toBeNull();
+    expect(await getOrganizationCard(prisma, foreign, 'o1')).toBeNull();
   });
 
   it('клиентскому кабинету переписка учебного центра не грузится вовсе', async () => {

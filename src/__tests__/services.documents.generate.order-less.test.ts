@@ -334,3 +334,89 @@ describe('выпуск документа без заказа (`У-145`)', () =>
     expect(tx.documentCounter.upsert).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Края выпуска без заказа: ошибки, которые не видны сразу.
+ *
+ * У документа без заказа нет номера заказа, по которому его потом найдут в
+ * журналах, поэтому записи о сбоях обязаны нести хотя бы организацию — иначе
+ * расследовать «почему клиент не получил счёт» нечем.
+ */
+describe('выпуск без заказа — тихие края', () => {
+  it('файл не загрузился: отказ storage, и в журнале честный «заказа нет»', async () => {
+    uploadMock.mockRejectedValue(new Error('s3 недоступен'));
+    const { prisma } = makePrisma();
+    expect(
+      await generateOrderDocument(prisma, manager(), {
+        organizationId: 'org-1',
+        docType: 'invoice',
+        lines: [LINE],
+      })
+    ).toEqual({ ok: false, error: 'storage' });
+  });
+
+  it('уведомление не ушло — документ всё равно выпущен', async () => {
+    // Рассылка degrade gracefully (§3): непришедшее письмо хуже, чем
+    // невыпущенный счёт, только на первый взгляд — счёт уже в кабинете.
+    notifyOrgUsers.mockRejectedValue(new Error('smtp'));
+    const { prisma } = makePrisma();
+    const r = await generateOrderDocument(prisma, manager(), {
+      organizationId: 'org-1',
+      docType: 'invoice',
+      lines: [LINE],
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  it('предмет из формы доезжает до печатной формы договора', async () => {
+    // Поле человек вводит руками именно потому, что без заказа взять его
+    // неоткуда. Потеряйся оно — в договоре встанет типовое «Оказание услуг»,
+    // и бумагу придётся переделывать.
+    const { prisma } = makePrisma();
+    const r = await generateOrderDocument(prisma, manager(), {
+      organizationId: 'org-1',
+      docType: 'contract',
+      lines: [LINE],
+      extras: { subject: '  Обучение по электробезопасности  ' },
+    });
+    expect(r.ok).toBe(true);
+    const clauses = renderContractMock.mock.calls[0]![0].clauses as Array<{
+      key: string;
+      text: string;
+    }>;
+    expect(clauses.find((c) => c.key === 'subject.contract')?.text).toContain(
+      'Обучение по электробезопасности'
+    );
+  });
+
+  it('период услуг из формы печатается в счёте', async () => {
+    // Период — единственное место, где у счёта без заказа видно, ЗА ЧТО
+    // платят именно в этом месяце. Без него счёт выглядит как повтор.
+    const { prisma } = makePrisma();
+    const r = await generateOrderDocument(prisma, manager(), {
+      organizationId: 'org-1',
+      docType: 'invoice',
+      lines: [LINE],
+      extras: { periodFrom: new Date('2026-10-01'), periodTo: new Date('2026-10-31') },
+    });
+    expect(r.ok).toBe(true);
+    expect(renderMock.mock.calls[0]![0].servicePeriod).toEqual({
+      from: new Date('2026-10-01'),
+      to: new Date('2026-10-31'),
+    });
+  });
+
+  it('предпросмотр по недоступной цели отказывает тем же кодом, что и выпуск', async () => {
+    // Предпросмотр — та же бумага, только без номера. Пустить его мимо гарда
+    // значило бы показать чужие реквизиты «просто посмотреть».
+    const { prisma } = makePrisma({ organization: null });
+    expect(
+      await previewOrderDocument(prisma, manager(), {
+        organizationId: 'чужая',
+        docType: 'invoice',
+        lines: [LINE],
+      })
+    ).toEqual({ ok: false, error: 'not_found' });
+    expect(renderMock).not.toHaveBeenCalled();
+  });
+});
