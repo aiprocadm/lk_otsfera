@@ -55,6 +55,7 @@ vi.mock('@/components/documents/document-detail-view', () => ({
     backHref: string;
     orderHrefBase?: string;
     document: { name: string };
+    children?: React.ReactNode;
   }) =>
     React.createElement(
       'div',
@@ -63,12 +64,42 @@ vi.mock('@/components/documents/document-detail-view', () => ({
         name: props.document.name,
         backHref: props.backHref,
         orderHrefBase: props.orderHrefBase,
-      })
+      }),
+      // Блоки страницы приходят ДЕТЬМИ карточки (форма замены версии, история,
+      // скачивания). Не отрисуй их заглушка — проверить, есть ли блок у этого
+      // кабинета, было бы нечем.
+      props.children
     ),
 }));
 
 vi.mock('@/components/custom-fields/entity-custom-fields', () => ({
   EntityCustomFields: () => React.createElement('div', { 'data-testid': 'fields' }),
+}));
+
+// Блоки внутреннего контура: у каждого свой тест, а здесь они мешали бы —
+// часть из них клиентские, с состоянием, и серверный рендер на них падает.
+vi.mock('@/components/documents/document-onec-push-block', () => ({
+  DocumentOneCPushBlock: () => React.createElement('div', { 'data-testid': 'push-block' }),
+}));
+vi.mock('@/components/documents/document-version-history', () => ({
+  DocumentVersionHistory: () => React.createElement('div', { 'data-testid': 'version-history' }),
+}));
+vi.mock('@/components/documents/document-downloads', () => ({
+  DocumentDownloads: () => React.createElement('div', { 'data-testid': 'downloads' }),
+}));
+vi.mock('@/components/tasks/linked-tasks-panel', () => ({
+  LinkedTasksPanel: () => React.createElement('div', { 'data-testid': 'tasks' }),
+}));
+
+// `У-251`: форма замены версии. Здесь важно, ЕСТЬ ли она у кабинета и в какую
+// дверь целится, а не как она нарисована — у формы свой тест.
+vi.mock('@/components/documents/document-version-upload-form', () => ({
+  DocumentVersionUploadForm: (props: { url: string; fields: Record<string, string> }) =>
+    React.createElement('div', {
+      'data-testid': 'version-upload',
+      'data-url': props.url,
+      'data-fields': JSON.stringify(props.fields),
+    }),
 }));
 
 vi.mock('@/components/organization/org-app-shell', () => ({
@@ -202,5 +233,81 @@ describe('Карточка документа — кабинет организ�
         })
       )
     ).rejects.toThrow('NEXT_NOT_FOUND');
+  });
+});
+
+/**
+ * Замена версии документа у клиентских кабинетов (`У-251`).
+ *
+ * Дверей загрузки пять, и у каждой свой набор полей. Важно, что **кабинет
+ * целится в СВОЮ дверь**: перепутай их — и файл уйдёт туда, куда у этой роли
+ * нет прав, а человек увидит отказ вместо замены.
+ *
+ * Форма появляется, только когда сервер разрешил (`canUploadVersion`). Кнопка
+ * на экране правами не считается: сервис проверит всё заново.
+ */
+describe('Замена версии документа — клиентские кабинеты', () => {
+  /** Карточка документа, которому сервер разрешил новую версию. */
+  const allowed = (counterparty: { type: string; id: string | null }) => ({
+    ok: true,
+    document: {
+      name: 'Счёт №5',
+      type: 'invoice',
+      version: 2,
+      canUploadVersion: true,
+      order: { id: 'ord1' },
+      counterparty,
+    },
+  });
+
+  it('партнёр целится в свою дверь; партнёра в полях нет — он в сессии', async () => {
+    getDocumentDetail.mockResolvedValue(allowed({ type: 'partner', id: 'pp1' }));
+
+    const { container } = await renderServerComponent(
+      PartnerDocumentPage({ params: Promise.resolve({ id: 'doc1' }) })
+    );
+
+    const form = container.querySelector('[data-testid="version-upload"]') as HTMLElement;
+    expect(form.dataset.url).toBe('/api/partner/documents/upload');
+    expect(JSON.parse(form.dataset.fields!)).toEqual({ orderId: 'ord1', docType: 'invoice' });
+  });
+
+  it('заказчик целится в свою дверь и несёт организацию документа', async () => {
+    getDocumentDetail.mockResolvedValue(allowed({ type: 'organization', id: 'org-7' }));
+
+    const { container } = await renderServerComponent(
+      OrganizationDocumentPage({ params: Promise.resolve({ id: 'doc1' }) })
+    );
+
+    const form = container.querySelector('[data-testid="version-upload"]') as HTMLElement;
+    expect(form.dataset.url).toBe('/api/organization/documents/upload');
+    // Организация берётся у САМОГО документа, а не из активной вкладки шапки:
+    // у человека их может быть несколько, и файл ушёл бы не в ту папку.
+    expect(JSON.parse(form.dataset.fields!)).toMatchObject({ organizationId: 'org-7' });
+  });
+
+  it.each([
+    ['партнёра', PartnerDocumentPage, { type: 'organization', id: 'org-7' }],
+    ['заказчика', OrganizationDocumentPage, { type: 'partner', id: 'pp1' }],
+  ])('чужой контрагент — формы у %s нет вовсе', async (_name, Page, counterparty) => {
+    getDocumentDetail.mockResolvedValue(allowed(counterparty));
+
+    const { container } = await renderServerComponent(
+      Page({ params: Promise.resolve({ id: 'doc1' }) })
+    );
+
+    expect(container.querySelector('[data-testid="version-upload"]')).toBeNull();
+  });
+
+  it('сервер не разрешил замену — формы нет', async () => {
+    const doc = allowed({ type: 'partner', id: 'pp1' });
+    doc.document.canUploadVersion = false;
+    getDocumentDetail.mockResolvedValue(doc);
+
+    const { container } = await renderServerComponent(
+      PartnerDocumentPage({ params: Promise.resolve({ id: 'doc1' }) })
+    );
+
+    expect(container.querySelector('[data-testid="version-upload"]')).toBeNull();
   });
 });
