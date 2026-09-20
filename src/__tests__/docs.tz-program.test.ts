@@ -302,6 +302,94 @@ describe('режим сопровождения — реестр проверо�
     ).toEqual([]);
   });
 
+  /**
+   * Номер прогона в колонке «Последний прогон» — это ссылка: по ней читают,
+   * что тот прогон нашёл и чем закончился. Ссылаться ей некуда, если строки
+   * прогона нет в «Журнале прогонов».
+   *
+   * **Как это случилось.** Шаг 6 режима сопровождения (CLAUDE.md §14) требует
+   * обновить строку проверки и шапку `STATUS.md` — про журнал там не сказано.
+   * Четыре прогона подряд (№29…№32, 19.09.2026) журнал не трогали: строки
+   * проверок ссылались на №30 и №32, а последняя запись журнала была №28. Ни
+   * один тест не падал, потому что прежняя проверка смотрела только на то,
+   * что клетка **не пуста**. Заодно заголовок раздела в `STATUS.md` шесть дней
+   * стоял на «№27» при фактических №32.
+   *
+   * Поэтому здесь проверяется не форма, а **связь**: номер → строка журнала,
+   * непрерывность нумерации и совпадение с шапкой `STATUS.md`.
+   */
+  /** Номера прогонов из третьей колонки журнала (не из текста итогов). */
+  function journalRunNumbers(): number[] {
+    const lines = read(MAINTENANCE_PATH).split('\n');
+    const header = lines.findIndex((l) => l.startsWith('| Дата | Коммит | Проверка | Итог | PR |'));
+    expect(
+      header,
+      'В MAINTENANCE.md нет «Журнала прогонов» с шапкой «| Дата | Коммит | Проверка | Итог | PR |».'
+    ).toBeGreaterThan(-1);
+    const numbers: number[] = [];
+    for (const line of lines.slice(header + 2)) {
+      if (!line.startsWith('|')) break;
+      const cells = line.split('|').slice(1, -1);
+      const m = /прогон №(\d+)/.exec(cells[2] ?? '');
+      if (m?.[1]) numbers.push(Number(m[1]));
+    }
+    return numbers;
+  }
+
+  it('каждый номер прогона из колонки «Последний прогон» есть в журнале прогонов', () => {
+    const lines = read(MAINTENANCE_PATH).split('\n');
+    const journal = new Set(journalRunNumbers());
+    const dangling: string[] = [];
+    for (const id of CHECK_IDS) {
+      const row = lines.find((l) => l.startsWith(`| ${id} |`));
+      if (!row) continue;
+      for (const m of row.matchAll(/№(\d+)/g)) {
+        const n = Number(m[1]);
+        if (!journal.has(n)) dangling.push(`${id} → №${n}`);
+      }
+    }
+    expect(
+      dangling,
+      'Эти проверки ссылаются на прогоны, которых нет в «Журнале прогонов» ' +
+        'MAINTENANCE.md:\n' +
+        dangling.map((d) => `  ${d}`).join('\n') +
+        '\n\nЗакончили прогон — добавьте его строку в журнал (шаг 6 режима ' +
+        'сопровождения, CLAUDE.md §14), иначе номер в колонке ведёт в никуда.'
+    ).toEqual([]);
+  });
+
+  it('нумерация прогонов в журнале непрерывна и совпадает с шапкой STATUS.md', () => {
+    const numbers = journalRunNumbers();
+    expect(
+      numbers.length,
+      'В «Журнале прогонов» нет ни одной строки с номером прогона.'
+    ).toBeGreaterThan(0);
+
+    const max = Math.max(...numbers);
+    const present = new Set(numbers);
+    const gaps: number[] = [];
+    for (let n = 1; n <= max; n += 1) if (!present.has(n)) gaps.push(n);
+    expect(
+      gaps,
+      `В «Журнале прогонов» пропущены прогоны: ${gaps.map((n) => `№${n}`).join(', ')}. ` +
+        'Пропуск означает потерянную запись — восстановите её по git-истории и ' +
+        'журналу находок.'
+    ).toEqual([]);
+
+    const status = read(STATUS_PATH);
+    const stated = /последний прогон №(\d+)/.exec(status);
+    expect(
+      stated,
+      'В STATUS.md нет строки «последний прогон №N» — по ней сессия понимает, ' +
+        'на чём остановилось сопровождение.'
+    ).not.toBeNull();
+    expect(
+      Number(stated?.[1]),
+      `Шапка STATUS.md называет последним прогон №${stated?.[1]}, а в журнале ` +
+        `MAINTENANCE.md последний — №${max}. Разъехались: одно из двух отстало.`
+    ).toBe(max);
+  });
+
   it('все относительные ссылки реестра ведут на существующие файлы', () => {
     const dead: string[] = [];
     for (const m of read(MAINTENANCE_PATH).matchAll(
