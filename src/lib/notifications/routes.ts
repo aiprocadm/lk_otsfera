@@ -231,8 +231,12 @@ const RULES: Record<NotificationTypeKey, Rule> = {
   // сотруднику — карточка диалога, а без неё «Входящие».
   inbound_reply: (m, c) => {
     if (c === 'organization' || c === 'partner') {
-      const base = section(c, 'messages', null);
-      if (!base) return null;
+      // Раздел «Сообщения» объявлен в реестре ОБОИХ клиентских кабинетов
+      // (см. `CABINET_SECTIONS` выше), поэтому `null` здесь невозможен.
+      // Если раздел когда-нибудь уберут — уронит страж маршрутов, а не тихая
+      // ветка «адреса нет»: правило зеркала (§0.2) требует разбираться с этим
+      // осознанно, а не молча гасить ссылку из уведомления.
+      const base = section(c, 'messages', null)!;
       const id = idOf(m, 'dialogId');
       return id ? `${base}?tab=manager&dialog=${id}` : `${base}?tab=manager`;
     }

@@ -101,6 +101,19 @@ describe('saveWebsiteSettingsAction — список доменов', () => {
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
+  it('менеджер по умолчанию не найден — настройка не сохраняется', async () => {
+    // Иначе заявки с сайта уходили бы «всем» (или никому), а в настройках
+    // стоял бы идентификатор уволенного или чужого человека — и никто бы не
+    // заметил, пока не потерялась бы первая заявка.
+    userFindFirst.mockResolvedValueOnce(null);
+
+    const res = await saveWebsiteSettingsAction(VALID);
+
+    expect(res).toEqual({ ok: false, error: 'unknown_manager' });
+    expect(saveSettings).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
   it('ровно пять доменов — ещё можно', async () => {
     const five = Array.from({ length: 5 }, (_, i) => `https://s${i}.ru`).join(', ');
 

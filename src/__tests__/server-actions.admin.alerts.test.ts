@@ -122,6 +122,14 @@ describe('sendTestAlertAction (У-126)', () => {
     expect(await sendTestAlertAction()).toEqual({ ok: false, error: 'send_failed' });
   });
 
+  it('сбой бросил НЕ-Error — код тот же, а в журнале читаемая строка', async () => {
+    // Транспорт мессенджера умеет бросать строку. Без приведения к строке в
+    // журнал ушло бы «[object Object]», и понять, почему тестовое сообщение
+    // не дошло, стало бы невозможно.
+    deliverAlert.mockRejectedValue('шлюз закрыт');
+    expect(await sendTestAlertAction()).toEqual({ ok: false, error: 'send_failed' });
+  });
+
   it('только администратор', async () => {
     requireAdmin.mockRejectedValue(new Error('REDIRECT'));
     await expect(sendTestAlertAction()).rejects.toThrow('REDIRECT');

@@ -139,6 +139,32 @@ describe('разбор формы', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/leader/settings');
   });
 
+  it('ошибка создания и правки тоже возвращается как есть, без ревалидации', async () => {
+    // Список подсказок сервиса (`messages`) обязан доехать до формы целиком:
+    // адаптер не пересобирает ответ, иначе человек увидит «не получилось» без
+    // объяснения, ЧТО именно не так в услуге.
+    createCatalogItem.mockResolvedValue({
+      ok: false,
+      error: 'validation',
+      messages: ['Цена должна быть больше нуля'],
+    });
+    expect(
+      await createCatalogItemAction('leader', fd({ companyId: 'co-1', title: 'Услуга' }))
+    ).toEqual({
+      ok: false,
+      error: 'validation',
+      messages: ['Цена должна быть больше нуля'],
+    });
+
+    updateCatalogItem.mockResolvedValue({ ok: false, error: 'not_found' });
+    expect(await updateCatalogItemAction('leader', fd({ id: 'ci-9', title: 'Услуга' }))).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
   it('ошибка сервиса возвращается как есть, без ревалидации', async () => {
     setCatalogItemActive.mockResolvedValue({ ok: false, error: 'forbidden' });
     expect(await setCatalogItemActiveAction('leader', fd({ id: 'ci-1', active: '0' }))).toEqual({

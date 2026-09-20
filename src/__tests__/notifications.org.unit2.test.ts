@@ -103,6 +103,40 @@ describe('notifyOrgUsers — payment_received', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Правила доставки компании
+// ---------------------------------------------------------------------------
+
+describe('notifyOrgUsers — правила доставки компании (У-216)', () => {
+  it('компания выключила почту — строка в кабинете есть, письма нет', async () => {
+    // Правила живут в отдельной таблице. Если её не спросить (или спросить и
+    // не передать ответ в доставку), выключенный канал продолжит слать письма,
+    // и настройка на экране окажется обманом.
+    sendPayment.mockResolvedValue({ status: 'sent' });
+    const { db, create } = dbWith([{ id: 'u1', email: 'a@org.ru' }]);
+    (db as unknown as { notificationRule: unknown }).notificationRule = {
+      findMany: vi
+        .fn()
+        .mockResolvedValue([{ companyId: 'co-1', channel: 'email', enabled: false }]),
+    };
+
+    const r = await notifyOrgUsers(db, {
+      organizationId: 'org-1',
+      type: 'payment_received',
+      payload: {
+        ...ORDER_PAYLOAD_BASE,
+        amount: '100 000',
+        paidAt: new Date('2026-06-01T00:00:00Z'),
+      },
+    });
+
+    expect(r.recipientsNotified).toBe(1);
+    expect(create).toHaveBeenCalledOnce();
+    expect(r.emailsSent).toBe(0);
+    expect(sendPayment).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // manager_replied
 // ---------------------------------------------------------------------------
 

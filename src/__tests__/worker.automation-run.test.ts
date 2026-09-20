@@ -162,6 +162,16 @@ describe('runAutomationRule — исполнение', () => {
     expect(logError).toHaveBeenCalled();
   });
 
+  it('действие бросило НЕ-Error — причина в журнале читаемая', async () => {
+    // Бросить строку умеют и драйвер базы, и сторонний клиент. В поле
+    // «причина» карточки прогона человек должен увидеть текст, а не
+    // «[object Object]» — иначе разбирать нечего.
+    runCreateTask.mockRejectedValue('сервис задач недоступен');
+    const res = await runAutomationRule(prisma, JOB);
+    expect(res.status).toBe('failed');
+    expect(runUpdate.mock.calls[0][0].data.error).toContain('сервис задач недоступен');
+  });
+
   it('одно действие упало — соседнее всё равно выполняется', async () => {
     ruleFindUnique.mockResolvedValue({
       ...RULE,
@@ -213,6 +223,17 @@ describe('runAutomationRule — исполнение', () => {
     const res = await runAutomationRule(prisma, JOB);
     expect(res.status).toBe('failed');
     expect(logError).toHaveBeenCalled();
+  });
+
+  it('сбой выключения бросил не-Error — джоб всё равно живой, запись читаемая', async () => {
+    ruleFindUnique.mockResolvedValue({ ...RULE, actions: null });
+    ruleUpdate.mockRejectedValue('база занята');
+    const res = await runAutomationRule(prisma, JOB);
+    expect(res.status).toBe('failed');
+    expect(logError).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ error: 'база занята' })
+    );
   });
 
   it('действие «написать клиенту» пока честно отказывает, а не делает вид', async () => {

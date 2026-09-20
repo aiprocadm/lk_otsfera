@@ -21,15 +21,13 @@ async function auditBridgeFailure(params: {
   action: AuditAction;
   userId: string;
   entityId?: string;
-  clientId?: string;
-  ip?: string | null;
+  /** Всегда строка: заголовок читается через `?? ''` до первого вызова. */
+  clientId: string;
+  /** Всегда строка: `clientIpFromHeaders` при отсутствии заголовков даёт `'unknown'`. */
+  ip: string;
   reason: string;
 }) {
-  // clientId is always a string (guaranteed by callers via ?? ''), so the
-  // ?? 'unknown' and ?? null fallbacks are unreachable in practice. The
-  // optional type signature exists for forward-compatibility only.
-  /* v8 ignore next 2 */
-  const resolvedEntityId = params.entityId ?? params.clientId ?? 'unknown';
+  const resolvedEntityId = params.entityId ?? params.clientId;
 
   await recordAudit(prisma, {
     action: params.action,
@@ -39,9 +37,8 @@ async function auditBridgeFailure(params: {
     status: 'denied',
     reason: params.reason,
     after: {
-      /* v8 ignore next */
-      clientId: params.clientId ?? null,
-      ip: params.ip ?? null,
+      clientId: params.clientId,
+      ip: params.ip,
       entityId: resolvedEntityId,
     },
   });
@@ -70,7 +67,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'bridge client denied' }, { status: 403 });
   }
 
-  const rateLimitKey = `${clientId}:${ip ?? 'unknown-ip'}`;
+  const rateLimitKey = `${clientId}:${ip}`;
   if (await isRateLimited(rateLimitKey, { windowMs: WINDOW_MS, max: LIMIT_PER_WINDOW })) {
     await auditBridgeFailure({
       action: 'STUDENT_BRIDGE_RATE_LIMITED',
@@ -125,7 +122,7 @@ export async function POST(req: NextRequest) {
       entity: 'student_bridge',
       entityId: grant.jti,
       userId: sessionResult.value.sub,
-      after: { clientId, ip: ip ?? null, exchangedAt: now.toISOString() },
+      after: { clientId, ip, exchangedAt: now.toISOString() },
     });
 
     return { kind: 'ok' as const, jti: grant.jti, token: grant.token };

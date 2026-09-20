@@ -6,7 +6,7 @@ vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled: () => true }));
 
 import { navByRole } from '@/lib/navigation/cabinet';
 import { groupNavItems, splitPinnedItems } from '@/lib/navigation/groupItems';
-import { MENU_GROUP_ORDER } from '@/lib/navigation/menuGroups';
+import { MENU_GROUP_ORDER, menuGroupRank } from '@/lib/navigation/menuGroups';
 
 /**
  * Страж порядка групп меню (`У-113`) и закреплённых внизу «Настроек» (`У-114`).
@@ -102,5 +102,27 @@ describe('«Настройки» и «Справка» закреплены вн
         role
       ).toEqual([]);
     }
+  });
+});
+
+describe('menuGroupRank — место группы в общем порядке', () => {
+  it('пункт без группы идёт раньше любой группы', () => {
+    expect(menuGroupRank('')).toBe(-1);
+    expect(menuGroupRank('')).toBeLessThan(menuGroupRank(MENU_GROUP_ORDER[0]!));
+  });
+
+  it('группы идут в порядке реестра', () => {
+    const ranks = MENU_GROUP_ORDER.map((g) => menuGroupRank(g));
+    expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
+    expect(new Set(ranks).size).toBe(ranks.length);
+  });
+
+  it('НЕИЗВЕСТНАЯ группа уезжает в КОНЕЦ, а не в начало меню', () => {
+    // `indexOf` отдаёт `-1`, и без поправки новая группа встала бы впереди
+    // «Работы» — то есть первое, что увидел бы человек, открыв кабинет. Пусть
+    // лучше окажется внизу: сборку всё равно уронит страж выше.
+    const rank = menuGroupRank('Группа, которой нет в реестре');
+    expect(rank).toBe(MENU_GROUP_ORDER.length);
+    expect(rank).toBeGreaterThan(menuGroupRank(MENU_GROUP_ORDER.at(-1)!));
   });
 });

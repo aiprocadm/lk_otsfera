@@ -67,6 +67,32 @@ describe('pollInboundEmailProcessor', () => {
     expect(state?.lastError).toBeNull();
   });
 
+  it('`У-205`: Message-ID письма доезжает до входящего — по нему сшивается ветка', async () => {
+    // Без сохранённого `Message-ID` ответ сотрудника уходит новым письмом:
+    // почтовый клиент клиента не подклеит его к переписке, и человек решит,
+    // что ему не ответили.
+    fetchNewMessages.mockResolvedValue({
+      messages: [
+        {
+          externalId: 'uid-77',
+          from: 'client@mail.ru',
+          subject: 'Счёт',
+          text: 'тело',
+          messageId: '<abc@mail.ru>',
+        },
+      ],
+      cursor: '7',
+    });
+    ingestInboundMessage.mockResolvedValue({ ok: true, id: 'im2', deduped: false });
+
+    await pollInboundEmailProcessor(job, prisma);
+
+    expect(ingestInboundMessage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ externalMessageId: '<abc@mail.ru>' })
+    );
+  });
+
   it('passes the persisted cursor from a prior run into fetchNewMessages', async () => {
     await prisma.syncState.create({
       data: {

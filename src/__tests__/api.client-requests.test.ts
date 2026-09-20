@@ -320,6 +320,15 @@ describe('PATCH [id] — reply (этап 6, У-238)', () => {
     expect(replyToClientRequest).toHaveBeenCalledWith({}, manager, { id: 'R1', text: 'ок' });
   });
 
+  it('reply без поля text: в сервис уходит пустая строка, а не «undefined»', async () => {
+    // `String(undefined)` дал бы сервису буквальное слово «undefined» — и он
+    // счёл бы это нормальным ответом клиенту длиной 9 символов.
+    vi.mocked(getSession).mockResolvedValue(manager);
+    replyToClientRequest.mockResolvedValue({ ok: false, error: 'validation' });
+    await PATCH(jsonReq({ action: 'reply' }, 'PATCH'), ctx('R1'));
+    expect(replyToClientRequest).toHaveBeenCalledWith({}, manager, { id: 'R1', text: '' });
+  });
+
   it('reply: validation → 400, forbidden → 403', async () => {
     vi.mocked(getSession).mockResolvedValue(manager);
     replyToClientRequest.mockResolvedValue({ ok: false, error: 'validation' });

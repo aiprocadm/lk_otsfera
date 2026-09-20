@@ -97,6 +97,23 @@ describe('emitAutomationEvent — когда НЕ срабатывает', () =>
     ).toBe(0);
     expect(logError).toHaveBeenCalled();
   });
+
+  it('база бросила НЕ-Error — в журнал уходит читаемая строка, а не «[object Object]»', async () => {
+    // Драйверы и обёртки иногда бросают строку или объект. Расследовать сбой
+    // по записи «[object Object]» невозможно, поэтому текст сводится к строке.
+    findMany.mockRejectedValue('соединение закрыто');
+    expect(
+      await emitAutomationEvent(prisma, {
+        trigger: 'order_status_changed',
+        companyId: 'co-1',
+        payload: {},
+      })
+    ).toBe(0);
+    expect(logError).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ error: 'соединение закрыто' })
+    );
+  });
 });
 
 describe('emitAutomationEvent — выборка правил', () => {
@@ -123,6 +140,21 @@ describe('emitAutomationEvent — выборка правил', () => {
     expect(res).toBe(0);
     expect(add).not.toHaveBeenCalled();
     expect(logWarn).toHaveBeenCalled();
+  });
+
+  it('условия NULL в базе означают «без условий», а не «правило сломано»', async () => {
+    // Колонка `conditions` допускает NULL: у правила «срабатывать всегда»
+    // условий нет вовсе. Разбор `null` схемой объекта провалился бы, и такое
+    // правило молча перестало бы работать.
+    findMany.mockResolvedValue([{ id: 'r1', conditions: null }]);
+    expect(
+      await emitAutomationEvent(prisma, {
+        trigger: 'order_status_changed',
+        companyId: 'co-1',
+        payload: { amount: 1 },
+      })
+    ).toBe(1);
+    expect(add).toHaveBeenCalled();
   });
 
   it('условие не совпало → правило не ставится в очередь', async () => {

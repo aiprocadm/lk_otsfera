@@ -139,6 +139,18 @@ describe('parseWazzupInbound — что по-прежнему отбрасыва
     expect(out).toEqual([]);
   });
 
+  it('пустой текст без файла: сообщение проходит, но тело остаётся пустым', () => {
+    // Агрегатор передаёт ровно то, что прислали: пустая строка — это строка,
+    // и фильтр её пропускает. Придумывать телу содержимое (например «Файл:»)
+    // здесь нельзя — файла-то нет, и подпись обманула бы сотрудника.
+    const out = parseWazzupInbound({
+      messages: [{ messageId: 'w-empty', chatId: '79990001122', text: '' }],
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0]?.text).toBe('');
+    expect(out[0]).not.toHaveProperty('attachment');
+  });
+
   it('сообщение без ссылки остаётся без поля attachment', () => {
     const out = parseWazzupInbound({
       messages: [{ messageId: 'w9', chatId: '79990001122', text: 'просто текст' }],

@@ -73,6 +73,18 @@ describe('GET /api/organization/certificates/export', () => {
     expect(headers).not.toContain('Организация');
   });
 
+  it('401 без сессии, 403 чужой роли — файл не собирается', async () => {
+    // Клиентский реестр удостоверений отдаётся только самой организации:
+    // партнёр и сотрудник ходят своими роутами со своим скоупом.
+    getSession.mockResolvedValue(null);
+    expect((await orgExport(req('http://x/export'))).status).toBe(401);
+
+    getSession.mockResolvedValue(partnerSession);
+    expect((await orgExport(req('http://x/export'))).status).toBe(403);
+
+    expect(listCertificates).not.toHaveBeenCalled();
+  });
+
   it('неизвестный status игнорируется (undefined в сервис)', async () => {
     getSession.mockResolvedValue(orgSession);
     await orgExport(req('http://x/export?status=bogus'));
@@ -85,6 +97,18 @@ describe('GET /api/organization/certificates/export', () => {
 });
 
 describe('GET /api/partner/certificates/export', () => {
+  it('401 без сессии, отказ стража партнёра — его же ответом', async () => {
+    // Роут не сочиняет собственный 403: он отдаёт ровно тот ответ, который
+    // вернул `requirePartner`. Иначе коды на партнёрских роутах разъедутся.
+    getSession.mockResolvedValue(null);
+    expect((await partnerExport(req('http://x/export'))).status).toBe(401);
+
+    getSession.mockResolvedValue(orgSession);
+    expect((await partnerExport(req('http://x/export'))).status).toBe(403);
+
+    expect(listCertificates).not.toHaveBeenCalled();
+  });
+
   it('партнёрская выгрузка без фильтров: пустые query-параметры не уходят в сервис', async () => {
     // Пустой параметр в адресе (?organization=) означает «все», а не поиск
     // организации с пустым названием. И незнакомый статус тоже игнорируется.

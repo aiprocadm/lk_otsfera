@@ -156,6 +156,21 @@ describe('сбой чтения правил не останавливает у�
     expect(rows.length).toBeGreaterThan(0);
     expect(rows.every((r) => r.source === 'default')).toBe(true);
   });
+
+  it('база бросила не-Error — в журнал уходит читаемая строка (оба пути)', async () => {
+    // Драйвер умеет бросать строку. `String(err)` тут не украшение: запись
+    // «[object Object]» в журнале делает разбор сбоя невозможным, а оба пути
+    // чтения правил — доставка и экран настроек — обязаны вести себя
+    // одинаково.
+    const db = {
+      notificationRule: { findMany: vi.fn().mockRejectedValue('соединение закрыто') },
+    } as never;
+    expect(await allowedChannels(db, { eventType: EVENT, audience: 'organization' })).toBe(
+      undefined
+    );
+    const rows = await listRoutingRules(db, null);
+    expect(rows.every((r) => r.source === 'default')).toBe(true);
+  });
 });
 
 describe('уведомление в кабинете правилам не подчиняется', () => {
