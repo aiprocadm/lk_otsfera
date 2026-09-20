@@ -117,19 +117,26 @@ type ActiveRow = {
   before: Prisma.JsonValue;
 };
 
-/** Обратные связи вне списка Т-36 показываются обобщённым кодом *_other_links. */
+/**
+ * Обратные связи вне списка Т-36 показываются обобщённым кодом *_other_links.
+ *
+ * `as const satisfies` — не украшение: вынесенная константа подставляется в
+ * `_count: { select: … }` отдельно от литерала, и без приписки TypeScript не
+ * сверяет её со схемой. Поле `uploads` пережило здесь удаление модели
+ * `Upload` (`У-261`) и роняло откат уже в базе при зелёном `typecheck`.
+ * Подробнее — в такой же шапке у [bitrix/rollback.ts](../bitrix/rollback.ts).
+ */
 const ORDER_COUNTS = {
   statusChanges: true,
   documents: true,
   commissionItems: true,
   comments: true,
-  uploads: true,
   threads: true,
   items: true,
   tasks: true,
   dealNotes: true,
   calendarEvents: true,
-} as const;
+} as const satisfies Prisma.OrderCountOutputTypeSelect;
 
 const ORG_COUNTS = {
   users: true,
@@ -148,7 +155,7 @@ const ORG_COUNTS = {
   inboundMessages: true,
   calls: true,
   contacts: true,
-} as const;
+} as const satisfies Prisma.OrganizationCountOutputTypeSelect;
 
 function push(
   conflicts: RollbackConflict[],
@@ -247,8 +254,7 @@ async function computeConflicts(
       'order_has_foreign_payments',
       foreignPaysByOrder.get(o.id) ?? 0
     );
-    const other =
-      c.comments + c.uploads + c.threads + c.items + c.tasks + c.dealNotes + c.calendarEvents;
+    const other = c.comments + c.threads + c.items + c.tasks + c.dealNotes + c.calendarEvents;
     push(conflicts, 'order', o.id, label, 'order_has_other_links', other);
     const total =
       c.statusChanges +
