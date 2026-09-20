@@ -304,6 +304,9 @@ export async function importCatalogItems(
 
   for (const { row, existingId } of toUpdate) {
     const b = beforeById.get(existingId);
+    // Снимок «как было» читается по тем же идентификаторам, что и сам список
+    // обновлений, — промахнуться здесь нечем. Проверка стоит ради типов.
+    /* v8 ignore next */
     if (!b) continue;
     const d = data(row);
     await recordAudit(prisma, {

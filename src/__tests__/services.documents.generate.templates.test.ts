@@ -180,6 +180,23 @@ describe('шаблон в генераторе (`У-160`)', () => {
     expect(logWarn).toHaveBeenCalled();
   });
 
+  it('сбой чтения шаблона бросил НЕ-Error — в журнал уходит читаемая строка', async () => {
+    // Разбирать «почему договор напечатался встроенным текстом» по записи
+    // «[object Object]» невозможно, а сам сбой выпуск не отменяет.
+    const { prisma } = makePrisma({
+      templateFindMany: vi.fn().mockRejectedValue('соединение закрыто'),
+    });
+    const r = await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'contract',
+    });
+    expect(r.ok).toBe(true);
+    expect(logWarn).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ error: 'соединение закрыто' })
+    );
+  });
+
   it('предпросмотр печатает те же абзацы, что и выпуск, и номер не тратит', async () => {
     const templates = [{ slot: 'payment', body: 'Оплата в день выставления счёта.', revision: 3 }];
     const preview = makePrisma({ templates });

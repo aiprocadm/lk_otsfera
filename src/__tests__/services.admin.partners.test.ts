@@ -893,6 +893,21 @@ describe('createPartnerWithAdmin()', () => {
     });
   });
 
+  it('P2002 без meta.target не выдаётся за занятый slug или почту', async () => {
+    // Драйвер не всегда присылает `meta`. Без края `String(undefined)` дал бы
+    // строку «undefined», а в ней есть подстрока «e» — и проверка «похоже на
+    // email» могла бы случайно совпасть, показав человеку не ту причину.
+    const tx = makeTxForCreate();
+    tx.user.create.mockRejectedValue(
+      Object.assign(new Error('Unique constraint failed'), { code: 'P2002' })
+    );
+    const prisma = makePrismaWithTx(tx);
+
+    await expect(createPartnerWithAdmin(prisma, 'actor1', baseArgs)).rejects.toThrow(
+      'Unique constraint failed'
+    );
+  });
+
   it('незнакомое уникальное ограничение не маскируется — ошибка летит дальше', async () => {
     const tx = makeTxForCreate();
     tx.partnerUser.create.mockRejectedValue(p2002('PartnerUser_userId_partnerId_key'));

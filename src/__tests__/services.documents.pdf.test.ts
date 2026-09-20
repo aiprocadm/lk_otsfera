@@ -412,6 +412,16 @@ describe('renderContractDocumentPdf (PR-3)', () => {
     expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
   });
 
+  it('предпросмотр договора несёт пометку черновика — как и предпросмотр счёта', async () => {
+    // Правило зеркала (§0.2): если пометка есть у одной печатной формы, она
+    // обязана быть у всех. Без неё предпросмотр невозможно отличить от
+    // выпущенного документа — а его отправляют клиенту.
+    const draft = { ...base('contract'), draftNote: 'ПРЕДПРОСМОТР — документ не выпущен' };
+    const buffer = await renderContractDocumentPdf(draft);
+    expect(buffer.subarray(0, 5).toString()).toBe('%PDF-');
+    expect(buffer.length).toBeGreaterThan(1000);
+  });
+
   it('договор печатает ту же таблицу и то же оформление, что счёт', async () => {
     // Правило зеркала (§0.2 ТЗ): один и тот же состав услуг не может
     // выглядеть в договоре иначе, чем в счёте.

@@ -141,6 +141,28 @@ describe('обещанное Р-22 работает — и скоупится к
     expect(findMany.mock.calls[0]![0].where).toEqual({ id: '__none__' });
   });
 
+  it('реквизиты: ставка по умолчанию отдаётся строкой, её отсутствие — null', async () => {
+    // `Decimal` через границу сервер→клиент не проходит, и объект вместо
+    // «0.2000» превратил бы поле формы в «[object Object]». А «ставки нет» и
+    // «ставка 0 %» — разные вещи: первое означает «взять умолчание заказа».
+    const findMany = vi.fn().mockResolvedValue([
+      {
+        id: 'c1',
+        name: 'С ставкой',
+        defaultVatRate: { toFixed: () => '0.2000' },
+        documentNumbering: null,
+      },
+      { id: 'c2', name: 'Без ставки', defaultVatRate: null, documentNumbering: null },
+    ]);
+    const res = await listCompaniesRequisites({ company: { findMany } } as never, {
+      ...LEADER,
+      role: 'admin',
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.companies.map((c) => c.defaultVatRate)).toEqual(['0.2000', null]);
+  });
+
   it('реквизиты: админ видит все компании без фильтра', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     await listCompaniesRequisites({ company: { findMany } } as never, {

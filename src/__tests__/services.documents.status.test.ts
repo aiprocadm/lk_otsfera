@@ -120,4 +120,20 @@ describe('setDocumentStatus', () => {
     expect(data.cancelReason).toBeUndefined();
     expect(data.cancelledAt).toBeUndefined();
   });
+
+  it('отказ БЕЗ причины пишет null, а не пустую строку и не пробелы', async () => {
+    // Пустая строка в отчёте выглядит как «причина есть, но потерялась».
+    // Клиент вправе отказать молча, и это надо уметь отличать.
+    const f = fake({ type: 'commercial_proposal', status: 'sent' });
+    await setDocumentStatus(f.prisma, session, { documentId: 'd1', to: 'rejected' });
+    expect(f.update.mock.calls[0]![0].data.rejectReason).toBeNull();
+
+    const g = fake({ type: 'commercial_proposal', status: 'sent' });
+    await setDocumentStatus(g.prisma, session, {
+      documentId: 'd1',
+      to: 'rejected',
+      reason: '   ',
+    });
+    expect(g.update.mock.calls[0]![0].data.rejectReason).toBeNull();
+  });
 });

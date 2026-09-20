@@ -396,6 +396,29 @@ describe('acceptProposal — статус, журнал и уведомлени�
     });
   });
 
+  it('скидка строки переезжает в заказ, а не теряется по дороге', async () => {
+    // Клиент видел цену со скидкой в предложении. Потеряй её заказ — счёт
+    // выставится на полную сумму, и разбираться будет уже бухгалтерия клиента.
+    const { prisma, orderCreate } = makePrisma({
+      doc: { lines: [{ ...LINE, discountPercent: '15.00', vatRate: '0.1000' }] },
+    });
+    await acceptProposal(prisma, STAFF(), { documentId: 'kp-1' });
+    const data = orderCreate.mock.calls[0]![0].data as {
+      lines: { create: Array<Record<string, unknown>> };
+    };
+    expect(String(data.lines.create[0]!.discountPercent)).toBe('15.00');
+    expect(String(data.lines.create[0]!.vatRate)).toBe('0.1000');
+  });
+
+  it('документ исчез между проверкой и сменой статуса → «не найдено», а не «переход запрещён»', async () => {
+    // Это разные новости: «переход запрещён» человек пойдёт чинить статусами,
+    // а документа уже нет вовсе.
+    setDocumentStatus.mockResolvedValue({ ok: false, error: 'not_found' });
+    const { prisma } = makePrisma({ doc: { counterpartyType: 'organization' } });
+    const r = await acceptProposal(prisma, STAFF(), { documentId: 'kp-1' });
+    expect(r).toMatchObject({ ok: false });
+  });
+
   it('в журнале видно, создан ли заказ и сколько строк переехало', async () => {
     const { prisma } = makePrisma();
     await acceptProposal(prisma, STAFF(), { documentId: 'kp-1' });
@@ -404,6 +427,14 @@ describe('acceptProposal — статус, журнал и уведомлени�
       entity: 'document',
       entityId: 'kp-1',
       after: { orderId: 'ord-new', orderCreated: true, linesTransferred: 1 },
+    });
+  });
+
+  it('уведомление бросило не-Error — принятие всё равно состоялось', async () => {
+    notifyManagers.mockRejectedValue('почта недоступна');
+    const { prisma } = makePrisma();
+    expect(await acceptProposal(prisma, STAFF(), { documentId: 'kp-1' })).toMatchObject({
+      ok: true,
     });
   });
 

@@ -627,7 +627,10 @@ async function loadIssueContext(
     ? await loadOrderTarget(prisma, session, args.orderId)
     : args.leadId
       ? await loadLeadTarget(prisma, session, args.leadId)
-      : await loadOrganizationTarget(prisma, session, args.organizationId ?? '');
+      : // Цель ровно одна и она проверена выше, поэтому здесь `organizationId`
+        // заведомо задан: запасная пустая строка недостижима.
+        /* v8 ignore next */
+        await loadOrganizationTarget(prisma, session, args.organizationId ?? '');
   if (!loaded.ok) return loaded;
   const { order, organizationId, companyId, lead } = loaded.target;
 
@@ -1005,6 +1008,9 @@ export async function generateOrderDocument(
         // нельзя: `counterpartyId: null` в Prisma означает «IS NULL» и
         // собрало бы предложения ВСЕХ лидов компании. Родня такой бумаги —
         // документы того же лида.
+        // Сюда попадают только бумаги лида (ни заказа, ни организации нет),
+        // поэтому сам лид в контексте есть всегда.
+        /* v8 ignore next */
         { orderId: null, companyId, leadId: ctx.lead?.id ?? '' };
 
   // `У-143` (дефект `Д-8`): расхождение суммы строк с суммой заказа — вопрос
@@ -1181,7 +1187,9 @@ export async function generateOrderDocument(
     ? `orders/${order.id}`
     : organizationId
       ? `organizations/${organizationId}`
-      : `leads/${ctx.lead?.id ?? 'unknown'}`;
+      : // Та же причина: без заказа и без организации цель — лид, и он есть.
+        /* v8 ignore next */
+        `leads/${ctx.lead?.id ?? 'unknown'}`;
   const path = `${pathPrefix}/generated/${args.docType}-v${reserved.version}-${randomUUID()}.pdf`;
   try {
     await getObjectStorage().upload(path, buffer, { contentType: 'application/pdf' });
@@ -1349,6 +1357,9 @@ export async function generateOrderDocument(
       // `table.gross` — строка с копейками; условию «сумма не меньше» нужно
       // число, а неразобранное значение честнее не подставлять вовсе, чем
       // подсунуть NaN.
+      // `table.gross` собирает сама печатная таблица из чисел, поэтому
+      // нечисловым он не бывает; проверка стоит на случай будущего формата.
+      /* v8 ignore next */
       amount: Number.isFinite(Number(table.gross)) ? Number(table.gross) : null,
       // Ответственный менеджер заказа в этой выборке не загружен — правило
       // адресует задачу руководителям (`Р-Э4-5`), а не выдумывает получателя.

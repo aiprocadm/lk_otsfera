@@ -91,6 +91,25 @@ describe('postOrderComment — organization', () => {
     expect(prisma.comment.create).not.toHaveBeenCalled();
   });
 
+  it('участник «только свои заказы» пишет в заказ, выросший из ЕГО обращения', async () => {
+    // `У-236`: участник видит лишь свои заказы. «Свой» — это не только заказ,
+    // где он контактное лицо, но и тот, что вырос из поданного им обращения:
+    // иначе человек не смог бы обсудить заказ, который сам же и заказал.
+    const prisma = prismaMock();
+    prisma.order.findUnique.mockResolvedValue({
+      id: 'ord-1',
+      organizationId: 'org-a',
+      organization: { name: 'Acme', membersSeeOwnOrdersOnly: true },
+      primaryContact: null,
+      promotedFromLead: { sourceRequest: { submittedByUserId: 'u-org' } },
+    });
+
+    const res = await postOrderComment(prisma as never, orgSession, args);
+
+    expect(res).toMatchObject({ ok: true });
+    expect(prisma.comment.create).toHaveBeenCalled();
+  });
+
   it('нет заказа → not_found', async () => {
     const res = await postOrderComment(prismaMock() as never, orgSession, args);
     expect(res).toEqual({ ok: false, error: 'not_found' });

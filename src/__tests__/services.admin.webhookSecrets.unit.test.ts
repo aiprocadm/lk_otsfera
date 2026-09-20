@@ -120,6 +120,34 @@ describe('registerWebhook (У-123)', () => {
     );
   });
 
+  it('у MAX тоже нет токена — до провайдера не ходим', async () => {
+    // Проверка токена своя у каждого провайдера. Пропусти её MAX — запрос ушёл
+    // бы с пустым `access_token`, и провайдер ответил бы невнятной ошибкой,
+    // которую администратор принял бы за поломку интеграции.
+    getSettingValue.mockImplementation((_p: unknown, key: string) =>
+      Promise.resolve(key === 'max.webhookSecret' ? 'sec' : null)
+    );
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await registerWebhook(prisma, 'max')).toEqual({ ok: false, error: 'no_token' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('сеть отвалилась — provider_error, а причина в журнале читаемой строкой', async () => {
+    // `fetch` при обрыве бросает, и текст бывает не-Error (например, строка
+    // при прерывании по таймауту). Администратору важно отличить «провайдер
+    // отказал» от «мы не дозвонились».
+    getSettingValue.mockResolvedValue('x');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue('соединение прервано')
+    );
+    expect(await registerWebhook(prisma, 'telegram')).toEqual({
+      ok: false,
+      error: 'provider_error',
+    });
+  });
+
   it('отказ провайдера — provider_error, а не падение', async () => {
     getSettingValue.mockResolvedValue('x');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403 }));

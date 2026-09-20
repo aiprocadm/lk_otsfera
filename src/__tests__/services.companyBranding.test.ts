@@ -430,6 +430,36 @@ describe('uploadCompanyBrandingAsset — формат и содержимое', 
     );
   });
 
+  it('сбои не-Error читаются строкой в журнале, а не «[object Object]»', async () => {
+    // И клиент хранилища, и клиент очереди умеют бросать строку. Расследовать
+    // «почему логотип не загрузился» по записи «[object Object]» невозможно.
+    const f = fake();
+    upload.mockRejectedValueOnce('хранилище закрыто');
+    expect(
+      await uploadCompanyBrandingAsset(f.prisma, adminSession(), 'co-1', 'logo', {
+        buffer: PNG,
+        mime: 'image/png',
+      })
+    ).toEqual({ ok: false, error: 'storage' });
+    expect(logError).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ error: 'хранилище закрыто' })
+    );
+
+    const g = fake();
+    queueAdd.mockRejectedValueOnce('очередь закрыта');
+    expect(
+      await uploadCompanyBrandingAsset(g.prisma, adminSession(), 'co-1', 'logo', {
+        buffer: PNG,
+        mime: 'image/png',
+      })
+    ).toEqual({ ok: true });
+    expect(logWarn).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ error: 'очередь закрыта' })
+    );
+  });
+
   it('компании нет — not_found (файл в S3 не льётся)', async () => {
     const f = fake({ company: null });
     expect(

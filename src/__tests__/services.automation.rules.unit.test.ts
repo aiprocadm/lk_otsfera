@@ -116,6 +116,29 @@ describe('listAutomationRules', () => {
     expect(rows[0]?.actions).toEqual([]);
     expect(rows[0]?.conditions).toEqual({});
   });
+
+  it('условия NULL в базе читаются как «без условий», а не как поломка', async () => {
+    // Колонка допускает NULL: у правила «срабатывать всегда» условий нет.
+    // Разбор `null` схемой объекта провалился бы, и правило в списке выглядело
+    // бы сломанным — человек полез бы чинить исправное.
+    findMany.mockResolvedValue([
+      {
+        id: 'r2',
+        name: 'Всегда',
+        isActive: true,
+        isBuiltin: false,
+        trigger: 'document_issued',
+        conditions: null,
+        actions: [{ kind: 'notify', audience: 'role:leader', template: 'Смотри' }],
+        updatedAt: new Date(),
+        _count: { runs: 0 },
+        runs: [],
+      },
+    ]);
+    const rows = await listAutomationRules(prisma, 'co-1');
+    expect(rows[0]?.conditions).toEqual({});
+    expect(rows[0]?.actions).toHaveLength(1);
+  });
 });
 
 describe('createAutomationRule', () => {

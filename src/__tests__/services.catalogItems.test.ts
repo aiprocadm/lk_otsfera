@@ -366,6 +366,15 @@ describe('updateCatalogItem', () => {
     expect(audit.after.vatRate).toBe('0.0000');
   });
 
+  it('прежняя ставка НДС попадает в журнал числом, а не объектом Decimal', async () => {
+    // По этой записи объясняют клиенту, почему счёт изменился. Объект вместо
+    // «0.2000» делает историю нечитаемой, а «ставки не было» и «была 20 %»
+    // становятся неразличимы.
+    const { prisma } = fake({ row: { ...dbRow(), vatRate: { toFixed: () => '0.2000' } } });
+    await updateCatalogItem(prisma, leaderSession(), 'ci-1', { ...VALID, vatRate: '0.1' });
+    expect(recordAuditMock.mock.calls[0]![1].before.vatRate).toBe('0.2000');
+  });
+
   it('P2002 → duplicate_code без аудита; не-P2002 пробрасывается', async () => {
     const dup = fake({ row: dbRow() });
     dup.update.mockRejectedValue(P2002);
