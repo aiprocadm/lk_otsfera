@@ -1,234 +1,262 @@
 // @vitest-environment jsdom
-/**
- * Этап 6, PR-6 (`У-145`) — «Создать документ» без заказа: кнопка карточки
- * организации и форма, открываемая из сделки.
- *
- * Проверяем ровно то, чем эта форма отличается от формы заказа: акта в выборе
- * нет, состав набирается из каталога, а цель уезжает на сервер организацией,
- * а не заказом.
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
-const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
-
-const { generateOrderDocumentAction, requestRequisitesAction, orgIssuePanelAction } = vi.hoisted(
-  () => ({
-    generateOrderDocumentAction: vi.fn(),
-    requestRequisitesAction: vi.fn(),
-    orgIssuePanelAction: vi.fn(),
-  })
-);
-vi.mock('@/server-actions/documents/generate', () => ({
-  generateOrderDocumentAction,
-  requestRequisitesAction,
-  orgIssuePanelAction,
+/**
+ * Выпуск документов **без заказа**: счёт/договор/ДС организации (`У-145`) и
+ * коммерческое предложение лиду (`У-161`).
+ *
+ * Здесь проверяется не сама форма выпуска (у неё свой тест), а обязанности
+ * этого файла: данные грузятся **по открытию**, а не при отрисовке карточки;
+ * сбой загрузки не оставляет молча неработающую кнопку; и форма называет
+ * **настоящую** цель — у лида с заведённой организацией документ уходит
+ * организации, и написать «лиду» значило бы отправить человека искать бумагу
+ * не туда.
+ *
+ * Сама форма подменена заглушкой, которая печатает переданные ей свойства:
+ * так видно, что именно этот файл ей передал.
+ */
+const actions = vi.hoisted(() => ({
+  orgIssuePanelAction: vi.fn(),
+  leadIssuePanelAction: vi.fn(),
 }));
+vi.mock('@/server-actions/documents/generate', () => actions);
 
-const { toastSuccess, toastError } = vi.hoisted(() => ({
-  toastSuccess: vi.fn(),
-  toastError: vi.fn(),
+const toastMock = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+vi.mock('@/lib/ui/toast', () => ({ toast: toastMock }));
+
+const dialogProps = vi.hoisted(() => ({ last: null as Record<string, unknown> | null }));
+vi.mock('@/components/manager/issue-document-dialog', () => ({
+  IssueDocumentDialog: (props: Record<string, unknown>) => {
+    dialogProps.last = props;
+    return (
+      <div data-testid="issue-dialog">
+        форма выпуска
+        <button type="button" onClick={props.onClose as () => void}>
+          закрыть форму
+        </button>
+      </div>
+    );
+  },
 }));
-vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
 import {
   IssueOrderLessDocumentButton,
   IssueOrderLessDocumentDialog,
+  IssueLeadProposalButton,
+  IssueLeadProposalDialog,
 } from '@/components/documents/issue-order-less-document-button';
 
 const PANEL = {
-  missingByType: { invoice: [], act: [], contract: [], extra_agreement: [] },
-  defaultVatRate: '0.2000',
-  baseDocuments: [],
-  hasContract: false,
   counterpartyName: 'ООО «Ромашка»',
-  catalog: [
-    {
-      id: 'c1',
-      name: 'Обучение по ОТ',
-      code: 'A-1',
-      unit: 'person' as const,
-      price: '5000.00',
-      vatRate: '0.2000',
-      vatIncluded: true,
-    },
-  ],
+  missingByType: {},
+  baseDocuments: [],
+  hasContract: true,
+  catalog: [],
+  defaultVatRate: 20,
+  proposalValidDays: 14,
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
-    this.setAttribute('open', '');
-  });
-  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
-    this.removeAttribute('open');
-  });
-  orgIssuePanelAction.mockResolvedValue({ ok: true, panel: PANEL });
+  dialogProps.last = null;
+  actions.orgIssuePanelAction.mockResolvedValue({ ok: true, panel: PANEL });
+  actions.leadIssuePanelAction.mockResolvedValue({ ok: true, panel: PANEL, organizationId: null });
 });
 
-async function openViaButton(props: Record<string, unknown> = {}) {
-  render(<IssueOrderLessDocumentButton organizationId="org-1" {...props} />);
-  fireEvent.click(screen.getByRole('button', { name: 'Создать документ' }));
-  await waitFor(() => expect(document.querySelector('dialog[open]')).toBeTruthy());
-  return document.querySelector('dialog[open]') as HTMLElement;
-}
+describe('Кнопка выпуска документа организации', () => {
+  it('до нажатия ничего не грузится — карточка не платит за неоткрытую форму', () => {
+    render(<IssueOrderLessDocumentButton organizationId="o1" />);
 
-describe('IssueOrderLessDocumentButton (`У-145`)', () => {
-  it('данные формы грузятся по клику, а не при отрисовке страницы', async () => {
-    render(<IssueOrderLessDocumentButton organizationId="org-1" />);
-    expect(orgIssuePanelAction).not.toHaveBeenCalled();
+    expect(actions.orgIssuePanelAction).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Создать документ' })).toBeTruthy();
+  });
+
+  it('своя подпись кнопки перекрывает стандартную', () => {
+    render(<IssueOrderLessDocumentButton organizationId="o1" label="Выставить счёт" />);
+
+    expect(screen.getByRole('button', { name: 'Выставить счёт' })).toBeTruthy();
+  });
+
+  it('нажатие грузит данные и открывает форму', async () => {
+    render(<IssueOrderLessDocumentButton organizationId="o1" />);
+
     fireEvent.click(screen.getByRole('button', { name: 'Создать документ' }));
-    await waitFor(() => expect(orgIssuePanelAction).toHaveBeenCalledTimes(1));
-    const fd = orgIssuePanelAction.mock.calls[0]![0] as FormData;
-    expect(fd.get('organizationId')).toBe('org-1');
+
+    await screen.findByTestId('issue-dialog');
+    const fd = actions.orgIssuePanelAction.mock.calls[0]?.[0] as FormData;
+    expect(fd.get('organizationId')).toBe('o1');
   });
 
-  it('отказ сервера не оставляет молчаливо неработающую кнопку', async () => {
-    orgIssuePanelAction.mockResolvedValue({ ok: false, error: 'org_no_company' });
-    render(<IssueOrderLessDocumentButton organizationId="org-1" />);
+  it('закрытие формы убирает её, а кнопка остаётся на месте', async () => {
+    render(<IssueOrderLessDocumentButton organizationId="o1" />);
     fireEvent.click(screen.getByRole('button', { name: 'Создать документ' }));
-    await waitFor(() => expect(toastError).toHaveBeenCalled());
-    expect(String(toastError.mock.calls[0]![0])).toContain('компания-исполнитель');
-    expect(document.querySelector('dialog[open]')).toBeNull();
-  });
+    await screen.findByTestId('issue-dialog');
 
-  it('подпись кнопки настраивается — сделка зовёт то же действие иначе', async () => {
-    render(<IssueOrderLessDocumentButton organizationId="org-1" label="Выпустить документ" />);
-    expect(screen.getByRole('button', { name: 'Выпустить документ' })).toBeTruthy();
-  });
+    fireEvent.click(screen.getByRole('button', { name: 'закрыть форму' }));
 
-  it('акта в выборе нет: без заказа он наследовать номер не может', async () => {
-    // Список сверяется ЦЕЛИКОМ, а не через `not.toContain('Акт')`: лишний тип,
-    // добавленный по невнимательности, так виден сразу. `У-161` добавил сюда
-    // коммерческое предложение — его выставляют и без заказа.
-    const dialog = await openViaButton();
-    const select = within(dialog).getByLabelText('Тип документа') as HTMLSelectElement;
-    const options = Array.from(select.options).map((o) => o.textContent);
-    expect(options).toEqual(['Счёт', 'Договор', 'Доп. соглашение', 'Коммерческое предложение']);
-  });
-
-  it('подсказка предмета договора не обещает названия заказа, которого нет', async () => {
-    const dialog = await openViaButton();
-    fireEvent.change(within(dialog).getByLabelText('Тип документа'), {
-      target: { value: 'contract' },
-    });
-    expect(within(dialog).getByText('Пусто — «Оказание услуг»')).toBeTruthy();
-  });
-
-  it('строка берётся из каталога с ценой и ставкой позиции', async () => {
-    const dialog = await openViaButton();
-    fireEvent.change(within(dialog).getByLabelText('Добавить из каталога'), {
-      target: { value: 'c1' },
-    });
-    expect(within(dialog).getByDisplayValue('Обучение по ОТ')).toBeTruthy();
-    expect(within(dialog).getByDisplayValue('5000.00')).toBeTruthy();
-  });
-
-  it('пустой выбор в каталоге — это подпись, а не позиция: строк не прибавляется', async () => {
-    const dialog = await openViaButton();
-    const before = within(dialog).getAllByLabelText(/Наименование/).length;
-    fireEvent.change(within(dialog).getByLabelText('Добавить из каталога'), {
-      target: { value: '' },
-    });
-    expect(within(dialog).getAllByLabelText(/Наименование/).length).toBe(before);
-  });
-
-  /**
-   * `У-138`: пустая ставка печатается как «НДС не облагается». У плательщика
-   * НДС это молча неверный документ, поэтому новая строка и предзаполнение из
-   * сделки получают ставку компании.
-   */
-  it('новая строка и строка из сделки получают ставку НДС компании', async () => {
-    const dialog = await openViaButton({
-      prefillLines: [
-        {
-          title: 'Из сделки',
-          quantity: '1',
-          unit: 'service',
-          unitPrice: '120000',
-          discountPercent: null,
-          vatRate: null,
-          vatIncluded: true,
-        },
-      ],
-    });
-    const rates = within(dialog).getAllByLabelText('НДС') as HTMLSelectElement[];
-    expect(rates[0]!.value).toBe('0.2000');
-
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Добавить строку' }));
-    const after = within(dialog).getAllByLabelText('НДС') as HTMLSelectElement[];
-    expect(after[after.length - 1]!.value).toBe('0.2000');
-  });
-
-  it('у компании без НДС ставка остаётся пустой — умолчание не выдумывается', async () => {
-    orgIssuePanelAction.mockResolvedValue({
-      ok: true,
-      panel: { ...PANEL, defaultVatRate: null },
-    });
-    const dialog = await openViaButton();
-    const rates = within(dialog).getAllByLabelText('НДС') as HTMLSelectElement[];
-    expect(rates[0]!.value).toBe('');
-  });
-
-  it('выпуск уезжает с организацией, а поля заказа в пакете нет', async () => {
-    generateOrderDocumentAction.mockResolvedValue({
-      ok: true,
-      documentId: 'd9',
-      number: 'С-2026-9',
-    });
-    const dialog = await openViaButton();
-    fireEvent.change(within(dialog).getByLabelText('Добавить из каталога'), {
-      target: { value: 'c1' },
-    });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Выпустить' }));
-    await waitFor(() => expect(generateOrderDocumentAction).toHaveBeenCalled());
-    const fd = generateOrderDocumentAction.mock.calls[0]![0] as FormData;
-    const payload = JSON.parse(fd.get('payload') as string);
-    expect(payload.organizationId).toBe('org-1');
-    expect('orderId' in payload).toBe(false);
+    expect(screen.queryByTestId('issue-dialog')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Создать документ' })).toBeTruthy();
   });
 });
 
-describe('IssueOrderLessDocumentDialog — вход из сделки', () => {
-  it('предзаполняется названием и суммой сделки', async () => {
+describe('Форма выпуска документа организации', () => {
+  it('пока данные не пришли — на экране ничего', () => {
+    actions.orgIssuePanelAction.mockReturnValue(new Promise(() => {}));
+
+    render(<IssueOrderLessDocumentDialog organizationId="o1" onClose={vi.fn()} />);
+
+    expect(screen.queryByTestId('issue-dialog')).toBeNull();
+  });
+
+  it('сбой загрузки объясняет причину и закрывает форму — кнопка не «молчит»', async () => {
+    const onClose = vi.fn();
+    actions.orgIssuePanelAction.mockResolvedValue({ ok: false, error: 'forbidden' });
+
+    render(<IssueOrderLessDocumentDialog organizationId="o1" onClose={onClose} />);
+
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
+    expect(onClose).toHaveBeenCalled();
+    expect(screen.queryByTestId('issue-dialog')).toBeNull();
+  });
+
+  it('строкам из сделки проставляется ставка НДС компании', async () => {
     render(
       <IssueOrderLessDocumentDialog
-        organizationId="org-1"
+        organizationId="o1"
         onClose={vi.fn()}
-        defaultSubject="Обучение для «Ромашки»"
         prefillLines={[
-          {
-            title: 'Обучение для «Ромашки»',
-            quantity: '1',
-            unit: 'service',
-            unitPrice: '120000',
-            discountPercent: null,
-            vatRate: null,
-            vatIncluded: true,
-          },
+          { title: 'Обучение', amount: '1000' } as never,
+          { title: 'С своей ставкой', amount: '500', vatRate: 0 } as never,
         ]}
+        defaultSubject="Сделка №7"
       />
     );
-    await waitFor(() => expect(document.querySelector('dialog[open]')).toBeTruthy());
-    const dialog = document.querySelector('dialog[open]') as HTMLElement;
-    expect(within(dialog).getByDisplayValue('120000')).toBeTruthy();
-    // Предмет виден только у договора — переключаем тип. Проверяем именно
-    // поле предмета: то же значение стоит и в наименовании строки.
-    fireEvent.change(within(dialog).getByLabelText('Тип документа'), {
-      target: { value: 'contract' },
-    });
-    expect((within(dialog).getByLabelText('Предмет договора') as HTMLInputElement).value).toBe(
-      'Обучение для «Ромашки»'
-    );
+
+    await screen.findByTestId('issue-dialog');
+    expect(dialogProps.last?.orderLines).toEqual([
+      { title: 'Обучение', amount: '1000', vatRate: 20 },
+      { title: 'С своей ставкой', amount: '500', vatRate: 0 },
+    ]);
+    expect(dialogProps.last?.defaultSubject).toBe('Сделка №7');
+    // Акта без заказа не бывает — счёт-основание форма не спрашивает.
+    expect(dialogProps.last?.hasInvoice).toBe(false);
   });
 
-  it('неудачная загрузка закрывает форму, а не оставляет пустое окно', async () => {
+  it('номер сделки передаётся только когда он есть', async () => {
+    const { unmount } = render(
+      <IssueOrderLessDocumentDialog organizationId="o1" onClose={vi.fn()} dealId="d9" />
+    );
+    await screen.findByTestId('issue-dialog');
+    expect(dialogProps.last?.dealId).toBe('d9');
+    unmount();
+
+    render(<IssueOrderLessDocumentDialog organizationId="o1" onClose={vi.fn()} />);
+    await screen.findByTestId('issue-dialog');
+    expect(dialogProps.last).not.toHaveProperty('dealId');
+  });
+
+  it('форма, закрытая до ответа сервера, ничего не показывает', async () => {
+    let release: (v: unknown) => void = () => {};
+    actions.orgIssuePanelAction.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      })
+    );
+
+    const { unmount } = render(
+      <IssueOrderLessDocumentDialog organizationId="o1" onClose={vi.fn()} />
+    );
+    unmount();
+    release({ ok: true, panel: PANEL });
+    await Promise.resolve();
+
+    expect(screen.queryByTestId('issue-dialog')).toBeNull();
+  });
+});
+
+describe('Коммерческое предложение лиду', () => {
+  it('до нажатия каталог не грузится', () => {
+    render(<IssueLeadProposalButton leadId="l1" />);
+
+    expect(actions.leadIssuePanelAction).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Выставить КП' })).toBeTruthy();
+  });
+
+  it('своя подпись и номер сделки доходят до формы', async () => {
+    render(<IssueLeadProposalButton leadId="l1" label="Предложение" dealId="d3" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Предложение' }));
+
+    await screen.findByTestId('issue-dialog');
+    expect(dialogProps.last?.dealId).toBe('d3');
+  });
+
+  it('без сделки свойство не передаётся вовсе', async () => {
+    render(<IssueLeadProposalButton leadId="l1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Выставить КП' }));
+
+    await screen.findByTestId('issue-dialog');
+    expect(dialogProps.last).not.toHaveProperty('dealId');
+  });
+
+  it('закрытие формы лида убирает её', async () => {
+    render(<IssueLeadProposalButton leadId="l1" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Выставить КП' }));
+    await screen.findByTestId('issue-dialog');
+
+    fireEvent.click(screen.getByRole('button', { name: 'закрыть форму' }));
+
+    expect(screen.queryByTestId('issue-dialog')).toBeNull();
+  });
+
+  it('лиду без организации документ выставляется лиду, и тип заперт на предложении', async () => {
+    render(<IssueLeadProposalDialog leadId="l1" onClose={vi.fn()} />);
+
+    await screen.findByTestId('issue-dialog');
+    expect(dialogProps.last?.target).toEqual({ kind: 'lead', leadId: 'l1' });
+    expect(dialogProps.last?.lockedDocType).toBe('commercial_proposal');
+    expect(dialogProps.last?.orderLines).toEqual([]);
+  });
+
+  it('у лида с заведённой организацией форма называет настоящую цель', async () => {
+    actions.leadIssuePanelAction.mockResolvedValue({
+      ok: true,
+      panel: PANEL,
+      organizationId: 'o7',
+    });
+
+    render(<IssueLeadProposalDialog leadId="l1" onClose={vi.fn()} />);
+
+    await screen.findByTestId('issue-dialog');
+    expect(dialogProps.last?.target).toEqual({ kind: 'organization', organizationId: 'o7' });
+  });
+
+  it('сбой загрузки объясняет причину и закрывает форму', async () => {
     const onClose = vi.fn();
-    orgIssuePanelAction.mockResolvedValue({ ok: false, error: 'not_found' });
-    render(<IssueOrderLessDocumentDialog organizationId="org-1" onClose={onClose} />);
-    await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(document.querySelector('dialog[open]')).toBeNull();
+    actions.leadIssuePanelAction.mockResolvedValue({ ok: false, error: 'not_found' });
+
+    render(<IssueLeadProposalDialog leadId="l1" onClose={onClose} />);
+
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('форма лида, закрытая до ответа, ничего не показывает', async () => {
+    let release: (v: unknown) => void = () => {};
+    actions.leadIssuePanelAction.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      })
+    );
+
+    const { unmount } = render(<IssueLeadProposalDialog leadId="l1" onClose={vi.fn()} />);
+    unmount();
+    release({ ok: true, panel: PANEL, organizationId: null });
+    await Promise.resolve();
+
+    expect(screen.queryByTestId('issue-dialog')).toBeNull();
   });
 });
