@@ -7,13 +7,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { onRequestError, register } from '@/instrumentation';
 import { REDACTED } from '@/lib/logging/scrub';
 
-const { init, captureRequestError, assertEnvOnBoot } = vi.hoisted(() => ({
+const { init, captureRequestError, assertEnvOnBoot, primeFeatureFlagCache } = vi.hoisted(() => ({
   init: vi.fn(),
   captureRequestError: vi.fn(),
   assertEnvOnBoot: vi.fn(),
+  primeFeatureFlagCache: vi.fn(),
 }));
 vi.mock('@sentry/nextjs', () => ({ init, captureRequestError }));
 vi.mock('@/lib/env', () => ({ assertEnvOnBoot }));
+// `У-133` (дефект `Д-37`): снапшот флагов греется на старте процесса.
+vi.mock('@/lib/db/prisma', () => ({ prisma: { __brand: 'живая база' } }));
+vi.mock('@/lib/config/featureFlagStore', () => ({ primeFeatureFlagCache }));
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -105,5 +109,47 @@ describe('onRequestError', () => {
     vi.stubEnv('SENTRY_DSN', 'https://k@sentry.example.ru/1');
     await onRequestError(...args);
     expect(captureRequestError).toHaveBeenCalledWith(...args);
+  });
+});
+
+/**
+ * Прайм снапшота флагов на старте (`У-133`, дефект `Д-37`).
+ *
+ * Снапшот заполнялся только внутри `getSession()`, а вход и 2FA читают флаг
+ * `staff_2fa` ДО всякой сессии. На холодном процессе получался замкнутый круг:
+ * чтобы 2FA включилась, нужно войти; чтобы войти по новым правилам, нужна
+ * включённая 2FA.
+ *
+ * Сбой прайма **не мешает старту**: база может быть ещё не поднята, а сервер
+ * обязан подняться и ответить хотя бы страницей входа.
+ */
+describe('прайм флагов на старте', () => {
+  it('серверный запуск греет снапшот живой базой', async () => {
+    primeFeatureFlagCache.mockResolvedValue(undefined);
+    vi.stubEnv('SENTRY_DSN', '');
+    vi.stubEnv('NEXT_RUNTIME', 'nodejs');
+
+    await register();
+
+    expect(primeFeatureFlagCache).toHaveBeenCalledWith({ __brand: 'живая база' });
+  });
+
+  it('база ещё не поднята — старт не срывается', async () => {
+    primeFeatureFlagCache.mockRejectedValue(new Error('connection refused'));
+    vi.stubEnv('SENTRY_DSN', '');
+    vi.stubEnv('NEXT_RUNTIME', 'nodejs');
+
+    // Первый же вход повторит прайм — падать из-за этого нельзя.
+    await expect(register()).resolves.toBeUndefined();
+  });
+
+  it('edge-инстанс за флагами не ходит — там нет базы', async () => {
+    primeFeatureFlagCache.mockResolvedValue(undefined);
+    vi.stubEnv('SENTRY_DSN', '');
+    vi.stubEnv('NEXT_RUNTIME', 'edge');
+
+    await register();
+
+    expect(primeFeatureFlagCache).not.toHaveBeenCalled();
   });
 });
