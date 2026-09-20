@@ -412,11 +412,42 @@ describe('acceptProposal — статус, журнал и уведомлени�
 
   it('документ исчез между проверкой и сменой статуса → «не найдено», а не «переход запрещён»', async () => {
     // Это разные новости: «переход запрещён» человек пойдёт чинить статусами,
-    // а документа уже нет вовсе.
+    // а документа уже нет вовсе. Заказ здесь НЕ создаётся (сделка уже несёт
+    // заполненный) — иначе ответом был бы `status_failed` с его id.
     setDocumentStatus.mockResolvedValue({ ok: false, error: 'not_found' });
-    const { prisma } = makePrisma({ doc: { counterpartyType: 'organization' } });
-    const r = await acceptProposal(prisma, STAFF(), { documentId: 'kp-1' });
-    expect(r).toMatchObject({ ok: false });
+    const { prisma } = makePrisma({
+      doc: { dealId: 'deal-1' },
+      deal: {
+        id: 'deal-1',
+        companyId: 'co-A',
+        organizationId: 'org-1',
+        managerId: null,
+        orderId: 'ord-old',
+      },
+      order: { id: 'ord-old', externalId: null, _count: { lines: 3 } },
+    });
+    expect(await acceptProposal(prisma, STAFF(), { documentId: 'kp-1' })).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+
+    // И обратная сторона: любой другой отказ матрицы — «переход запрещён».
+    setDocumentStatus.mockResolvedValue({ ok: false, error: 'forbidden' });
+    const second = makePrisma({
+      doc: { dealId: 'deal-1' },
+      deal: {
+        id: 'deal-1',
+        companyId: 'co-A',
+        organizationId: 'org-1',
+        managerId: null,
+        orderId: 'ord-old',
+      },
+      order: { id: 'ord-old', externalId: null, _count: { lines: 3 } },
+    });
+    expect(await acceptProposal(second.prisma, STAFF(), { documentId: 'kp-1' })).toEqual({
+      ok: false,
+      error: 'invalid_transition',
+    });
   });
 
   it('в журнале видно, создан ли заказ и сколько строк переехало', async () => {

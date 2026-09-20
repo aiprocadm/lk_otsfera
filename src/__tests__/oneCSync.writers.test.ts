@@ -9,6 +9,12 @@ const { getQueue } = vi.hoisted(() => ({ getQueue: vi.fn() }));
 const { setDocumentStatus } = vi.hoisted(() => ({ setDocumentStatus: vi.fn() }));
 vi.mock('@/lib/services/oneCSync/resolve-org', () => ({ resolveOrganizationRef }));
 vi.mock('@/lib/notifications', () => ({ notifyOrgUsers, notifyManagers }));
+// Перенос контактов контрагента — свой сервис со своим набором тестов; здесь
+// проверяется только то, что его сбой не роняет запись организации.
+const { syncOrgContactsFromOneC } = vi.hoisted(() => ({
+  syncOrgContactsFromOneC: vi.fn(async () => ({ created: 0, updated: 0 })),
+}));
+vi.mock('@/lib/services/oneCSync/contacts', () => ({ syncOrgContactsFromOneC }));
 vi.mock('@/lib/services/oneCSync/document-fetch', () => ({ fetchAndStore1CDocument }));
 vi.mock('@/lib/jobs/queues', () => ({ getQueue }));
 vi.mock('@/lib/services/documents/status', () => ({ setDocumentStatus }));
@@ -240,6 +246,24 @@ describe('upsertOrgRecord', () => {
     });
     expect(sum.created).toBe(1);
   });
+  it('перенос контактов упал — организация всё равно записана (best-effort)', async () => {
+    // Контакты — сопутствующие данные: из-за них терять саму организацию
+    // нельзя, иначе один кривой телефон срывал бы весь ночной обмен.
+    // Не-Error в причине читается строкой: по «[object Object]» разбирать
+    // нечего.
+    syncOrgContactsFromOneC.mockRejectedValueOnce('телефон не разобран');
+    const d = odb();
+    const sum = emptySummary();
+    await upsertOrgRecord(
+      d,
+      { ...orgDto, contacts: [{ name: 'Иванова Мария', phone: '89001234567' }] },
+      sum,
+      { mode: 'live', notify: false, createCompanyId: 'co1' }
+    );
+    expect(sum.created).toBe(1);
+    expect(sum.failed).toBe(0);
+  });
+
   it('нет ни скоупа company, ни createCompanyId → failed: company_not_configured', async () => {
     const d = odb();
     const sum = emptySummary();
