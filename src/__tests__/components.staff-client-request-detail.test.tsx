@@ -59,15 +59,16 @@ const ATTACHMENT = {
   createdByUserName: 'Партнёр 1',
 } as never;
 
-function render(over: Record<string, unknown> = {}) {
-  const html = renderToString(
-    <StaffClientRequestDetail
-      cabinet="manager"
-      request={REQUEST}
-      attachments={[]}
-      {...(over as never)}
-    />
-  );
+type Props = React.ComponentProps<typeof StaffClientRequestDetail>;
+
+function render(over: Partial<Props> = {}) {
+  const props: Props = {
+    cabinet: 'manager',
+    request: REQUEST,
+    attachments: [],
+    ...over,
+  };
+  const html = renderToString(<StaffClientRequestDetail {...props} />);
   const doc = new DOMParser().parseFromString(html, 'text/html');
   return {
     detail: doc.querySelector('[data-testid="detail"]') as HTMLElement,
@@ -81,7 +82,7 @@ describe('Адреса кабинета', () => {
     ['руководителя', 'leader'],
     ['администратора', 'admin'],
   ])('у %s возврат и крошки ведут в свой кабинет', (_name, cabinet) => {
-    const { detail } = render({ cabinet });
+    const { detail } = render({ cabinet: cabinet as Props['cabinet'] });
 
     expect(detail.dataset.back).toBe(`/${cabinet}/requests`);
     expect(detail.dataset.crumbs).toContain(`/${cabinet}/requests`);
@@ -94,7 +95,7 @@ describe('Адреса кабинета', () => {
   });
 
   it('ссылка на лид ВСЕГДА ведёт к менеджеру — своих лидов у остальных нет', () => {
-    for (const cabinet of ['manager', 'leader', 'admin']) {
+    for (const cabinet of ['manager', 'leader', 'admin'] as const) {
       const { actions } = render({ cabinet });
       expect(actions.dataset.leadBase).toBe('/manager/leads');
     }
