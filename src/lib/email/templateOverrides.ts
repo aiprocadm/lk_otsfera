@@ -37,11 +37,12 @@ export async function getTemplateOverride(
       select: { companyId: true, subject: true, body: true },
     });
     if (rows.length === 0) return null;
-    // Компания перекрывает платформу.
-    const own = rows.find((r) => r.companyId !== null);
-    const platform = rows.find((r) => r.companyId === null);
-    const hit = own ?? platform;
-    if (!hit) return null;
+    // Компания перекрывает платформу. Отдельной проверки «ничего не нашли»
+    // здесь нет намеренно: список непуст (отсечён строкой выше), а у каждой
+    // строки `companyId` либо null, либо нет — значит поиск своей строки или
+    // запасной индекс 0 обязательно попадут. Такая проверка была бы
+    // недостижимой веткой, которую нечестно покрывать тестом.
+    const hit = rows.find((r) => r.companyId !== null) ?? rows[0]!;
     if (hit.subject.trim() === '' && hit.body.trim() === '') return null;
     return { subject: hit.subject, body: hit.body };
   } catch (err) {
