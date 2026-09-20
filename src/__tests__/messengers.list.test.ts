@@ -212,3 +212,32 @@ describe('countWaitingDialogs', () => {
     await expect(countWaitingDialogs(prisma, session)).resolves.toBe(0);
   });
 });
+
+/**
+ * Пороги подсветки, когда компании у роли нет (`У-207`).
+ *
+ * Такое бывает у администратора: он смотрит список не «от компании». Порогов
+ * в этом случае взять негде, и действуют значения по умолчанию из схемы —
+ * 24 часа на ответ, 4 до предупреждения. Показать «просрочек нет» из-за
+ * отсутствия настройки было бы хуже: человек решил бы, что всё ровно.
+ */
+describe('listDialogs — роль без компании', () => {
+  // Свой сброс и свои умолчания: общий стоит внутри соседнего describe.
+  beforeEach(() => {
+    vi.clearAllMocks();
+    findMany.mockResolvedValue([row]);
+    count.mockResolvedValue(1);
+    companyFindUnique.mockResolvedValue(null);
+  });
+
+  it('за порогами в базу не ходим, но подсветка продолжает работать', async () => {
+    const admin = { sub: 'a1', role: 'admin', companyId: null } as unknown as typeof session;
+
+    const r = await listDialogs(prisma, admin);
+
+    expect(r.items).toHaveLength(1);
+    expect(companyFindUnique).not.toHaveBeenCalled();
+    // Подсветка всё равно посчитана — по умолчаниям схемы.
+    expect(r.items[0]).toHaveProperty('overdue');
+  });
+});

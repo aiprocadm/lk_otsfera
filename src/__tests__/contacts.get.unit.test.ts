@@ -240,6 +240,46 @@ describe('listContactTab', () => {
     taskFindMany.mockResolvedValue([]);
   });
 
+  /**
+   * Незнакомые значения (`У-205`, `У-220`).
+   *
+   * Канал показывается как есть, если справочник его не знает: машинный код на
+   * экране некрасив, но молча исчезнувшая переписка хуже. Охват задач без
+   * размеченного профиля равен «все» — прежние профили заводили до появления
+   * настройки, и default-deny молча отнял бы у них доступ (оговорка §2b).
+   */
+  it('канал, которого нет в справочнике, печатается как есть', async () => {
+    dialogFindMany.mockResolvedValueOnce([
+      {
+        id: 'd9',
+        channel: 'новый_канал',
+        lastMessageAt: t(1),
+        lastMessagePreview: null,
+        status: 'open',
+      },
+    ]);
+
+    const r = await listContactTab(prisma, admin, true, { contactId: 'k1', tab: 'dialogs' });
+    if (!r.ok) throw new Error('unexpected');
+
+    expect(r.items[0]?.title).toBe('Диалог · новый_канал');
+  });
+
+  it('профиль без размеченных задач — охват «все», а не пусто', async () => {
+    const withProfile = {
+      sub: 'm1',
+      role: 'manager',
+      companyId: 'c1',
+      // Профиль есть, но раздел задач в нём не размечен: так выглядят роли,
+      // заведённые до появления настройки охвата.
+      accessProfile: { capabilities: ['crm.contacts'] },
+    } as unknown as typeof admin;
+
+    const r = await listContactTab(prisma, withProfile, true, { contactId: 'k1', tab: 'tasks' });
+
+    expect(r.ok).toBe(true);
+  });
+
   it('клиентская роль → forbidden; нет контакта или чужая компания → not_found', async () => {
     await expect(
       listContactTab(prisma, partner, true, { contactId: 'k1', tab: 'dialogs' })

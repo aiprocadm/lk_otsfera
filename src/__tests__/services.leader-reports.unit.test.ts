@@ -105,6 +105,18 @@ describe('Дебиторка', () => {
     expect(res.rows[0]!.managerName).toBe('v@x');
   });
 
+  it('суммы у группы пустые — считаем нулями, а не роняем отчёт', async () => {
+    // Группировка возвращает `null`, когда суммировать нечего (например, у
+    // всех заказов организации сумма не проставлена). Ноль — единственный
+    // честный ответ: строка просто не попадёт в долги.
+    const { prisma } = db([group({ _sum: { totalAmount: null, paidAmount: null } })]);
+
+    const res = await getReceivables(prisma, { companyId: 'c1' });
+
+    expect(res.rows).toHaveLength(0);
+    expect(res.totalDebt).toBe('0.00');
+  });
+
   it('переплата не показывается отрицательным долгом', async () => {
     const { prisma } = db([group({ _sum: { totalAmount: D('100'), paidAmount: D('300') } })]);
     const res = await getReceivables(prisma, { companyId: 'c1' });
@@ -143,15 +155,33 @@ describe('Дебиторка', () => {
 });
 
 describe('Коммуникации', () => {
-  function db(rows: unknown[], calls: unknown[] = [], slaHours = 2) {
+  function db(rows: unknown[], calls: unknown[] = [], slaHours: number | null = 2) {
     const queryRaw = vi.fn(async () => rows);
     const prisma = {
       $queryRaw: queryRaw,
-      company: { findUnique: vi.fn(async () => ({ slaResponseHours: slaHours })) },
+      company: {
+        findUnique: vi.fn(async () => (slaHours === null ? null : { slaResponseHours: slaHours })),
+      },
       call: { findMany: vi.fn(async () => calls) },
     } as unknown as PrismaClient;
     return { prisma, queryRaw };
   }
+
+  it('компании нет — порог берётся общий, отчёт не падает', async () => {
+    // Такое бывает у администратора, смотрящего разрез без выбранной
+    // компании. Показать «просрочек нет» из-за отсутствия порога было бы
+    // хуже, чем посчитать по умолчанию: руководитель решил бы, что всё ровно.
+    const { prisma } = db(
+      [{ dialogId: 'd1', channel: 'cabinet', assigneeId: 'm1', assigneeName: 'И', minutes: 2000 }],
+      [],
+      null
+    );
+
+    const res = await getCommunications(prisma, PERIOD);
+
+    expect(res.slaHours).toBe(24);
+    expect(res.byChannel[0]!.overSla).toBe(1);
+  });
 
   it('переписки и звонков не было — нули, а не ошибка', async () => {
     const { prisma } = db([]);
@@ -288,6 +318,25 @@ describe('Источники', () => {
     const { prisma } = db([{ source: 'новый_канал', _count: { _all: 1 } }], [], [], []);
     const res = await getSources(prisma, PERIOD);
     expect(res.leads[0]!.label).toBe('новый_канал');
+  });
+
+  it('незнакомый источник ОБРАЩЕНИЙ — то же правило, свой справочник', async () => {
+    // Справочники у лидов и обращений разные; починив один, легко забыть
+    // второй — и строка молча исчезла бы из отчёта.
+    const { prisma } = db([], [], [], [{ source: 'новая_форма', _count: { _all: 3 } }]);
+
+    const res = await getSources(prisma, PERIOD);
+
+    expect(res.requests[0]).toMatchObject({ label: 'новая_форма', requests: 3 });
+  });
+
+  it('лидов не было — конверсия ПРОЧЕРК, а не ноль процентов', async () => {
+    const { prisma } = db([{ source: 'website', _count: { _all: 0 } }], [], [], []);
+
+    const res = await getSources(prisma, PERIOD);
+
+    // Ноль прочитали бы как «ни один лид не дошёл», а лидов вообще не было.
+    expect(res.leads[0]!.conversionPct).toBeNull();
   });
 });
 
