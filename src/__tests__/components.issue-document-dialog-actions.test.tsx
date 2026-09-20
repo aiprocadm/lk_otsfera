@@ -269,7 +269,7 @@ describe('Блокировка по реквизитам', () => {
     const ui = renderDialog({
       missingByType: {
         ...NO_MISSING,
-        invoice: [{ side: 'seller', label: 'Расчётный счёт' } as MissingRequisite],
+        invoice: [{ side: 'company', label: 'Расчётный счёт' } as MissingRequisite],
       },
     });
 

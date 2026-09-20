@@ -71,7 +71,7 @@ describe('LoginPoliciesForm — политики входа', () => {
 
   it('подтверждение спрашивается всегда — ошибка здесь закрывает вход всем', async () => {
     const action = vi.fn().mockResolvedValue({ ok: true });
-    const confirm = vi.fn(() => true);
+    const confirm = vi.fn<(message?: string) => boolean>(() => true);
     vi.stubGlobal('confirm', confirm);
 
     const { container } = render(
@@ -181,6 +181,9 @@ describe('ReplyTemplatesScreen — шаблоны ответов', () => {
     id: 't1',
     title: 'Счёт отправлен',
     body: 'Здравствуйте!',
+    // Пустой список каналов — «предлагать во всех»: шаблон ответа не привязан
+    // к одному мессенджеру.
+    channels: [],
     isActive: true,
     sortOrder: 0,
     usageCount: 7,

@@ -329,7 +329,7 @@ describe('OneCParamsForm — параметры обмена с 1С', () => {
 
   it('переключение в боевой режим спрашивает подтверждение', async () => {
     const action = vi.fn().mockResolvedValue({ ok: true });
-    const confirm = vi.fn(() => true);
+    const confirm = vi.fn<(message?: string) => boolean>(() => true);
     vi.stubGlobal('confirm', confirm);
 
     const { container } = render(
@@ -372,7 +372,7 @@ describe('OneCParamsForm — параметры обмена с 1С', () => {
 
   it('если режим и так боевой — лишнего вопроса нет', async () => {
     const action = vi.fn().mockResolvedValue({ ok: true });
-    const confirm = vi.fn(() => true);
+    const confirm = vi.fn<(message?: string) => boolean>(() => true);
     vi.stubGlobal('confirm', confirm);
 
     const { container } = render(

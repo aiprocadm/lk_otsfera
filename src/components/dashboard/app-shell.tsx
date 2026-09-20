@@ -2,7 +2,6 @@ import React from 'react';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth/session';
 import { navItemsFor } from '@/lib/navigation/cabinet';
-import { isManagerLeader } from '@/lib/auth/managerPolicy';
 import { LogoutButton } from '@/components/ui';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { isFeatureEnabled } from '@/lib/featureFlags';
@@ -39,7 +38,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   const session = await getSession();
   if (!session) redirect('/login');
 
-  const items = navItemsFor(session.role, { isManagerLeader: isManagerLeader(session) });
+  const items = navItemsFor(session.role);
 
   return (
     <CabinetShell

@@ -46,7 +46,10 @@ describe('OneCTabs — вкладки обмена с 1С', () => {
   });
 
   it('менеджеру список урезан — «Автообмен» ему не показывают', () => {
-    render(<OneCTabs cabinet="manager" only={['excel']} />);
+    // У менеджера хаба настроек нет: обмен живёт своим разделом, поэтому
+    // основание адреса передаётся явно (`У-113`), а не выводится из кабинета.
+    nav.pathname = '/manager/exchange/excel';
+    render(<OneCTabs basePath="/manager/exchange" only={['excel']} />);
 
     const links = screen.getAllByRole('link');
     expect(links).toHaveLength(1);
@@ -54,7 +57,8 @@ describe('OneCTabs — вкладки обмена с 1С', () => {
   });
 
   it('текущая вкладка помечена — видно, где ты', () => {
-    render(<OneCTabs cabinet="manager" only={['excel']} />);
+    nav.pathname = '/manager/exchange/excel';
+    render(<OneCTabs basePath="/manager/exchange" only={['excel']} />);
 
     expect(screen.getByRole('link').dataset.active).toBe('true');
   });

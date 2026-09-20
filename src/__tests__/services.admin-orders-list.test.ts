@@ -8,11 +8,20 @@ import { listOrdersForAdmin, listCompanyOptions } from '@/lib/services/admin/ord
  * следующая страница, не делая второй запрос на счёт. Важная деталь — лишняя
  * строка **не показывается**: иначе на каждой странице был бы один чужой заказ.
  */
+/** Аргументы выборки заказов — ровно то, что проверяют тесты ниже. */
+type FindManyArgs = { where?: Record<string, unknown>; take?: number; cursor?: unknown };
+
 function db(rows: Array<{ id: string }>) {
-  const findMany = vi.fn(async () => rows);
+  // Параметр объявлен явно: у `vi.fn` без него кортеж аргументов пустой, и
+  // обращение `calls[0][0]` не проходит проверку типов.
+  const findMany = vi.fn<(args?: FindManyArgs) => Promise<Array<{ id: string }>>>(
+    async () => rows
+  );
   return {
     db: { order: { findMany }, company: { findMany: vi.fn(async () => []) } } as never,
     findMany,
+    /** Аргументы первого похода в базу. Он в каждом тесте ровно один. */
+    firstArgs: () => findMany.mock.calls[0]![0]!,
   };
 }
 
@@ -22,15 +31,15 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('listOrdersForAdmin — фильтры', () => {
   it('без фильтров условие не собирается вовсе', async () => {
-    const { db: prisma, findMany } = db([]);
+    const { db: prisma, firstArgs } = db([]);
 
     await listOrdersForAdmin(prisma);
 
-    expect(findMany.mock.calls[0]?.[0]).not.toHaveProperty('where');
+    expect(firstArgs()).not.toHaveProperty('where');
   });
 
   it('каждый фильтр добавляет своё условие', async () => {
-    const { db: prisma, findMany } = db([]);
+    const { db: prisma, firstArgs } = db([]);
 
     await listOrdersForAdmin(prisma, {
       statusId: 'st1',
@@ -40,7 +49,7 @@ describe('listOrdersForAdmin — фильтры', () => {
       unassigned: true,
     });
 
-    const where = findMany.mock.calls[0]?.[0].where as { AND: unknown[] };
+    const where = firstArgs().where as { AND: unknown[] };
     expect(where.AND).toEqual([
       { statusId: 'st1' },
       { financialStatus: 'paid' },
@@ -51,11 +60,11 @@ describe('listOrdersForAdmin — фильтры', () => {
   });
 
   it('поиск идёт и по названию, и по номеру — без учёта регистра', async () => {
-    const { db: prisma, findMany } = db([]);
+    const { db: prisma, firstArgs } = db([]);
 
     await listOrdersForAdmin(prisma, { search: 'Ромашка' });
 
-    const where = findMany.mock.calls[0]?.[0].where as { AND: Array<{ OR: unknown[] }> };
+    const where = firstArgs().where as { AND: Array<{ OR: unknown[] }> };
     expect(where.AND[0]?.OR).toEqual([
       { title: { contains: 'Ромашка', mode: 'insensitive' } },
       { orderNumber: { contains: 'Ромашка', mode: 'insensitive' } },
@@ -63,11 +72,11 @@ describe('listOrdersForAdmin — фильтры', () => {
   });
 
   it('снятая галочка «без ответственного» условия не добавляет', async () => {
-    const { db: prisma, findMany } = db([]);
+    const { db: prisma, firstArgs } = db([]);
 
     await listOrdersForAdmin(prisma, { unassigned: false });
 
-    expect(findMany.mock.calls[0]?.[0]).not.toHaveProperty('where');
+    expect(firstArgs()).not.toHaveProperty('where');
   });
 });
 
@@ -91,27 +100,27 @@ describe('listOrdersForAdmin — постраничность', () => {
   });
 
   it('берётся на одну больше, чем просили — иначе о следующей странице не узнать', async () => {
-    const { db: prisma, findMany } = db([]);
+    const { db: prisma, firstArgs } = db([]);
 
     await listOrdersForAdmin(prisma, { take: 10 });
 
-    expect(findMany.mock.calls[0]?.[0].take).toBe(11);
+    expect(firstArgs().take).toBe(11);
   });
 
   it('с курсором предыдущая строка пропускается — иначе она задвоится', async () => {
-    const { db: prisma, findMany } = db([]);
+    const { db: prisma, firstArgs } = db([]);
 
     await listOrdersForAdmin(prisma, { cursor: 'b' });
 
-    expect(findMany.mock.calls[0]?.[0]).toMatchObject({ cursor: { id: 'b' }, skip: 1 });
+    expect(firstArgs()).toMatchObject({ cursor: { id: 'b' }, skip: 1 });
   });
 
   it('без курсора его в запросе нет', async () => {
-    const { db: prisma, findMany } = db([]);
+    const { db: prisma, firstArgs } = db([]);
 
     await listOrdersForAdmin(prisma);
 
-    expect(findMany.mock.calls[0]?.[0]).not.toHaveProperty('cursor');
+    expect(firstArgs()).not.toHaveProperty('cursor');
   });
 
   it('пустая страница курсора не даёт', async () => {

@@ -187,9 +187,9 @@ describe('Политики входа', () => {
 
 describe('Обмен с 1С', () => {
   it('корень раздела уводит на первую вкладку', async () => {
-    await expect(renderServerComponent(ManagerExchangePage())).rejects.toThrow(
-      'REDIRECT:/manager/exchange/excel'
-    );
+    // Страница ничего не рисует — она сразу уводит на первую вкладку,
+    // поэтому зовём её напрямую, без помощника рендера.
+    await expect(ManagerExchangePage()).rejects.toThrow('REDIRECT:/manager/exchange/excel');
     expect(mocks.requireManager).toHaveBeenCalled();
   });
 

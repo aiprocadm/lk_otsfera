@@ -8,7 +8,7 @@
  * We use a dedicated IP prefix so this file's requests don't collide with
  * the other login test files (which each get a fresh module instance).
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { findUnique, updateUser, compare, signToken } = vi.hoisted(() => ({
   findUnique: vi.fn(),
@@ -77,5 +77,71 @@ describe('login rate limiting', () => {
     expect(res.status).toBe(429);
     const body = await res.json();
     expect(body.code).toBe('TOO_MANY_REQUESTS');
+  });
+});
+
+/**
+ * Предел попыток входа настраивается (`У-122`), и настройка может быть кривой.
+ *
+ * Кривое значение обязано **уйти в умолчание, а не отключить защиту**: `NaN`
+ * или ноль в сравнении «попыток больше предела» даёт «никогда», то есть
+ * подбирать пароль можно было бы бесконечно. Поэтому и проверка, и запасное
+ * значение стоят рядом с чтением, а не «где-нибудь при старте».
+ */
+describe('предел попыток входа: настройка и запасное значение', () => {
+  const ENV = { ...process.env };
+
+  beforeEach(() => {
+    process.env = { ...ENV };
+    compare.mockResolvedValue(true);
+    signToken.mockResolvedValue('tok');
+    findUnique.mockResolvedValue(adminUser);
+    updateUser.mockResolvedValue({});
+  });
+
+  afterEach(() => {
+    process.env = { ...ENV };
+  });
+
+  it('свой предел из переменной сервера действует', async () => {
+    process.env.LOGIN_RATE_LIMIT_MAX = '2';
+    process.env.LOGIN_RATE_LIMIT_WINDOW_MS = '60000';
+    const ip = '192.0.2.11';
+
+    for (let i = 0; i < 2; i++) {
+      expect((await POST(makeReq({ email: 'admin@example.com', password: 'x' }, ip))).status).toBe(
+        200
+      );
+    }
+
+    expect((await POST(makeReq({ email: 'admin@example.com', password: 'x' }, ip))).status).toBe(
+      429
+    );
+  });
+
+  it.each([
+    ['мусор', 'сколько-нибудь'],
+    ['ноль', '0'],
+    ['отрицательное', '-5'],
+  ])('%s в настройке не отключает защиту — действует умолчание', async (_name, value) => {
+    process.env.LOGIN_RATE_LIMIT_MAX = value;
+    const ip = `192.0.2.${20 + value.length}`;
+
+    // При «нуле как пределе» уже первый запрос дал бы 429, при `NaN` —
+    // никогда. Умолчание 10 означает: третий запрос ещё проходит.
+    for (let i = 0; i < 3; i++) {
+      expect((await POST(makeReq({ email: 'admin@example.com', password: 'x' }, ip))).status).toBe(
+        200
+      );
+    }
+  });
+
+  it('кривое окно тоже уходит в умолчание', async () => {
+    process.env.LOGIN_RATE_LIMIT_WINDOW_MS = 'полчаса';
+    const ip = '192.0.2.40';
+
+    expect((await POST(makeReq({ email: 'admin@example.com', password: 'x' }, ip))).status).toBe(
+      200
+    );
   });
 });

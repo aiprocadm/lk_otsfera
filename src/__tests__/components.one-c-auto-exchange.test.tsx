@@ -58,21 +58,25 @@ const ROW = {
   lagMs: null,
 } as never;
 
-function render(over: Record<string, unknown> = {}) {
-  return renderToString(
-    <OneCAutoExchange
-      cabinet="leader"
-      rows={[ROW]}
-      queueStats={[]}
-      pausedIds={new Set()}
-      pendingRecords={[]}
-      pendingTotal={0}
-      patterns={new Map()}
-      paramsView={[]}
-      companies={[]}
-      {...(over as never)}
-    />
-  ).replace(/<!-- -->/g, '');
+/** Пустая очередь: ничего не ждёт и ничего не выполняется. */
+const NO_JOBS = { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 };
+
+type Props = React.ComponentProps<typeof OneCAutoExchange>;
+
+function render(over: Partial<Props> = {}) {
+  const props: Props = {
+    cabinet: 'leader',
+    rows: [ROW],
+    queueStats: [],
+    pausedIds: new Set(),
+    pendingRecords: [],
+    pendingTotal: 0,
+    patterns: new Map(),
+    paramsView: [],
+    companies: [],
+    ...over,
+  };
+  return renderToString(<OneCAutoExchange {...props} />).replace(/<!-- -->/g, '');
 }
 
 describe('Руководитель: видит, но не переключает', () => {
@@ -112,8 +116,8 @@ describe('Руководитель: видит, но не переключает
   it('«сейчас выполняется» видно по каждой очереди отдельно', () => {
     const out = render({
       queueStats: [
-        { queue: 'oneCSync.pullOrders', counts: { active: 1 } },
-        { queue: 'oneCSync.reconcileDebts', counts: { active: 2 } },
+        { queue: 'oneCSync.pullOrders', counts: { ...NO_JOBS, active: 1 } },
+        { queue: 'oneCSync.reconcileDebts', counts: { ...NO_JOBS, active: 2 } },
       ],
     });
 
@@ -131,14 +135,18 @@ describe('Руководитель: видит, но не переключает
   });
 
   it('теневой режим назван прямо: в 1С не пишем', () => {
-    const out = render({ paramsView: [{ key: 'onec.mode', value: 'shadow' }] });
+    const out = render({
+      paramsView: [
+        { key: 'onec.mode', value: 'shadow', isSecret: false, isSet: true, source: 'db' },
+      ],
+    });
 
     expect(out).toContain('теневой — в 1С не пишем');
   });
 });
 
 describe('Администратор: рычаги на месте', () => {
-  const asAdmin = (over: Record<string, unknown> = {}) => render({ cabinet: 'admin', ...over });
+  const asAdmin = (over: Partial<Props> = {}) => render({ cabinet: 'admin', ...over });
 
   it('пауза, курсор и правка расписания доступны', () => {
     const out = asAdmin();

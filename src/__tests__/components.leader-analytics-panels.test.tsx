@@ -27,7 +27,7 @@ function html(node: React.ReactElement): string {
 
 describe('KpiPlanFactTable — план и факт', () => {
   const row = (over: Partial<Parameters<typeof KpiPlanFactTable>[0]['data']['rows'][number]>) => ({
-    metric: 'deals' as const,
+    metric: 'deals_won' as const,
     metricLabel: 'Сделки',
     unit: 'count' as const,
     managerId: 'm1',
@@ -52,7 +52,7 @@ describe('KpiPlanFactTable — план и факт', () => {
         data={{
           year: 2026,
           month: 9,
-          metrics: [{ key: 'deals', label: 'Сделки', unit: 'count', perManager: true }],
+          metrics: [{ key: 'deals_won', label: 'Сделки', unit: 'count', perManager: true }],
           rows: [],
         }}
       />
@@ -68,14 +68,14 @@ describe('KpiPlanFactTable — план и факт', () => {
           year: 2026,
           month: 9,
           metrics: [
-            { key: 'revenue', label: 'Выручка', unit: 'money', perManager: false },
-            { key: 'response', label: 'Ответ', unit: 'minutes', perManager: false },
-            { key: 'deals', label: 'Сделки', unit: 'count', perManager: false },
+            { key: 'revenue_paid', label: 'Выручка', unit: 'money', perManager: false },
+            { key: 'avg_first_response_min', label: 'Ответ', unit: 'minutes', perManager: false },
+            { key: 'deals_won', label: 'Сделки', unit: 'count', perManager: false },
           ],
           rows: [
-            row({ metric: 'revenue', unit: 'money', plan: '100000', fact: '50000' }),
-            row({ metric: 'response', unit: 'minutes', plan: '30', fact: '20' }),
-            row({ metric: 'deals', unit: 'count' }),
+            row({ metric: 'revenue_paid', unit: 'money', plan: '100000', fact: '50000' }),
+            row({ metric: 'avg_first_response_min', unit: 'minutes', plan: '30', fact: '20' }),
+            row({ metric: 'deals_won', unit: 'count' }),
           ],
         }}
       />
@@ -92,7 +92,7 @@ describe('KpiPlanFactTable — план и факт', () => {
         data={{
           year: 2026,
           month: 9,
-          metrics: [{ key: 'deals', label: 'Сделки', unit: 'count', perManager: true }],
+          metrics: [{ key: 'deals_won', label: 'Сделки', unit: 'count', perManager: true }],
           rows: [row({ plan: null, percent: null })],
         }}
       />
@@ -114,7 +114,7 @@ describe('KpiPlanFactTable — план и факт', () => {
         data={{
           year: 2026,
           month: 9,
-          metrics: [{ key: 'deals', label: 'Сделки', unit: 'count', perManager: true }],
+          metrics: [{ key: 'deals_won', label: 'Сделки', unit: 'count', perManager: true }],
           rows: [row({ fact, prevFact })],
         }}
       />
@@ -129,7 +129,7 @@ describe('KpiPlanFactTable — план и факт', () => {
         data={{
           year: 2026,
           month: 9,
-          metrics: [{ key: 'deals', label: 'Сделки', unit: 'count', perManager: true }],
+          metrics: [{ key: 'deals_won', label: 'Сделки', unit: 'count', perManager: true }],
           rows: [
             row({}),
             row({ managerId: null, managerName: 'Итого по команде', prevFact: 'мусор' }),
@@ -138,7 +138,7 @@ describe('KpiPlanFactTable — план и факт', () => {
       />
     );
 
-    expect(out).toContain('kpi-row-deals-total');
+    expect(out).toContain('kpi-row-deals_won-total');
     expect(out).toContain('font-medium');
     expect(out).toContain('Итого по команде');
     // Испорченный прошлый месяц не превращается в «NaN %».

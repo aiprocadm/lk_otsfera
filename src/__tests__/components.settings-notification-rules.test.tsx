@@ -93,7 +93,9 @@ describe('NotificationRulesTable — таблица «событие × роль
   });
 
   it('неизвестная роль показывается как есть, а не пропадает', () => {
-    render(<NotificationRulesTable cabinet="admin" rows={[rule({ audience: 'новая-роль' })]} />);
+    render(
+      <NotificationRulesTable cabinet="admin" rows={[rule({ audience: 'новая-роль' as never })]} />
+    );
 
     expect(screen.getByText('новая-роль')).toBeTruthy();
   });

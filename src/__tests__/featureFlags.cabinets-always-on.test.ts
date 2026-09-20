@@ -44,7 +44,7 @@ describe('кабинеты работают без флагов (У-262)', () =>
   });
 
   it('меню менеджера при пустом окружении полное, а не «одна Справка»', () => {
-    const items = navItemsFor('manager', { isManagerLeader: false });
+    const items = navItemsFor('manager');
     const hrefs = items.map((i) => i.href);
     expect(hrefs).toContain('/manager/dashboard');
     expect(hrefs).toContain('/manager/orders');
@@ -54,13 +54,13 @@ describe('кабинеты работают без флагов (У-262)', () =>
   });
 
   it('меню заказчика при пустом окружении не пустое', () => {
-    const hrefs = navItemsFor('organization', {}).map((i) => i.href);
+    const hrefs = navItemsFor('organization').map((i) => i.href);
     expect(hrefs).toContain('/organization/dashboard');
     expect(hrefs.length).toBeGreaterThan(3);
   });
 
   it('меню руководителя при пустом окружении не пустое', () => {
-    const hrefs = navItemsFor('leader', {}).map((i) => i.href);
+    const hrefs = navItemsFor('leader').map((i) => i.href);
     expect(hrefs).toContain('/leader/dashboard');
     expect(hrefs.length).toBeGreaterThan(3);
   });
@@ -68,7 +68,7 @@ describe('кабинеты работают без флагов (У-262)', () =>
   it('ни один пункт трёх кабинетов не ссылается на снятый флаг', () => {
     for (const role of ['manager', 'organization', 'leader'] as const) {
       for (const item of navByRole[role]) {
-        const used: string[] = [item.flag, ...(item.anyFlags ?? []), item.hiddenWhenFlag].filter(
+        const used: string[] = [item.flag, ...(item.anyFlags ?? [])].filter(
           (f) => typeof f === 'string'
         );
         for (const flag of used) {

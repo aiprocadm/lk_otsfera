@@ -111,7 +111,10 @@ describe('OrderDocumentPdf — необязательные строки шап�
   it('период услуг печатается по-русски, датами', () => {
     const { texts } = page({
       ...data('act'),
-      servicePeriod: { from: '2026-09-01T00:00:00Z', to: '2026-09-30T00:00:00Z' },
+      servicePeriod: {
+        from: new Date('2026-09-01T00:00:00Z'),
+        to: new Date('2026-09-30T00:00:00Z'),
+      },
     });
 
     expect(texts).toContain('Период оказания услуг: 01.09.2026 — 30.09.2026');
