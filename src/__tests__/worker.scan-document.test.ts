@@ -3,6 +3,11 @@ import type { Job } from 'bullmq';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import type { ScanDeps } from '@/worker/processors/scan-document';
 
+const { deliverScannedAttachment } = vi.hoisted(() => ({
+  deliverScannedAttachment: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('@/lib/services/messengers/attachment', () => ({ deliverScannedAttachment }));
+
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/storage', () => ({
   getObjectStorage: () => ({
@@ -28,6 +33,7 @@ function makeDb(
     clientRequestAttachmentPath?: string | null;
     brandingPath?: string | null;
     partnerMaterialPath?: string | null;
+    messengerAttachmentPath?: string | null;
   } = {}
 ) {
   const documentUpdate = vi.fn().mockResolvedValue({});
@@ -39,6 +45,7 @@ function makeDb(
   const clientRequestAttachmentUpdate = vi.fn().mockResolvedValue({});
   const companyBrandingAssetUpdate = vi.fn().mockResolvedValue({});
   const partnerMaterialFileUpdate = vi.fn().mockResolvedValue({});
+  const messengerMessageUpdate = vi.fn().mockResolvedValue({});
   const syncLogCreate = vi.fn().mockResolvedValue({});
   return {
     document: {
@@ -112,6 +119,18 @@ function makeDb(
               : { id: 'chat-msg-1', attachmentPath: opts.chatAttachmentPath }
         ),
       update: chatMessageUpdate,
+    },
+    messengerMessage: {
+      findUnique: vi
+        .fn()
+        .mockResolvedValue(
+          opts.messengerAttachmentPath === undefined
+            ? { id: 'dlg-msg-1', attachmentPath: 'messengers/d1/file.pdf' }
+            : opts.messengerAttachmentPath === null
+              ? null
+              : { id: 'dlg-msg-1', attachmentPath: opts.messengerAttachmentPath }
+        ),
+      update: messengerMessageUpdate,
     },
     clientRequestAttachment: {
       findUnique: vi
@@ -810,5 +829,105 @@ describe('scanDocumentProcessor', () => {
         errorMessage: expect.stringContaining('scanner-plain-error'),
       }),
     });
+  });
+});
+
+/**
+ * Вложение диалога (`У-204`).
+ *
+ * Отличие от соседних видов файлов — **проверка здесь ещё и ворота отправки**.
+ * Файл уходит клиенту не при загрузке, а после вердикта антивируса: иначе мы
+ * переслали бы заражённый раньше, чем узнали о нём. Поэтому отправка обязана
+ * случиться на ЛЮБОМ исходе, включая «ClamAV не настроен → clean».
+ */
+describe('scanDocumentProcessor — вложение диалога', () => {
+  beforeEach(() => {
+    deliverScannedAttachment.mockClear();
+  });
+
+  it('чистый файл: статус и причина пишутся, файл уходит клиенту', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('stream: OK') });
+
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'messenger_attachment', id: 'dlg-msg-1' }),
+      db,
+      deps
+    );
+
+    expect(result).toEqual({
+      kind: 'messenger_attachment',
+      id: 'dlg-msg-1',
+      scanStatus: 'clean',
+      scanReason: null,
+    });
+    // У сообщения диалога есть и статус, и причина — в отличие от чата.
+    expect(db.messengerMessage.update).toHaveBeenCalledWith({
+      where: { id: 'dlg-msg-1' },
+      data: { scanStatus: 'clean', scanReason: null },
+    });
+    expect(deliverScannedAttachment).toHaveBeenCalledWith(db, 'dlg-msg-1');
+  });
+
+  it('заражённый файл: причина сохранена, но отправка всё равно зовётся', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    const deps = makeDeps({
+      scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND'),
+    });
+
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'messenger_attachment', id: 'dlg-msg-1' }),
+      db,
+      deps
+    );
+
+    expect(result.scanStatus).toBe('infected');
+    expect(db.messengerMessage.update).toHaveBeenCalledWith({
+      where: { id: 'dlg-msg-1' },
+      data: { scanStatus: 'infected', scanReason: 'Eicar-Test-Signature' },
+    });
+    // Зовётся — но сам сервис заражённый не отправит: ворота на его стороне,
+    // и решение «отправлять или нет» живёт в одном месте, а не в двух.
+    expect(deliverScannedAttachment).toHaveBeenCalledWith(db, 'dlg-msg-1');
+  });
+
+  it('антивирус не настроен — файл считается чистым и уходит, а не зависает', async () => {
+    delete process.env.CLAMAV_HOST;
+    const db = makeDb();
+
+    const result = await scanDocumentProcessor(
+      makeJob({ kind: 'messenger_attachment', id: 'dlg-msg-1' }),
+      db,
+      makeDeps()
+    );
+
+    expect(result.scanStatus).toBe('clean');
+    expect(deliverScannedAttachment).toHaveBeenCalledWith(db, 'dlg-msg-1');
+  });
+
+  it('сообщения без файла нет — отказ, и клиенту ничего не уходит', async () => {
+    const db = makeDb({ messengerAttachmentPath: null });
+
+    await expect(
+      scanDocumentProcessor(
+        makeJob({ kind: 'messenger_attachment', id: 'dlg-msg-1' }),
+        db,
+        makeDeps()
+      )
+    ).rejects.toThrow(/NOT_FOUND/);
+    expect(db.messengerMessage.update).not.toHaveBeenCalled();
+    expect(deliverScannedAttachment).not.toHaveBeenCalled();
+  });
+
+  it('другим видам файлов отправка не грозит', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    const deps = makeDeps({ scan: vi.fn().mockResolvedValue('stream: OK') });
+
+    await scanDocumentProcessor(makeJob({ kind: 'chat_attachment', id: 'chat-msg-1' }), db, deps);
+
+    expect(deliverScannedAttachment).not.toHaveBeenCalled();
   });
 });
