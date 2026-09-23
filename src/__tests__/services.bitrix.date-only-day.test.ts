@@ -32,6 +32,13 @@ import { dueByWhere, isPastDue, moscowDaysUntil, pastDueWhere } from '@/lib/task
  */
 
 const REST_MIDNIGHT = '2025-11-03T00:00:00+03:00';
+/**
+ * Так дату-день отдаёт ЖИВОЙ портал заказчика: проверено 23.09.2026 чтением
+ * последних сделок (`CLOSEDATE`, `BEGINDATE` — `…T03:00:00+03:00`). 03:00 по
+ * Москве — ровно полночь UTC, то есть тот же момент, что даёт файл. Вид
+ * `REST_MIDNIGHT` выше оставлен как худший случай: даже он безвреден.
+ */
+const REST_PORTAL = '2025-11-03T03:00:00+03:00';
 const FILE_DAY = '03.11.2025';
 const DAY = '2025-11-03';
 
@@ -66,7 +73,7 @@ async function first<T>(items: AsyncIterable<T>): Promise<T> {
   throw new Error('источник ничего не вернул');
 }
 
-async function restDeal(): Promise<BitrixDeal> {
+async function restDeal(closeDate: string = REST_MIDNIGHT): Promise<BitrixDeal> {
   const source = restSource({
     'crm.deal.list': [
       {
@@ -74,7 +81,7 @@ async function restDeal(): Promise<BitrixDeal> {
         TITLE: 'Сделка',
         CATEGORY_ID: '0',
         STAGE_ID: 'EXECUTING',
-        CLOSEDATE: REST_MIDNIGHT,
+        CLOSEDATE: closeDate,
       },
     ],
   });
@@ -138,6 +145,12 @@ describe('Битрикс24: день из REST и из файла — один �
     expect((await fileDeal()).closeDate).toEqual(new Date('2025-11-03T00:00:00.000Z'));
     expect((await restTask()).deadline).toEqual(new Date('2025-11-02T21:00:00.000Z'));
     expect((await fileTask()).deadline).toEqual(new Date('2025-11-03T00:00:00.000Z'));
+  });
+
+  it('живой портал: дата-день из REST — тот же МОМЕНТ, что из файла (полночь UTC)', async () => {
+    const [rest, file] = await Promise.all([restDeal(REST_PORTAL), fileDeal()]);
+    expect(rest.closeDate).toEqual(new Date('2025-11-03T00:00:00.000Z'));
+    expect(rest.closeDate).toEqual(file.closeDate);
   });
 
   it('экран, поле формы и фильтр по дате видят один и тот же день', async () => {
