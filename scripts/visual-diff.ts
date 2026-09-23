@@ -171,7 +171,9 @@ async function main(): Promise<number> {
   if (!dbUrl) throw new Error('DATABASE_URL не задан ни в окружении, ни в .env');
   const parsed = new URL(dbUrl);
   if (!['localhost', '127.0.0.1', '::1'].includes(parsed.hostname)) {
-    throw new Error(`база на «${parsed.hostname}», а скрипт создаёт и удаляет базы только на localhost`);
+    throw new Error(
+      `база на «${parsed.hostname}», а скрипт создаёт и удаляет базы только на localhost`
+    );
   }
   const dbName = parsed.pathname.replace(/^\//, '');
   const adminUrl = withDatabase(dbUrl, 'postgres');
@@ -192,7 +194,9 @@ async function main(): Promise<number> {
     .sort()
     .map((f) => `src/e2e/snapshots/${f}`);
 
-  const flags = Object.fromEntries(ACCEPTANCE_FLAGS.map((f) => [`FEATURE_${f.toUpperCase()}`, '1']));
+  const flags = Object.fromEntries(
+    ACCEPTANCE_FLAGS.map((f) => [`FEATURE_${f.toUpperCase()}`, '1'])
+  );
   const appEnv = (db: string): NodeJS.ProcessEnv => ({
     ...process.env,
     ...flags,
@@ -268,7 +272,10 @@ async function main(): Promise<number> {
     if (!keep) {
       for (const db of [baseDb, headDb, tpl]) {
         await dropDatabase(adminUrl, db).catch((e: unknown) =>
-          console.warn(`[visual-diff] базу ${db} удалить не удалось:`, e instanceof Error ? e.message : e)
+          console.warn(
+            `[visual-diff] базу ${db} удалить не удалось:`,
+            e instanceof Error ? e.message : e
+          )
         );
       }
       rmSync(work, { recursive: true, force: true });
