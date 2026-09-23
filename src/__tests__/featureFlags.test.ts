@@ -26,8 +26,9 @@ afterEach(() => {
 });
 
 // Opt-in flags invert the default and have separate coverage below.
-// Прогон сопровождения №37: в opt-in остались только флаги внешней
-// неготовности (бот, агрегатор, АТС, Redis с воркером, доставка писем).
+// Прогон сопровождения №37: в opt-in остались флаги внешней неготовности
+// (бот, агрегатор, АТС, Redis с воркером, доставка писем) и `cabinet_questions`,
+// которому без `inbound_messaging` нечем ответить клиенту.
 const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'max_channel',
   'whatsapp_channel',
@@ -35,6 +36,7 @@ const OPT_IN_FLAGS = new Set<FeatureFlag>([
   'inbound_messaging',
   'telephony_mango',
   'staff_2fa',
+  'cabinet_questions',
 ]);
 
 /**
@@ -57,7 +59,6 @@ const READY_BY_DEFAULT = [
   'staff_chat',
   'staff_calendar',
   'global_search',
-  'cabinet_questions',
 ] as const satisfies readonly FeatureFlag[];
 
 describe('isFeatureEnabled', () => {
@@ -162,6 +163,27 @@ describe('готовые функции включены по умолчанию
     }
   });
 
+  it('при пустом env клиент не может спросить, если менеджер не может ответить', () => {
+    // Находка проверки прогона №37: `cabinet_questions` включили по умолчанию,
+    // а `inbound_messaging` — нет. Клиент задавал вопрос, менеджер получал
+    // уведомление со ссылкой на 404 и не мог ответить: ответ на диалог канала
+    // `cabinet` живёт только в «Мессенджерах» под `inbound_messaging`.
+    // Проверяем следствие «можно спросить ⇒ можно ответить», а не два
+    // значения по отдельности: если однажды оба флага станут включёнными по
+    // умолчанию, страж не должен мешать.
+    const canAsk = isFeatureEnabled('cabinet_questions');
+    const canAnswer = isFeatureEnabled('inbound_messaging');
+    expect(
+      !canAsk || canAnswer,
+      `«Задать вопрос» включён по умолчанию (${canAsk}), а ответ — нет (${canAnswer})`
+    ).toBe(true);
+    // Включённые вместе, оба работают.
+    process.env.FEATURE_INBOUND_MESSAGING = '1';
+    process.env.FEATURE_CABINET_QUESTIONS = '1';
+    expect(isFeatureEnabled('cabinet_questions')).toBe(true);
+    expect(isFeatureEnabled('inbound_messaging')).toBe(true);
+  });
+
   it('opt-in флаг включается только явным «да»: мусорное значение его не включает', () => {
     process.env.FEATURE_NOTIF_QUEUE = 'anything-else';
     expect(isFeatureEnabled('notif_queue')).toBe(false);
@@ -186,6 +208,7 @@ describe('isOptInFlag / featureFlagEnvVar (ФТ-14.6 — матрица флаг
     const { isOptInFlag } = await import('@/lib/featureFlags');
     expect(isOptInFlag('notif_queue')).toBe(true);
     expect(isOptInFlag('staff_2fa')).toBe(true);
+    expect(isOptInFlag('cabinet_questions')).toBe(true);
     // Прогон №37: готовые функции переведены в opt-out.
     expect(isOptInFlag('chat')).toBe(false);
     expect(isOptInFlag('staff_calendar')).toBe(false);

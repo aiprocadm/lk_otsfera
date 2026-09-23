@@ -89,11 +89,12 @@ describe('OrgAppShell', () => {
 
   it.each([
     ['выключен', '0', false],
-    ['не задан', undefined, true],
+    ['не задан', undefined, false],
     ['включён', '1', true],
   ])('кнопка «Задать вопрос»: флаг %s → показана=%s', (_label, envValue, expected) => {
-    // cabinet_questions с прогона №37 включён по умолчанию (готовая функция,
-    // нужна одна база), `0` — аварийный тормоз. Шапка обязана оставаться
+    // cabinet_questions — opt-in и включается только вместе с
+    // inbound_messaging (прогон №37): без «Мессенджеров» менеджеру нечем
+    // ответить, поэтому на свежем проде кнопки нет. Шапка обязана оставаться
     // рабочей в обоих состояниях.
     const prev = process.env.FEATURE_CABINET_QUESTIONS;
     if (envValue === undefined) delete process.env.FEATURE_CABINET_QUESTIONS;
