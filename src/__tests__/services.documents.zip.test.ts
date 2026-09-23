@@ -220,4 +220,24 @@ describe('buildDocumentsZip', () => {
     );
     expect(res.ok && res.fileName).toBe('Документы 2026-09-18.zip');
   });
+
+  it('дата в имени архива — московский день, а не день по Гринвичу (прогон №36)', async () => {
+    // 01:30 по Москве 1 сентября — это 22:30 UTC 31 августа. Прежде
+    // `now.toISOString()` называл архив вчерашним числом.
+    const night = await buildDocumentsZip(
+      db([doc()]),
+      session,
+      ['d1'],
+      new Date('2026-08-31T22:30:00Z')
+    );
+    expect(night.ok && night.fileName).toBe('Документы 2026-09-01.zip');
+    // 23:59 по Москве (20:59 UTC) — ещё 31 августа.
+    const evening = await buildDocumentsZip(
+      db([doc()]),
+      session,
+      ['d1'],
+      new Date('2026-08-31T20:59:59Z')
+    );
+    expect(evening.ok && evening.fileName).toBe('Документы 2026-08-31.zip');
+  });
 });

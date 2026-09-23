@@ -36,14 +36,22 @@ import type { CalendarItem, EventFormOptions } from '@/lib/services/calendar/ite
 const options: EventFormOptions = { users: [], organizations: [], orders: [] };
 
 const MONTH = '2026-08';
-const TODAY = new Date(2026, 7, 10, 12, 0); // 10.08.2026 12:00
+const TODAY = new Date('2026-08-10T09:00:00.000Z'); // 10.08.2026 12:00 по Москве
+
+/*
+ * Моменты событий — такие, какими их кладёт в базу настоящий писатель: action
+ * календаря читает «10:00» из формы по Москве, то есть 07:00Z (прогон
+ * сопровождения №36, `Р-М-4`). Прежде здесь стояли даты в поясе процесса теста
+ * (UTC), и «10:00» на чипе совпадало с дефектом: сервер рисовал часы по
+ * Гринвичу, браузер — по Москве. Сроки задач — полночь UTC, как из поля даты.
+ */
 
 function eventItem(overrides: Partial<CalendarItem>): CalendarItem {
   return {
     kind: 'event',
     id: 'e-1',
     title: 'Событие',
-    date: new Date(2026, 7, 12, 10, 0),
+    date: new Date('2026-08-12T07:00:00.000Z'),
     endsAt: null,
     allDay: false,
     location: null,
@@ -80,23 +88,30 @@ function taskItem(overrides: Partial<CalendarItem>): CalendarItem {
 const pastEvent = eventItem({
   id: 'e-past',
   title: 'Прошедшее событие',
-  date: new Date(2026, 7, 5, 9, 0),
+  date: new Date('2026-08-05T06:00:00.000Z'),
 });
 const futEvent = eventItem({
   id: 'e-fut',
   title: 'Планёрка',
-  date: new Date(2026, 7, 12, 10, 0),
+  date: new Date('2026-08-12T07:00:00.000Z'),
   location: 'Zoom',
 });
-const taskOpen = taskItem({ id: 't-open', title: 'Открытая задача', date: new Date(2026, 7, 15) });
+const taskOpen = taskItem({
+  id: 't-open',
+  title: 'Открытая задача',
+  date: new Date('2026-08-15T00:00:00.000Z'),
+});
 const taskDone = taskItem({
   id: 't-done',
   title: 'Готовая задача',
-  date: new Date(2026, 7, 20),
-  completedAt: new Date(2026, 7, 1),
+  date: new Date('2026-08-20T00:00:00.000Z'),
+  completedAt: new Date('2026-08-01T09:00:00.000Z'),
 });
 
 const items: CalendarItem[] = [pastEvent, futEvent, taskOpen, taskDone];
+
+/** Срок «10.08.2026» из поля даты формы задачи — полночь UTC. */
+const TODAY_DUE = new Date('2026-08-10T00:00:00.000Z');
 
 function renderView(overrides: Partial<React.ComponentProps<typeof CalendarMonthView>> = {}) {
   return render(
@@ -133,7 +148,7 @@ describe('CalendarMonthView', () => {
     const second = eventItem({
       id: 'e-fut-2',
       title: 'Созвон с клиентом',
-      date: new Date(2026, 7, 12, 15, 0),
+      date: new Date('2026-08-12T12:00:00.000Z'),
     });
     renderView({ items: [...items, second] });
     expect(screen.getByTitle('Планёрка')).toBeTruthy();
@@ -147,6 +162,77 @@ describe('CalendarMonthView', () => {
     fireEvent.click(chip);
     const props = eventDialogSpy.mock.calls[eventDialogSpy.mock.calls.length - 1][0];
     expect(props.target.id).toBe('e-fut');
+  });
+
+  /**
+   * Прогон сопровождения №36 (спека 2026-09-23-moscow-time-in-server-code-design,
+   * группа Д): подписи времени и числа клеток — по Москве, как и сама
+   * раскладка по клеткам (`dayKey`). Процесс теста живёт в UTC, как сервер.
+   */
+  describe('время и числа — по Москве', () => {
+    it('событие в 00:30 по Москве стоит в своей клетке с подписью «00:30», а не «21:30» вчера', () => {
+      const night = eventItem({
+        id: 'e-night',
+        title: 'Ночной созвон',
+        date: new Date('2026-08-12T21:30:00.000Z'), // 13.08 00:30 МСК
+      });
+      const { container } = renderView({ items: [night] });
+      const chip = screen.getByTitle('Ночной созвон');
+      expect(chip.textContent).toBe('00:30 Ночной созвон');
+      const cell = screen.getByRole('button', { name: 'Новое событие 2026-08-13' }).parentElement!
+        .parentElement!;
+      expect(cell.contains(chip)).toBe(true);
+      expect(container.querySelector('li')?.textContent).toContain('13.08 00:30');
+    });
+
+    it('событие в 23:30 по Москве (20:30 UTC) — тот же московский день и час', () => {
+      const late = eventItem({
+        id: 'e-late',
+        title: 'Поздняя встреча',
+        date: new Date('2026-08-12T20:30:00.000Z'),
+      });
+      const { container } = renderView({ items: [late] });
+      expect(screen.getByTitle('Поздняя встреча').textContent).toBe('23:30 Поздняя встреча');
+      expect(container.querySelector('li')?.textContent).toContain('12.08 23:30');
+    });
+
+    it('срок задачи в «Ближайших» — только число, без выдуманного «03:00»', () => {
+      // Срок из формы задачи — полночь UTC дня 15.08; по Москве это 03:00, но
+      // у срока нет времени суток. Чип в сетке время тоже не пишет.
+      const { container } = renderView({ items: [taskOpen] });
+      const row = container.querySelector('li')?.textContent ?? '';
+      expect(row).toContain('15.08');
+      expect(row).not.toContain(':');
+    });
+
+    it('задача со сроком «сегодня» остаётся в «Ближайших» весь московский день (Р-М-3)', () => {
+      // 10.08 23:30 по Москве = 20:30 UTC: срок 10.08 (00:00Z) уже позади
+      // момента «сейчас», но его московский день ещё не кончился.
+      const dueToday = taskItem({ id: 't-today', title: 'Сдать отчёт', date: TODAY_DUE });
+      const lateEvening = new Date('2026-08-10T20:30:00.000Z');
+      const { container } = renderView({ items: [dueToday], today: lateEvening });
+      expect(container.querySelector('li')?.textContent).toContain('Сдать отчёт');
+      // С 00:00 по Москве 11.08 (21:00 UTC 10.08) срок уже прошёл.
+      const { container: next } = renderView({
+        items: [dueToday],
+        today: new Date('2026-08-10T21:00:00.000Z'),
+      });
+      expect(next.querySelectorAll('li')).toHaveLength(0);
+    });
+
+    it('число в клетке совпадает с её московским днём, а не с днём процесса', () => {
+      // Клетка — московская полночь, по UTC это 21:00 накануне: `getDate()`
+      // сервера печатал «14» в клетке 15 августа.
+      renderView();
+      for (const [key, day] of [
+        ['2026-07-27', '27'],
+        ['2026-08-15', '15'],
+        ['2026-09-06', '6'],
+      ] as const) {
+        const addButton = screen.getByRole('button', { name: `Новое событие ${key}` });
+        expect(addButton.previousElementSibling?.textContent).toBe(day);
+      }
+    });
   });
 
   it('an all-day event chip renders without a time prefix', () => {

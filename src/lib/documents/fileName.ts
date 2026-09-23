@@ -1,3 +1,5 @@
+import { fmtDate } from '@/lib/format';
+
 /**
  * Имя файла при скачивании документа (`У-154`, этап 6; дефект `Д-17`).
  *
@@ -62,7 +64,10 @@ export function documentDownloadName(doc: {
   if (!doc.number) return doc.name;
 
   const label = documentTypeLabelRu(doc.type);
-  const date = new Date(doc.createdAt).toLocaleDateString('ru-RU');
+  // Дата — по Москве (прогон сопровождения №36): `toLocaleDateString('ru-RU')`
+  // без пояса брал день процесса (UTC), и счёт, выпущенный в 01:30 по Москве
+  // 1 сентября, скачивался как «… от 31.08.2026».
+  const date = fmtDate(doc.createdAt);
   // Расширение берём у исходного имени: сгенерированные документы — PDF, но
   // тип файла задаёт не тип документа, а сам файл.
   const dot = doc.name.lastIndexOf('.');

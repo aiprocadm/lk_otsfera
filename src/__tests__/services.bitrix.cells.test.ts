@@ -1,5 +1,8 @@
+import ExcelJS from 'exceljs';
 import { describe, expect, it } from 'vitest';
 
+import { parseIsoCalendarDate } from '@/lib/dates/calendar';
+import { fmtDate, fmtDateTime } from '@/lib/format';
 import {
   cellDate,
   cellDigitsOrNull,
@@ -95,46 +98,66 @@ describe('cellDigitsOrNull — ИНН и КПП', () => {
   });
 });
 
-describe('cellDate — даты выгрузки читаются как UTC', () => {
-  it('готовый Date возвращается как есть', () => {
-    const d = new Date('2025-11-03T09:00:00Z');
-    expect(cellDate(d)).toBe(d);
+/**
+ * Прогон сопровождения №36 (спека 2026-09-23-moscow-time-in-server-code-design,
+ * группа Д, решение `Р-М-4`): время без пояса в выгрузке — МОСКОВСКОЕ. Портал
+ * заказчика живёт по Москве, и REST того же портала отдаёт те же моменты с
+ * `+03:00`. Прежние тесты этого блока закрепляли чтение «как UTC» — это и был
+ * дефект: лид, созданный в 01:30 по Москве 1 сентября, переносился моментом на
+ * три часа позже настоящего, а у файла и REST одна запись расходилась.
+ *
+ * Значения — строки портальной выгрузки (`src/__fixtures__/bitrix/*.csv`) и
+ * дата-ячейка, прочитанная настоящим exceljs из настоящей книги.
+ */
+describe('cellDate — время выгрузки читается по Москве', () => {
+  it('портальный формат «ДД.ММ.ГГГГ ЧЧ:ММ:СС» — московское время, а не UTC', () => {
+    expect(cellDate('03.11.2025 09:00:00')?.toISOString()).toBe('2025-11-03T06:00:00.000Z');
   });
 
-  it('битый Date (Invalid Date) → null, а не «дата-мусор»', () => {
-    expect(cellDate(new Date('не дата'))).toBeNull();
+  it('ночь с 00:00 до 03:00 по Москве остаётся в своём московском дне', () => {
+    // 01:30 МСК 1 сентября = 22:30 UTC 31 августа. Прежнее чтение «как UTC»
+    // отдавало 01:30Z 1 сентября — момент на три часа позже настоящего.
+    const d = cellDate('01.09.2026 01:30:00');
+    expect(d?.toISOString()).toBe('2026-08-31T22:30:00.000Z');
+    expect(fmtDateTime(d as Date)).toBe('01.09.2026, 01:30');
   });
 
-  it('портальный формат «ДД.ММ.ГГГГ ЧЧ:ММ:СС» читается как UTC, а не по поясу сервера', () => {
-    // Выгрузка не сообщает пояс портала; детерминированный UTC важнее «местного» времени.
-    expect(cellDate('03.11.2025 09:00:00')?.toISOString()).toBe('2025-11-03T09:00:00.000Z');
+  it('конец московских суток (21:00–24:00 UTC) — ещё тот же московский день', () => {
+    const d = cellDate('31.08.2026 23:59:59');
+    expect(d?.toISOString()).toBe('2026-08-31T20:59:59.000Z');
+    expect(fmtDate(d as Date)).toBe('31.08.2026');
   });
 
-  it('дата без времени → полночь UTC', () => {
-    expect(cellDate('20.12.2025')?.toISOString()).toBe('2025-12-20T00:00:00.000Z');
-  });
-
-  it('время без секунд тоже читается', () => {
-    expect(cellDate('03.11.2025 09:00')?.toISOString()).toBe('2025-11-03T09:00:00.000Z');
-  });
-
-  it('однозначные день и месяц без ведущего нуля читаются', () => {
-    expect(cellDate('3.1.2026')?.toISOString()).toBe('2026-01-03T00:00:00.000Z');
+  it('время без секунд и час одной цифрой тоже читаются', () => {
+    expect(cellDate('03.11.2025 09:00')?.toISOString()).toBe('2025-11-03T06:00:00.000Z');
+    expect(cellDate('03.11.2025 9:05')?.toISOString()).toBe('2025-11-03T06:05:00.000Z');
   });
 
   it('портальная дата через «T» вместо пробела тоже разбирается', () => {
-    expect(cellDate('03.11.2025T09:00:00')?.toISOString()).toBe('2025-11-03T09:00:00.000Z');
+    expect(cellDate('03.11.2025T09:00:00')?.toISOString()).toBe('2025-11-03T06:00:00.000Z');
   });
 
-  it('ISO без зоны трактуется как UTC', () => {
-    expect(cellDate('2025-11-03T09:00:00')?.toISOString()).toBe('2025-11-03T09:00:00.000Z');
-    expect(cellDate('2025-11-03 09:00')?.toISOString()).toBe('2025-11-03T09:00:00.000Z');
+  it('дата без времени — календарный день полночью UTC, как из поля даты формы', () => {
+    // «Крайний срок 10.10.2025» — день, а не момент. Он хранится так же, как
+    // день из формы задачи: полночь UTC. Московская полночь (21:00 накануне)
+    // показала бы в форме сделки вчерашний день (`deal-dialog` берёт день из
+    // `toISOString()`).
+    expect(cellDate('10.10.2025')?.toISOString()).toBe('2025-10-10T00:00:00.000Z');
+    expect(cellDate('10.10.2025')).toEqual(parseIsoCalendarDate('2025-10-10'));
+    expect(cellDate('3.1.2026')?.toISOString()).toBe('2026-01-03T00:00:00.000Z');
+  });
+
+  it('ISO без зоны: со временем — Москва, без времени — календарный день', () => {
+    expect(cellDate('2025-11-03T09:00:00')?.toISOString()).toBe('2025-11-03T06:00:00.000Z');
+    expect(cellDate('2025-11-03 09:00')?.toISOString()).toBe('2025-11-03T06:00:00.000Z');
+    expect(cellDate('2025-11-03T09:00:00.250')?.toISOString()).toBe('2025-11-03T06:00:00.250Z');
     expect(cellDate('2025-11-03')?.toISOString()).toBe('2025-11-03T00:00:00.000Z');
-    expect(cellDate('2025-11-03T09:00:00.250')?.toISOString()).toBe('2025-11-03T09:00:00.250Z');
   });
 
-  it('ISO с явной зоной Z разбирается штатным Date', () => {
+  it('ISO с явной зоной — это уже момент, разбирается как есть', () => {
     expect(cellDate('2025-11-03T09:00:00Z')?.toISOString()).toBe('2025-11-03T09:00:00.000Z');
+    // Так момент отдаёт REST портала: с поясом `+03:00`.
+    expect(cellDate('2025-11-03T09:00:00+03:00')?.toISOString()).toBe('2025-11-03T06:00:00.000Z');
   });
 
   it('мусор и пустая ячейка → null', () => {
@@ -143,25 +166,56 @@ describe('cellDate — даты выгрузки читаются как UTC', (
     expect(cellDate(null)).toBeNull();
   });
 
-  it('несуществующая дата «31.02.2026» → null, а не 3 марта', () => {
-    // `Date.UTC(2026, 1, 31)` молча перекатился бы на 3 марта: в предпросмотре
-    // это уверенная неправда, поэтому дата сверяется с исходными числами.
+  it('несуществующий день → null, а не перенос на март — и с временем, и без', () => {
     expect(cellDate('31.02.2026')).toBeNull();
+    expect(cellDate('31.02.2026 10:00:00')).toBeNull();
+    expect(cellDate('2026-02-31T10:00')).toBeNull();
   });
 
-  it('нулевая дата «00.00.0000» → null: формат подошёл, значения нет', () => {
+  it('нулевая дата «00.00.0000» и час «25» → null: формат подошёл, значения нет', () => {
     expect(cellDate('00.00.0000')).toBeNull();
+    expect(cellDate('03.11.2025 25:00:00')).toBeNull();
   });
 
   it('последний день месяца принимается — отсечка не съедает настоящие даты', () => {
     expect(cellDate('29.02.2024')?.toISOString()).toBe('2024-02-29T00:00:00.000Z');
-    expect(cellDate('31.12.2025 23:59:59')?.toISOString()).toBe('2025-12-31T23:59:59.000Z');
+    expect(cellDate('31.12.2025 23:59:59')?.toISOString()).toBe('2025-12-31T20:59:59.000Z');
   });
 
   it('дата из rich text тоже читается — заголовок и ячейка приходят одним путём', () => {
     expect(cellDate({ richText: [{ text: '20.12.2025' }] })?.toISOString()).toBe(
       '2025-12-20T00:00:00.000Z'
     );
+  });
+
+  describe('дата-ячейка книги Excel (exceljs)', () => {
+    /** Настоящая круговая поездка: exceljs пишет книгу и читает её обратно. */
+    async function excelCell(value: Date): Promise<unknown> {
+      const wb = new ExcelJS.Workbook();
+      wb.addWorksheet('Лиды').addRow([value]);
+      const back = new ExcelJS.Workbook();
+      await back.xlsx.load(await wb.xlsx.writeBuffer());
+      return back.worksheets[0]!.getCell('A1').value;
+    }
+
+    it('время ячейки — московское: цифры «01.09.2026 01:30» дают 22:30 UTC 31 августа', async () => {
+      // Excel пояса не хранит: exceljs отдаёт цифры ячейки полями UTC. Прежде
+      // они принимались как готовый момент — на три часа позже, чем в CSV.
+      const cell = await excelCell(new Date(Date.UTC(2026, 8, 1, 1, 30)));
+      expect(cell).toBeInstanceOf(Date);
+      expect(cellDate(cell)?.toISOString()).toBe('2026-08-31T22:30:00.000Z');
+      expect(cellDate(cell)).toEqual(cellDate('01.09.2026 01:30:00'));
+    });
+
+    it('ячейка «только дата» — календарный день, как «20.12.2025» из CSV', async () => {
+      const cell = await excelCell(new Date(Date.UTC(2025, 11, 20)));
+      expect(cellDate(cell)?.toISOString()).toBe('2025-12-20T00:00:00.000Z');
+      expect(cellDate(cell)).toEqual(cellDate('20.12.2025'));
+    });
+
+    it('битый Date (Invalid Date) → null, а не «дата-мусор»', () => {
+      expect(cellDate(new Date('не дата'))).toBeNull();
+    });
   });
 });
 

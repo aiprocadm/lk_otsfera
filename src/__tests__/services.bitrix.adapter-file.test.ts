@@ -247,6 +247,33 @@ describe('inspectBitrixFile — сущность по шапке выгрузк�
 // Главный тест: выгрузка = фикстура портала
 // ---------------------------------------------------------------------------
 
+/*
+ * Время в CSV — московское «настенное»: портал заказчика печатает выгрузку по
+ * Москве (прогон сопровождения №36, `Р-М-4`). Фикстура портала записала те же
+ * цифры как UTC: «03.11.2025 09:00:00» в CSV и `2025-11-03T09:00:00Z` в
+ * `portal.ts`. Прежде тест требовал их равенства — то есть закреплял чтение
+ * выгрузки «как UTC», сам дефект. Фикстуры не трогаем (на них стоят тесты
+ * `fake`-источника), а сдвигаем ожидание: из файла «09:00» по Москве — это
+ * `06:00Z`, на три часа раньше цифр фикстуры. Даты без времени (срок задачи
+ * «10.10.2025», закрытие сделки «20.12.2025») — календарные дни: и там, и там
+ * полночь UTC, как из поля даты формы, сдвига нет.
+ */
+const MOSCOW_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+/** Записи фикстуры портала, как их даёт выгрузка: поля со временем суток — по Москве. */
+function asPrintedInMoscow<T extends object>(rows: T[], ...timeFields: Array<keyof T>): T[] {
+  return rows.map((row) => {
+    const out = { ...row };
+    for (const field of timeFields) {
+      const value = out[field];
+      if (value instanceof Date) {
+        out[field] = new Date(value.getTime() - MOSCOW_OFFSET_MS) as T[keyof T];
+      }
+    }
+    return out;
+  });
+}
+
 describe('FileBitrixSource — пять выгрузок дают ту же картину, что фикстура портала', () => {
   const uploads: BitrixUploadedFile[] = [
     upload('company', 'companies.csv', fixture('companies.csv')),
@@ -267,23 +294,45 @@ describe('FileBitrixSource — пять выгрузок дают ту же ка
   });
 
   it('компании совпадают с фикстурой', async () => {
-    expect(await collect(file.companies(ALL))).toEqual(await collect(fake.companies(ALL)));
+    expect(await collect(file.companies(ALL))).toEqual(
+      asPrintedInMoscow(await collect(fake.companies(ALL)), 'createdAt')
+    );
+  });
+
+  it('время из выгрузки — московское, дни без времени — полночь UTC (прогон №36)', async () => {
+    // Строки файлов: компания 101 «03.11.2025 09:00:00», сделка 401 закрыта
+    // «20.12.2025», задача 501 — срок «10.10.2025», завершена «09.10.2025 15:00:00».
+    const [company] = await collect(file.companies(ALL));
+    expect(company?.createdAt?.toISOString()).toBe('2025-11-03T06:00:00.000Z');
+    const [deal] = await collect(file.deals(ALL));
+    expect(deal?.closeDate?.toISOString()).toBe('2025-12-20T00:00:00.000Z');
+    const [task] = await collect(file.tasks(ALL));
+    expect(task?.deadline?.toISOString()).toBe('2025-10-10T00:00:00.000Z');
+    expect(task?.closedAt?.toISOString()).toBe('2025-10-09T12:00:00.000Z');
   });
 
   it('контакты совпадают с фикстурой', async () => {
-    expect(await collect(file.contacts(ALL))).toEqual(await collect(fake.contacts(ALL)));
+    expect(await collect(file.contacts(ALL))).toEqual(
+      asPrintedInMoscow(await collect(fake.contacts(ALL)), 'createdAt')
+    );
   });
 
   it('лиды совпадают с фикстурой', async () => {
-    expect(await collect(file.leads(ALL))).toEqual(await collect(fake.leads(ALL)));
+    expect(await collect(file.leads(ALL))).toEqual(
+      asPrintedInMoscow(await collect(fake.leads(ALL)), 'createdAt')
+    );
   });
 
   it('сделки совпадают с фикстурой', async () => {
-    expect(await collect(file.deals(ALL))).toEqual(await collect(fake.deals(ALL)));
+    expect(await collect(file.deals(ALL))).toEqual(
+      asPrintedInMoscow(await collect(fake.deals(ALL)), 'createdAt')
+    );
   });
 
   it('задачи совпадают с фикстурой', async () => {
-    expect(await collect(file.tasks(ALL))).toEqual(await collect(fake.tasks(ALL)));
+    expect(await collect(file.tasks(ALL))).toEqual(
+      asPrintedInMoscow(await collect(fake.tasks(ALL)), 'createdAt', 'closedAt')
+    );
   });
 
   it('стадии и статусы — то же множество (порядок у файлов свой)', async () => {
@@ -453,6 +502,8 @@ describe('FileBitrixSource — файлы читаются один раз', () 
 // ---------------------------------------------------------------------------
 
 describe('FileBitrixSource — книга Excel', () => {
+  // Цифры ячейки «01.04.2026 10:00»: exceljs хранит их полями UTC, пояса в
+  // книге нет. Портал живёт по Москве, поэтому это 07:00 UTC (прогон №36).
   const created = new Date(Date.UTC(2026, 3, 1, 10, 0, 0));
 
   async function book(): Promise<Buffer> {
@@ -480,7 +531,9 @@ describe('FileBitrixSource — книга Excel', () => {
     });
   }
 
-  it('числа становятся строками, rich text склеивается, дата остаётся датой', async () => {
+  it('числа становятся строками, rich text склеивается, время даты — московское', async () => {
+    // Прежде ожидался `created` как есть — чтение цифр Excel «как UTC», то есть
+    // тот же дефект, что и у CSV: XLSX и CSV одной выгрузки расходились на 3 часа.
     const source = new FileBitrixSource([upload('company', 'книга.xlsx', await book())]);
     expect(await collect(source.companies(ALL))).toEqual([
       {
@@ -489,7 +542,7 @@ describe('FileBitrixSource — книга Excel', () => {
         inn: '7701234560',
         kpp: null,
         assignedById: 'name:мария райтова',
-        createdAt: created,
+        createdAt: new Date('2026-04-01T07:00:00.000Z'),
         comments: null,
       },
       {
