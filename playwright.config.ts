@@ -97,6 +97,14 @@ export default defineConfig({
         // Проверяем адаптив (390×844, isMobile — У-19 этапа 3), а не движок Safari.
         browserName: 'chromium',
         viewport: { width: 390, height: 844 },
+        // Плотность 1, а не 3 из пресета iPhone (прогон сопровождения №36).
+        // Снимок во всю страницу снимается в точках экрана и уменьшается до
+        // 390 CSS-пикселей; при плотности 3 коэффициент уменьшения зависит от
+        // дробной высоты страницы, и изменение высоты на долю пикселя (другие
+        // цифры времени в строке журнала) пересчитывало ВСЮ картинку — тысячи
+        // «отличий» без единой правки. Раскладку по-прежнему проверяет
+        // ширина 390 и isMobile, а не плотность.
+        deviceScaleFactor: 1,
         storageState: 'playwright-report/.auth/partner.json',
       },
       dependencies: ['setup'],
@@ -123,6 +131,7 @@ export default defineConfig({
         // Проверяем адаптив (390×844, isMobile — У-19 этапа 3), а не движок Safari.
         browserName: 'chromium',
         viewport: { width: 390, height: 844 },
+        deviceScaleFactor: 1,
         storageState: 'playwright-report/.auth/organization.json',
       },
       dependencies: ['setup'],
@@ -149,6 +158,7 @@ export default defineConfig({
         // Проверяем адаптив (390×844, isMobile — У-19 этапа 3), а не движок Safari.
         browserName: 'chromium',
         viewport: { width: 390, height: 844 },
+        deviceScaleFactor: 1,
         storageState: 'playwright-report/.auth/manager.json',
       },
       dependencies: ['setup'],
@@ -175,6 +185,7 @@ export default defineConfig({
         // Проверяем адаптив (390×844, isMobile — У-19 этапа 3), а не движок Safari.
         browserName: 'chromium',
         viewport: { width: 390, height: 844 },
+        deviceScaleFactor: 1,
         storageState: 'playwright-report/.auth/admin.json',
       },
       dependencies: ['setup'],
@@ -201,6 +212,7 @@ export default defineConfig({
         // Проверяем адаптив (390×844, isMobile — У-19 этапа 3), а не движок Safari.
         browserName: 'chromium',
         viewport: { width: 390, height: 844 },
+        deviceScaleFactor: 1,
         storageState: 'playwright-report/.auth/leader.json',
       },
       dependencies: ['setup'],
@@ -228,6 +240,7 @@ export default defineConfig({
         // Проверяем адаптив (390×844, isMobile — У-19 этапа 3), а не движок Safari.
         browserName: 'chromium',
         viewport: { width: 390, height: 844 },
+        deviceScaleFactor: 1,
         storageState: 'playwright-report/.auth/student.json',
       },
       dependencies: ['setup'],
