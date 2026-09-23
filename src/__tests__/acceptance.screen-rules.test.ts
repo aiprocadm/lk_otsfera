@@ -78,6 +78,86 @@ import { X } from '@/lib/x';
   });
 });
 
+/**
+ * Прогон сопровождения №37: `stripComments` разбирает текст по символам.
+ * Прежние три регулярки съедали всё после `//` внутри строки
+ * (`'https://…'`), а `/*` внутри строчного комментария (`// под /manager/*`)
+ * открывал «блок» до следующего `*\/` и прятал десятки строк живого кода от
+ * каждого стража, читающего исходник через `helpers/source.ts`.
+ */
+describe('stripComments — строки, шаблоны и регулярки не путаются с комментариями (прогон №37)', () => {
+  it('адрес в строке не обрезает строку кода', () => {
+    expect(stripComments("const u = 'https://x.ru'; d.toLocaleDateString('ru-RU'); // хвост")).toBe(
+      "const u = 'https://x.ru'; d.toLocaleDateString('ru-RU'); "
+    );
+    expect(stripComments('a("http://a") + b(`//${c}`) // x')).toBe('a("http://a") + b(`//${c}`) ');
+  });
+
+  it('`/*` внутри строчного комментария не открывает блок', () => {
+    expect(stripComments('// под /manager/*\ncode()\n/** справка */ tail')).toBe('\ncode()\n tail');
+    expect(stripComments("x = '/api/admin/*'; y()\n/* c */ z")).toBe("x = '/api/admin/*'; y()\n z");
+  });
+
+  it('апострофы и кавычки: в строке, в комментарии, экранированные', () => {
+    expect(stripComments(`const s = "it's"; // it's\nnext`)).toBe(`const s = "it's"; \nnext`);
+    expect(stripComments("// don't\ncode('x')")).toBe("\ncode('x')");
+    expect(stripComments("'a\\'b // c' + x // d")).toBe("'a\\'b // c' + x ");
+    expect(stripComments('"a\\"b // c" + x // d')).toBe('"a\\"b // c" + x ');
+  });
+
+  it('кавычки внутри блочного комментария не открывают строку', () => {
+    expect(stripComments(`x /* it's "q" */ y`)).toBe('x  y');
+    expect(stripComments('/* \' */ call() /* " */')).toBe(' call() ');
+  });
+
+  it('текст разметки: адрес `https://` цел, прочий `//` снимается до конца строки (предел разбора)', () => {
+    expect(stripComments('<p>см. https://x.ru</p> {/* c */}')).toBe('<p>см. https://x.ru</p> ');
+    expect(stripComments('<p>было // стало</p>\n<b/>')).toBe('<p>было \n<b/>');
+    expect(stripComments('{/* x */ y}')).toBe('{ y}');
+  });
+
+  it('шаблоны: подстановки с вложенными шаблонами, комментариями и объектами', () => {
+    expect(stripComments('`a ${ `b ${ c /* k */ } // d` } e` // f')).toBe(
+      '`a ${ `b ${ c  } // d` } e` '
+    );
+    expect(stripComments('`${ {a: 1}.a } \\` // q` // z')).toBe('`${ {a: 1}.a } \\` // q` ');
+    expect(stripComments('`a ${ b')).toBe('`a ${ b');
+    expect(stripComments('`abc // d')).toBe('`abc // d');
+  });
+
+  it('регулярки: `//`, `/*` и кавычки внутри них — не комментарий и не строка', () => {
+    expect(stripComments("x = /\\/\\/*[/]'/g; // c")).toBe("x = /\\/\\/*[/]'/g; ");
+    expect(stripComments('/\\/\\//.test(u) // c')).toBe('/\\/\\//.test(u) ');
+    expect(stripComments('return /"/.test(s) // q')).toBe('return /"/.test(s) ');
+    expect(stripComments('x = /abc\ny // c')).toBe('x = /abc\ny ');
+    expect(stripComments('x = /abc')).toBe('x = /abc');
+  });
+
+  it('деление остаётся делением: после имени, числа и скобки', () => {
+    expect(stripComments('a = b / c / d; // c')).toBe('a = b / c / d; ');
+    expect(stripComments('value / 2 // половина')).toBe('value / 2 ');
+    expect(stripComments('(a) / 2 // c')).toBe('(a) / 2 ');
+  });
+
+  it('незакрытое: строка обрывается на переводе строки, блок — в конце текста', () => {
+    expect(stripComments("'abc\n// c")).toBe("'abc\n");
+    expect(stripComments("'abc")).toBe("'abc");
+    expect(stripComments('a /* b')).toBe('a ');
+    expect(stripComments('} // x')).toBe('} ');
+  });
+
+  it('`\\r\\n`: строчный комментарий кончается перед `\\r`', () => {
+    expect(stripComments('a // c\r\nb')).toBe('a \r\nb');
+  });
+
+  it('keepLayout: комментарии заменяются пробелами, строки и позиции на месте', () => {
+    const src = 'a /* x\ny */ b // z\r\nc {/* q */} "//"';
+    const kept = stripComments(src, true);
+    expect(kept).toBe('a     \n     b     \r\nc           "//"');
+    expect(kept).toHaveLength(src.length);
+  });
+});
+
 describe('analyzeScreen — три вопроса по исходникам', () => {
   it('русский заголовок, подзаголовок и кнопка — все три ответа есть', () => {
     expect(analyzeScreen([PAGE_OK])).toEqual({

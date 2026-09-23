@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import path from 'node:path';
+import { readSource } from './helpers/source';
 
 // Worker processors that intentionally have NO dedicated test.
 // Add an entry ONLY with a written justification. The three below are tracked
@@ -18,10 +19,16 @@ function processorModuleNames(): string[] {
     .map((f) => f.replace(/\.ts$/, ''));
 }
 
+/**
+ * Тексты тестов без комментариев (прогон сопровождения №37). Раньше файлы
+ * читались как есть, и закомментированный импорт процессора засчитывался
+ * покрытием: `// import { … } from '@/worker/processors/x'` — тест процессора
+ * мёртв, а страж зелёный.
+ */
 function allTestSources(): string {
   return readdirSync(TESTS_DIR)
     .filter((f) => /\.test\.tsx?$/.test(f))
-    .map((f) => readFileSync(path.join(TESTS_DIR, f), 'utf8'))
+    .map((f) => readSource(path.join(TESTS_DIR, f)))
     .join('\n');
 }
 

@@ -64,7 +64,6 @@ const DEBT = new Set([
   'services.graceful-degrade',
   'services.no-test-only-modules',
   'services.stable-pagination-order',
-  'worker.processor-coverage',
 ]);
 
 /**
