@@ -47,7 +47,8 @@ describe('getPartnerFirstSteps', () => {
       ['requisites', false, '/partner/settings?tab=profile'],
       ['firstOrganization', false, '/partner/portfolio'],
       ['bot', false, '/partner/settings?tab=profile'],
-      ['team', false, '/partner/team'],
+      // `У-263`: вкладка настроек, а не удалённый шлюз `/partner/team`.
+      ['team', false, '/partner/settings?tab=team'],
     ]);
     expect(prisma.partnerUser.count).toHaveBeenCalledWith({
       where: { partnerId: 'p1', isActive: true },

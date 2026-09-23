@@ -1,13 +1,13 @@
 /**
- * `next.config.mjs` — обычный JS без типов, но тест
- * `lib.navigation.settings-redirect` импортирует из него карту редиректов
- * хаба «Настройки», чтобы сверить её с реестром разделов. Объявление даёт
- * этому импорту тип и держит `noImplicitAny` довольным.
+ * `next.config.mjs` — обычный JS без типов, но тест `lib.config.import-limits`
+ * импортирует из него предел тела server action'а, чтобы сверить его с
+ * `IMPORT_MAX_FILE_MB`. Объявление даёт этому импорту тип и держит
+ * `noImplicitAny` довольным.
+ *
+ * Карт редиректов со старых адресов здесь больше нет: шлюзы удалены
+ * (`У-263`, прогон сопровождения №37).
  */
 declare module '*/next.config.mjs' {
-  export const SETTINGS_HUB_REDIRECTS: ReadonlyArray<readonly [string, string]>;
-  /** Переезды вне хаба настроек — например, из кабинета заказчика. */
-  export const LEGACY_REDIRECTS: ReadonlyArray<readonly [string, string]>;
   export const SERVER_ACTIONS_BODY_LIMIT_MB: number;
   const nextConfig: unknown;
   export default nextConfig;

@@ -106,10 +106,6 @@ const { listFeatureFlags } = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/services/admin/featureFlags', () => ({ listFeatureFlags }));
 
-import AdminNotificationChannelsPage from '@/app/admin/settings/integrations/notifications/page';
-import LeaderNotificationChannelsPage from '@/app/leader/settings/integrations/notifications/page';
-import AdminPersonalSecurityPage from '@/app/admin/settings/security/personal/page';
-import LeaderPersonalSecurityPage from '@/app/leader/settings/security/personal/page';
 import AdminPersonalSettingsPage from '@/app/admin/settings/personal/page';
 import LeaderPersonalSettingsPage from '@/app/leader/settings/personal/page';
 import { personalSettingsTabsFor } from '@/lib/navigation/personalSettings';
@@ -221,30 +217,6 @@ describe('личные настройки в хабе (У-114)', () => {
   it('незнакомая вкладка открывает «Профиль», а не пустой экран', async () => {
     const { container } = await render(LeaderPersonalSettingsPage, 'нет-такой');
     expect(container.querySelector('[data-testid="telegram-card"]')).not.toBeNull();
-  });
-});
-
-describe('старые адреса разделов остаются живыми (У-114)', () => {
-  it.each([
-    [
-      'админ · уведомления',
-      AdminNotificationChannelsPage,
-      '/admin/settings/personal?tab=notifications',
-    ],
-    [
-      'руководитель · уведомления',
-      LeaderNotificationChannelsPage,
-      '/leader/settings/personal?tab=notifications',
-    ],
-    ['админ · безопасность', AdminPersonalSecurityPage, '/admin/settings/personal?tab=security'],
-    [
-      'руководитель · безопасность',
-      LeaderPersonalSecurityPage,
-      '/leader/settings/personal?tab=security',
-    ],
-  ])('%s → своя вкладка нового раздела', (_name, page, to) => {
-    (page as () => void)();
-    expect(redirect).toHaveBeenCalledWith(to);
   });
 });
 

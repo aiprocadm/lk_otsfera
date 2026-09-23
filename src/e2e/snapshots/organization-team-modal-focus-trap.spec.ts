@@ -59,7 +59,8 @@ async function openModal(page: Page, how: 'click' | 'keyboard') {
 
 test.describe('invite-org-user-form: focus management', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/organization/team');
+    // Прямой адрес вкладки: шлюз `/organization/team` удалён (`У-263`).
+    await page.goto('/organization/company?tab=settings');
     await page.waitForLoadState('networkidle');
     // Кнопка на месте — дальше её оживление ждёт openModal.
     await expect(page.locator(TRIGGER)).toBeVisible();

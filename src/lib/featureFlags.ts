@@ -186,10 +186,9 @@ export const FEATURE_PREFIXES: Array<{ prefix: string; flag: FeatureFlag }> = [
   // cabinet-level flags below still apply additively via their own prefixes).
   // Этап 5 (Модуль 1): заявки клиентов — единый тёмный запуск всех поверхностей.
   // G1: конструктор ролей — отдельный флаг поверх кабинетных префиксов (additive).
-  { prefix: '/leader/roles', flag: 'role_constructor' },
-  { prefix: '/admin/roles', flag: 'role_constructor' },
-  // ТЗ 2026-08-04: конструктор ролей переехал в хаб «Настройки» — гейтим и
-  // новые адреса (старые остаются: под выключенным settings_hub они живые).
+  // Живёт в хабе «Настройки» (ТЗ 2026-08-04). Прежние `/leader/roles` и
+  // `/admin/roles` удалены вместе со шлюзами (`У-263`, прогон сопровождения
+  // №37) и отвечают 404 без флага — гейтить там нечего.
   { prefix: '/leader/settings/access/roles', flag: 'role_constructor' },
   { prefix: '/admin/settings/access/roles', flag: 'role_constructor' },
   // G2: воронка продаж / канбан.

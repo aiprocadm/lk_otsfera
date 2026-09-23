@@ -68,16 +68,16 @@ Company B:
 - **Ожидание**: комментарий в треде после refresh. «Сообщения» = входящие комментарии к заказам (`listIncomingComments`), гейтится `manager_cabinet` (**не** `chat`).
 
 ### Step 6 — Students list
-- **Действие**: `/manager/students`, поиск по фамилии.
+- **Действие**: `/manager/organizations` → карточка организации → вкладка «Сотрудники», поиск по фамилии (сквозной `/manager/students` удалён, `У-263`).
 - **Ожидание**: сотрудники в scope; поиск по `name` (case-insensitive contains).
 
 ### Step 7 — Leader-gate
-- **Действие (как manager-A1, не-leader)**: прямой переход `/manager/team`.
+- **Действие (как manager-A1, не-leader)**: прямой переход `/leader/team`.
 - **Ожидание**: пункт «Команда» скрыт в сайдбаре; прямой переход → `/forbidden` ([requireManagerLeader](../src/lib/auth/requireRole.ts)).
-- **Действие (как manager-A2, leader)**: `/manager/team` открывается — виден `TeamVisibilityToggle` + ростер команды.
+- **Действие (как manager-A2, leader)**: `/leader/team` открывается — виден `TeamVisibilityToggle` + ростер команды.
 
 ### Step 8 — C8 company-wide toggle (как leader)
-- **Действие**: на `/manager/team` переключить [TeamVisibilityToggle](../src/components/manager/team-visibility-toggle.tsx) в **ON**. Перелогиниться/обновить под `manager-A1`.
+- **Действие**: на `/leader/team` переключить [TeamVisibilityToggle](../src/components/manager/team-visibility-toggle.tsx) в **ON**. Перелогиниться/обновить под `manager-A1`.
 - **Ожидание (ON)**: `manager-A1` теперь видит **ВСЕ** заказы/документы/организации/студентов **Company A** (дашборд тоже агрегирует по компании). Audit: `manager_team_visibility_changed` ([service](../src/lib/services/manager/teamVisibility.ts)).
 - **Действие**: вернуть toggle в **OFF** → `manager-A1` снова видит только свой 3-way scope. Идемпотентный no-op флип audit-строку не пишет.
 
@@ -87,7 +87,7 @@ Company B:
 - **Critical fail**: виден хоть один объект Company B → стоп, разбор, откат.
 
 ### Step 10 — Worker sync → notification (scoped, не company-blast)
-- **Действие**: добавить тестовый платёж/документ по заказу Company A (через 1С-имитацию или admin-route) → подождать ≤ 5 мин (или retry через `/admin/sync`).
+- **Действие**: добавить тестовый платёж/документ по заказу Company A (через 1С-имитацию или admin-route) → подождать ≤ 5 мин (или retry через `/admin/settings/integrations/1c/auto`).
 - **Ожидание**: уведомление приходит **по scoped-правилу таргетинга** ([notifications/manager.ts](../src/lib/notifications/manager.ts)) — даже при company-wide **ON** уведомления остаются scoped (видимость ≠ таргетинг). Email-шаблон + in-app bell. Audit `notification_sent`.
 - **Fallback**: нет email → `[worker] notifications.dispatch` + Resend dashboard.
 

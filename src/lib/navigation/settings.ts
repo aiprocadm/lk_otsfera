@@ -5,8 +5,8 @@ import type { SettingsCapability } from '@/lib/auth/accessProfileSchema';
 /**
  * Реестр разделов хаба «Настройки» (ТЗ 2026-08-04) — единственный источник
  * правды. Из него выводятся: карточки хаба, боковая навигация, хлебные крошки,
- * проверка прав (`lib/auth/settingsAccess`) и карта редиректов со старых
- * маршрутов. Добавляешь раздел — правишь только этот файл.
+ * проверка прав (`lib/auth/settingsAccess`). Добавляешь раздел — правишь
+ * только этот файл.
  *
  * Хаб живёт в двух кабинетах сотрудников: `/admin/settings` и
  * `/leader/settings`. Раздел объявляет, в каких кабинетах он есть (`cabinets`),
@@ -36,36 +36,9 @@ export type SettingsSection = {
   /** Раздел скрыт целиком, пока флаг выключен (например role_constructor). */
   flag?: FeatureFlag | undefined;
   cabinets: readonly SettingsCabinet[];
-  /** Старые маршруты, редиректящие сюда при включённом `settings_hub`. */
-  legacyHrefs: readonly LegacyRoute[];
-};
-
-/**
- * Старый маршрут раздела. `toPath` нужен там, где один раздел собирает
- * несколько прежних страниц во вкладки: «Обмен с 1С» — это две разные загрузки,
- * и каждая обязана приехать на свою вкладку, а не на общий корень подраздела.
- * `cabinet` — для путей чужого префикса: `/manager/import` руководителя уезжает
- * в leader-хаб, а по префиксу карта вывела бы админский (этап 7 ТЗ импорта).
- */
-/**
- * Старый маршрут раздела. `toPath` нужен там, где один раздел собирает
- * несколько прежних страниц во вкладки; `cabinet` — для путей чужого префикса.
- *
- * **`introducedAt` — дата, когда адрес стал шлюзом** (`У-263`). Без даты шлюз
- * живёт вечно: никто не помнит, когда он появился, и убрать его страшно. Страж
- * `navigation.legacy-gateways` считает возраст и краснеет, когда шлюз
- * перевалил за 90 дней — тогда его удаляют, предварительно убедившись, что
- * старого пути нет в ссылках писем и уведомлений.
- *
- * Девяносто дней — это срок, за который закладка либо используется (и человек
- * увидит новый адрес), либо забыта.
- */
-type LegacyRoute = {
-  from: string;
-  toPath?: string;
-  cabinet?: SettingsCabinet;
-  /** Когда адрес стал шлюзом, `ГГГГ-ММ-ДД`. */
-  introducedAt: string;
+  // Поля `legacyHrefs` больше нет: старые адреса разделов удалены вместе со
+  // шлюзами (`У-263`, прогон сопровождения №37) и отвечают 404 «раздел
+  // переехал». Список удалённых адресов — `removedPaths.ts`.
 };
 
 /** Порядок групп — из ТЗ §3 (Интеграции → Конфигурация → Доступ → Безопасность). */
@@ -95,7 +68,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     path: 'personal',
     capability: 'own',
     cabinets: ['admin', 'leader'],
-    legacyHrefs: [],
   },
   {
     id: 'integrations.overview',
@@ -108,7 +80,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     // `У-135` (решение `Р-22`): руководитель видит светофор и чек-листы, но
     // НЕ секреты платформы — у него своя страница без форм подключений.
     cabinets: ['admin', 'leader'],
-    legacyHrefs: [{ from: '/admin/integrations', introducedAt: '2026-08-04' }],
   },
   {
     id: 'integrations.oneC',
@@ -121,30 +92,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     capability: 'settings.integrations.manage',
     // Этап 7 ТЗ импорта (Т-27): руководитель импортирует из своего хаба.
     cabinets: ['admin', 'leader'],
-    legacyHrefs: [
-      { from: '/admin/import', toPath: 'integrations/1c/excel', introducedAt: '2026-08-04' },
-      {
-        from: '/admin/payments-import',
-        toPath: 'integrations/1c/payments',
-        introducedAt: '2026-08-04',
-      },
-      // `У-46`: «Синхронизация» больше не отдельный раздел — она вкладка здесь.
-      { from: '/admin/sync', toPath: 'integrations/1c/auto', introducedAt: '2026-08-04' },
-      // Старые адреса менеджерского кабинета — руководителя уводим в его хаб
-      // (обычному менеджеру страницы больше не положены, Т-25).
-      {
-        from: '/manager/import',
-        toPath: 'integrations/1c/excel',
-        cabinet: 'leader',
-        introducedAt: '2026-08-04',
-      },
-      {
-        from: '/manager/payments-import',
-        toPath: 'integrations/1c/payments',
-        cabinet: 'leader',
-        introducedAt: '2026-08-04',
-      },
-    ],
   },
   {
     // Спека 2026-09-12 (Р-М-6): мессенджеры подключаются как каналы переписки
@@ -160,7 +107,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     capability: 'settings.integrations.manage',
     cabinets: ['admin'],
     // Старого адреса нет: формы жили на обзоре, а не на своём маршруте.
-    legacyHrefs: [],
   },
   {
     // Этап 2 ТЗ 12.09.2026 (`У-188`): только администратор — вебхук с токеном
@@ -176,7 +122,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     cabinets: ['admin'],
     // `У-217`: раздел появился этапом 3 и раскатывается вместе с ним.
     flag: 'comm_center',
-    legacyHrefs: [],
   },
   {
     id: 'integrations.bitrix',
@@ -189,7 +134,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     capability: 'settings.integrations.manage',
     flag: 'bitrix_migration',
     cabinets: ['admin'],
-    legacyHrefs: [],
   },
   {
     // `У-130`: SLA переехал из «Команды» — там ему не место, это настройка
@@ -208,7 +152,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     cabinets: ['admin', 'leader'],
     // Старый адрес — вкладка «Команда» руководителя; карточка оттуда убрана,
     // отдельного шлюза не нужно (это была секция экрана, а не свой маршрут).
-    legacyHrefs: [],
   },
   {
     // `У-128`: тексты писем — рядом с правилами уведомлений, это одна тема.
@@ -220,7 +163,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     path: 'catalogs/email-templates',
     capability: 'settings.catalogs.manage',
     cabinets: ['admin', 'leader'],
-    legacyHrefs: [],
   },
   {
     id: 'catalogs.replyTemplates',
@@ -233,7 +175,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     cabinets: ['admin', 'leader'],
     // `У-217`: раздел появился этапом 3 и раскатывается вместе с ним.
     flag: 'comm_center',
-    legacyHrefs: [],
   },
   {
     id: 'catalogs.applicationStatuses',
@@ -244,10 +185,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     path: 'catalogs/application-statuses',
     capability: 'settings.catalogs.manage',
     cabinets: ['admin', 'leader'],
-    legacyHrefs: [
-      { from: '/admin/order-statuses', introducedAt: '2026-08-04' },
-      { from: '/leader/settings/order-statuses', introducedAt: '2026-08-04' },
-    ],
   },
   {
     // `У-127`: куда уходит каждое событие. Раздел «Конфигурация процессов»:
@@ -261,7 +198,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     capability: 'settings.catalogs.manage',
     cabinets: ['admin', 'leader'],
     // Старого адреса нет: раздел появился сразу в хабе.
-    legacyHrefs: [],
   },
   {
     // `У-222` (этап 4): правила «событие → задача или уведомление». Группа
@@ -277,7 +213,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     cabinets: ['admin', 'leader'],
     flag: 'automation',
     // Старого адреса нет: раздел появился сразу в хабе.
-    legacyHrefs: [],
   },
   {
     // `У-237` (этап 6): материалы для партнёров — прайсы, презентации,
@@ -292,7 +227,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     capability: 'settings.catalogs.manage',
     cabinets: ['admin', 'leader'],
     // Старого адреса нет: раздел появился сразу в хабе.
-    legacyHrefs: [],
   },
   {
     // `У-242` (этап 7): какие показатели компания считает своими и какие планы
@@ -308,7 +242,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     cabinets: ['admin', 'leader'],
     flag: 'leader_analytics',
     // Старого адреса нет: раздел появился сразу в хабе.
-    legacyHrefs: [],
   },
   {
     id: 'catalogs.customFields',
@@ -319,10 +252,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     path: 'catalogs/custom-fields',
     capability: 'settings.catalogs.manage',
     cabinets: ['admin', 'leader'],
-    legacyHrefs: [
-      { from: '/admin/custom-fields', introducedAt: '2026-08-04' },
-      { from: '/leader/settings/custom-fields', introducedAt: '2026-08-04' },
-    ],
   },
   {
     id: 'catalogs.priceList',
@@ -335,7 +264,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     // `У-136`/`Р-22`: руководитель ведёт каталог СВОЕЙ компании — скоуп
     // держит сервис, а не видимость карточки.
     cabinets: ['admin', 'leader'],
-    legacyHrefs: [],
   },
   {
     id: 'catalogs.documentTemplates',
@@ -350,7 +278,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     // `У-160`/`Р-22`: руководитель правит тексты СВОЕЙ компании — границу
     // держит сервис сравнением companyId, а не видимость карточки.
     cabinets: ['admin', 'leader'],
-    legacyHrefs: [],
   },
   {
     id: 'catalogs.requisites',
@@ -363,7 +290,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     // `У-135`: руководитель правит реквизиты СВОЕЙ компании — скоуп держит
     // сервис, а не видимость карточки.
     cabinets: ['admin', 'leader'],
-    legacyHrefs: [],
   },
   {
     id: 'access.roles',
@@ -375,10 +301,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     capability: 'settings.access.manage',
     flag: 'role_constructor',
     cabinets: ['admin', 'leader'],
-    legacyHrefs: [
-      { from: '/admin/roles', introducedAt: '2026-08-04' },
-      { from: '/leader/roles', introducedAt: '2026-08-04' },
-    ],
   },
   {
     // `У-129`: сроки и лимиты входа. Раздел платформенный — вход один на всю
@@ -391,7 +313,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     path: 'security/login-policies',
     capability: 'settings.system.view',
     cabinets: ['admin'],
-    legacyHrefs: [],
   },
   {
     id: 'security.audit',
@@ -402,7 +323,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     path: 'security/audit',
     capability: 'settings.audit.view',
     cabinets: ['admin'],
-    legacyHrefs: [{ from: '/admin/audit', introducedAt: '2026-08-04' }],
   },
   {
     id: 'security.personalData',
@@ -413,7 +333,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     path: 'security/personal-data',
     capability: 'settings.personal_data.view',
     cabinets: ['admin'],
-    legacyHrefs: [{ from: '/admin/pii-access', introducedAt: '2026-08-04' }],
   },
   {
     id: 'system.health',
@@ -424,7 +343,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     path: 'system/health',
     capability: 'settings.system.view',
     cabinets: ['admin'],
-    legacyHrefs: [{ from: '/admin/health', introducedAt: '2026-08-04' }],
   },
   {
     id: 'system.featureFlags',
@@ -435,7 +353,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     path: 'system/feature-flags',
     capability: 'settings.system.view',
     cabinets: ['admin'],
-    legacyHrefs: [],
   },
 ];
 
@@ -485,27 +402,6 @@ export function sectionByPath(
     if (!best || section.path.length > best.path.length) best = section;
   }
   return best;
-}
-
-/**
- * Старый путь → новый. Кабинет определяется префиксом самого старого пути
- * (`/leader/roles` → leader-хаб, `/admin/roles` → админский); явный
- * `legacy.cabinet` побеждает — для путей чужого префикса вроде
- * `/manager/import`, уезжающего в хаб руководителя.
- */
-export function legacyRedirectMap(): ReadonlyMap<string, string> {
-  const map = new Map<string, string>();
-  for (const section of SETTINGS_SECTIONS) {
-    for (const legacy of section.legacyHrefs) {
-      const cabinet: SettingsCabinet =
-        legacy.cabinet ?? (legacy.from.startsWith('/leader') ? 'leader' : 'admin');
-      const target = legacy.toPath
-        ? `${settingsRoot(cabinet)}/${legacy.toPath}`
-        : settingsHref(section, cabinet);
-      map.set(legacy.from, target);
-    }
-  }
-  return map;
 }
 
 /**

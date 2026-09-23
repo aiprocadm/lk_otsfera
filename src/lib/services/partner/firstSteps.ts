@@ -70,7 +70,9 @@ export async function getPartnerFirstSteps(
       key: 'team',
       title: 'Пригласить команду',
       hint: 'Коллеги увидят свои организации и заявки в этом же кабинете',
-      href: '/partner/team',
+      // Вкладка настроек, а не прежний `/partner/team`: тот адрес был шлюзом
+      // и удалён (`У-263`, прогон сопровождения №37) — шаг вёл бы в 404.
+      href: '/partner/settings?tab=team',
       // Один активный участник — это сам администратор.
       done: team > 1,
     });

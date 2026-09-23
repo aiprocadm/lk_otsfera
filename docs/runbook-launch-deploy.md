@@ -109,7 +109,7 @@ FEATURE_CHAT=1            # только если чат идёт в перву�
 - [ ] под нужной ролью `/{organization|manager|leader}/dashboard` и `/…/enrollments` отдают страницу (не 404);
 - [ ] под **чужой** ролью префиксы по-прежнему 404 / `/forbidden` (RBAC цел);
 - [ ] `/api/enrollments` под валидной ролью → не 404 (флаг виден route-handler'у);
-- [ ] `GET /api/health` green; в `/admin/health` нет новых красных сигналов.
+- [ ] `GET /api/health` green; в `/admin/settings/system/health` нет новых красных сигналов.
 
 Любой ❌ → откат (§5), разбор по логам.
 
@@ -126,9 +126,9 @@ FEATURE_CHAT=1            # только если чат идёт в перву�
    ONE_C_API_TOKEN=<реальный>
    ONE_C_MODE=shadow        # ОБЯЗАТЕЛЬНО явно — дефолт=live пишет в боевую БД
    ```
-   Наблюдать в `/admin/sync`: cursor продвигается, RU-статусы переводятся (`translate.ts`, иначе live=0 строк), пагинация Q6 обходит все страницы (нет undercount первой страницы), DOC-03 качает файлы в S3-хранилище. Сверить расхождения shadow vs ожидание.
+   Наблюдать в `/admin/settings/integrations/1c/auto`: cursor продвигается, RU-статусы переводятся (`translate.ts`, иначе live=0 строк), пагинация Q6 обходит все страницы (нет undercount первой страницы), DOC-03 качает файлы в S3-хранилище. Сверить расхождения shadow vs ожидание.
 2. **Go/no-go:** shadow без аномалий, cursor-lag в норме, перевод справочников полный.
-3. **Перевод в live:** `ONE_C_MODE=live` (или снять override) → redeploy worker. Наблюдать первый цикл записи в `/admin/sync` + alerting (sync-lag / DLQ).
+3. **Перевод в live:** `ONE_C_MODE=live` (или снять override) → redeploy worker. Наблюдать первый цикл записи в `/admin/settings/integrations/1c/auto` + alerting (sync-lag / DLQ).
 
 **Откат 1С:** `ONE_C_ADAPTER=fake` (или `ONE_C_MODE=shadow`) → restart worker. Уже записанные данные идемпотентны, не повреждаются.
 

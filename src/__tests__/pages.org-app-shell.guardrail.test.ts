@@ -77,8 +77,12 @@ describe('каждая страница кабинета заказчика — 
 
   it('шлюзы распознаются и оболочки не требуют', () => {
     // Без этой проверки предыдущая могла бы зеленеть просто потому, что
-    // `isGateway` считает шлюзом всё подряд.
+    // `isGateway` считает шлюзом всё подряд. Настоящих шлюзов в кабинете
+    // заказчика больше нет — их удалили (`У-263`, прогон сопровождения №37),
+    // поэтому признак проверяем на образцах.
+    expect(isGateway(`export default function P() { redirect('/x'); }`)).toBe(true);
+    expect(isGateway(`export default function P() { return <OrgAppShell />; }`)).toBe(false);
     const gateways = pages.filter((p) => isGateway(readSource(p))).map(shortPath);
-    expect(gateways.length, 'шлюзы в кабинете заказчика есть — их и не должно требовать').toBe(3);
+    expect(gateways, 'шлюзы старых адресов удалены — новых быть не должно').toEqual([]);
   });
 });

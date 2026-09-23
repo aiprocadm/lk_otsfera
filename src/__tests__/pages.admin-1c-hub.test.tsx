@@ -33,7 +33,6 @@ vi.mock('next/navigation', () => ({ redirect, useRouter: () => ({ refresh: vi.fn
 
 import AdminOneCIndexPage from '@/app/admin/settings/integrations/1c/page';
 import AdminOneCHistoryPage from '@/app/admin/settings/integrations/1c/history/page';
-import AdminSyncLegacyPage from '@/app/admin/settings/integrations/sync/page';
 
 beforeEach(() => {
   requireSettingsSection.mockClear();
@@ -85,12 +84,5 @@ describe('вкладка «История» (У-48)', () => {
     listExchangeHistory.mockResolvedValue({ ok: false, error: 'forbidden' });
     const { container } = await renderServerComponent(AdminOneCHistoryPage());
     expect(container.querySelector('[role="alert"]')?.textContent).toContain('Недостаточно прав');
-  });
-});
-
-describe('старый адрес «Синхронизации» (У-46)', () => {
-  it('уводит на вкладку «Автообмен», а не отдаёт 404', () => {
-    expect(() => AdminSyncLegacyPage()).toThrow('NEXT_REDIRECT');
-    expect(redirect).toHaveBeenCalledWith('/admin/settings/integrations/1c/auto');
   });
 });

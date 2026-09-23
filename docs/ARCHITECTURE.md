@@ -135,7 +135,7 @@ Dead-letters двух видов: **упавшие job'ы** остаются в 
 (`removeOnFail: false` — намеренно, [CLAUDE.md §7](../CLAUDE.md)) и
 **out-of-order записи** копятся в `OneCPendingRecord` и доигрываются, когда
 появляется зависимость (организация/заказ). Файлового адаптера нет — файловый
-обмен это ручной импорт Excel через `/admin/import`.
+обмен это ручной импорт Excel через `/admin/settings/integrations/1c/excel`.
 
 ### 5.2. Документ: upload → скан → скачивание
 
@@ -173,7 +173,7 @@ server-action, у manager — через API-роут.
 
 ```mermaid
 flowchart LR
-    P["Payment<br/>(1С-pull или импорт Excel /admin/import)"] --> C["Воркер calculateMonthlyCommissions<br/>(период = прошлый месяц)"]
+    P["Payment<br/>(1С-pull или импорт Excel в «Обмене с 1С»)"] --> C["Воркер calculateMonthlyCommissions<br/>(период = прошлый месяц)"]
     C --> COR["detectLateRefundCorrections<br/>поздние возвраты → CommissionCorrection"]
     C --> ST["CommissionStatement draft<br/>одна живая ведомость на (partnerId, период)"]
     ST -->|"approve: leader/admin"| AP["approved"]

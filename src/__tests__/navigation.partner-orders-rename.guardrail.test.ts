@@ -50,19 +50,12 @@ describe('«Заказы» партнёра, а не «Сделки» (У-109)',
     expect(item?.label).toBe('Заказы');
   });
 
-  it('старый адрес остался живым — но редиректом, а не экраном', () => {
-    // Закладки и ссылки в письмах обязаны довести человека до раздела.
-    for (const p of ['app/partner/deals/page.tsx', 'app/partner/deals/[id]/page.tsx']) {
-      const file = join(SRC, p);
-      expect(existsSync(file), `${p}: старый адрес просто удалён`).toBe(true);
-      const src = readSource(file);
-      // Именно ПОСТОЯННЫЙ: адрес не вернётся, и поисковики это учитывают.
-      // Проверяем сам импорт, а не слово: `redirect as permanentRedirect`
-      // выглядит правильно и оставляет временный 307 — проверено мутацией.
-      expect(src, `${p}: редирект не постоянный`).toMatch(
-        /import \{ permanentRedirect \} from 'next\/navigation';/
-      );
-    }
+  it('старого адреса больше нет — ни экрана, ни редиректа (У-263)', () => {
+    // До прогона сопровождения №37 `/partner/deals` и `/partner/deals/<id>`
+    // уводили на заказы постоянным редиректом. Заказчик решил не ждать срок
+    // шлюза (90 дней): адрес удалён и отвечает 404 «раздел переехал».
+    // Вернуть его можно только решением, а не «на всякий случай».
+    expect(existsSync(join(SRC, 'app', 'partner', 'deals'))).toBe(false);
   });
 
   it('нижняя панель партнёра знает раздел по ключу и переезд её не задел', () => {
@@ -88,7 +81,6 @@ describe('«Заказы» партнёра, а не «Сделки» (У-109)',
     const rogue: string[] = [];
     for (const file of walk(join(SRC, 'app')).concat(walk(join(SRC, 'components')))) {
       const r = rel(file);
-      if (r.startsWith('app/partner/deals')) continue; // сам редирект
       const src = readSource(file);
       if (src.includes('/partner/deals')) rogue.push(r);
     }

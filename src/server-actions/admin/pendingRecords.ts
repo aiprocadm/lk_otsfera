@@ -25,6 +25,10 @@ export async function requeuePendingRecordAction(
   if (!parsed.success) return { ok: false, error: 'validation' };
   const session = await requireAdmin();
   const result = await requeueDeadRecord(prisma, session, parsed.data.id);
-  revalidatePath('/admin/settings/integrations/sync');
+  // Экран, где живёт список «мёртвых» записей, — вкладка «Автообмен» раздела
+  // «Обмен с 1С». Прежний `/admin/settings/integrations/sync` был шлюзом и
+  // удалён (`У-263`, прогон сопровождения №37); освежать его было бесполезно
+  // и до удаления — своего экрана у шлюза не было.
+  revalidatePath('/admin/settings/integrations/1c/auto');
   return result;
 }

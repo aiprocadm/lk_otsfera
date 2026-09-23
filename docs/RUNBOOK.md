@@ -30,15 +30,15 @@
    ```
 4. **Админ-панели** (роль admin). Адреса изменились (ТЗ 2026-08-04): всё
    редконастраиваемое собрано в хабе `/admin/settings`; старые адреса
-   (`/admin/health`, `/admin/sync`, `/admin/audit`, …) продолжают работать —
-   переадресуют на новые, пока включён флаг `settings_hub`.
+   (`/admin/health`, `/admin/sync`, `/admin/audit`, …) удалены 23.09.2026
+   (`У-263`) и отвечают 404 «раздел переехал» — закладки переложить на новые.
 
    **Импорт из 1С (Т-29 ТЗ починки импорта).** Страницы
    `/admin/settings/integrations/1c/{excel,payments}` и зеркала руководителя
    `/leader/settings/integrations/1c/{excel,payments}` доступны при дефолтных
    флагах: `FEATURE_SETTINGS_HUB` **не выставлять** в `0/false/off` (флаг
-   opt-out — включён по умолчанию; выключенным он лишь отключает редиректы со
-   старых адресов, сами страницы хаба отвечают всегда), собственного флага у
+   opt-out — включён по умолчанию; редиректов со старых адресов больше нет,
+   сами страницы хаба отвечают всегда), собственного флага у
    раздела «Обмен с 1С» нет. Флагов у кабинетов менеджера и руководителя больше
    нет: они сняты в этапе 9 (`У-262`) — кабинет роли не эксперимент.
    Право импорта — только admin и руководитель (Т-25); обычный менеджер
@@ -47,7 +47,7 @@
      (упавшие задачи, кнопки retry / retry-all), активные алерты, ошибки синка.
      Отдельных страниц `/admin/queues` и `/admin/dlq` **нет** — всё здесь;
      API — `/api/admin/dlq` (+ `/[queue]/[jobId]/retry`, `/[queue]/retry-all`).
-   - **`/admin/settings/integrations/sync`** — центр управления 1С-синком: cursor-lag, пауза/запуск расписаний,
+   - **`/admin/settings/integrations/1c/auto`** — центр управления 1С-синком: cursor-lag, пауза/запуск расписаний,
      ручной триггер, dead-letter записи 1С (возврат в очередь).
 5. **Куда приходят алерты.** Воркер каждые 5 минут (`monitoring.evaluateAlerts`,
    cron `*/5 * * * *`) сверяет метрики с порогами
@@ -102,13 +102,13 @@
 
 ### 2.3 1С-синк молчит
 
-**Симптом**: алерт `sync_lag:<entity>`; в `/admin/settings/integrations/sync` cursor-lag растёт.
+**Симптом**: алерт `sync_lag:<entity>`; в `/admin/settings/integrations/1c/auto` cursor-lag растёт.
 
-1. `/admin/settings/integrations/sync`: не поставлено ли расписание на паузу; свежие ошибки синка; dead-letter записи (`OneCPendingRecord` со статусом `dead` — алерт `onec_dead_letters`).
+1. `/admin/settings/integrations/1c/auto`: не поставлено ли расписание на паузу; свежие ошибки синка; dead-letter записи (`OneCPendingRecord` со статусом `dead` — алерт `onec_dead_letters`).
 2. Проверить адаптер: env `ONE_C_ADAPTER` (`fake` = живых записей нет вообще, `rest` = боевой; требует `ONE_C_API_URL`+`ONE_C_API_TOKEN`) и `ONE_C_MODE` (**дефолт `live`**; `shadow` = читает, но не пишет — [config.ts](../src/lib/services/oneCSync/config.ts)). Эффективное значение адаптера может быть переопределено в БД через `/admin/settings/integrations` ([integrationSettings.ts](../src/lib/config/integrationSettings.ts), ключ `onec.adapter`).
-3. Ручной прогон: `/admin/settings/integrations/sync` → «Запустить» нужную сущность; наблюдать cursor и журнал.
+3. Ручной прогон: `/admin/settings/integrations/1c/auto` → «Запустить» нужную сущность; наблюдать cursor и журнал.
 4. Воркер жив? (§2.2 — расписания исполняет он: pull каждые 15 мин/1 ч/6 ч, reconcile в 03:00 МСК — [scheduling.ts](../src/lib/jobs/scheduling.ts)).
-5. Dead-letter записи после устранения причины возвращаются в очередь со страницы `/admin/settings/integrations/sync`.
+5. Dead-letter записи после устранения причины возвращаются в очередь со страницы `/admin/settings/integrations/1c/auto`.
 6. Откат при аварии на стороне 1С: `ONE_C_ADAPTER=fake` (или `ONE_C_MODE=shadow`) → `up -d`. Запись идемпотентна, данные не портятся ([runbook-launch-deploy.md](runbook-launch-deploy.md) §4).
 
 ### 2.4 ClamAV недоступен
