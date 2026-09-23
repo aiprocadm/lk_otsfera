@@ -74,20 +74,41 @@ describe('listOrgInvoices — выборка', () => {
       doc({ id: 'd2', orderId: 'o2' }),
       doc({ id: 'd3', orderId: null }),
     ]);
-    const from = new Date('2026-09-01T00:00:00Z');
-    const to = new Date('2026-09-30T23:59:59.999Z');
+    // Прогон сопровождения №36: границы — то, что отдаёт `parseInvoiceDate`
+    // (московские полуночи), верх — `lt`. Прежнее ожидание `lte` конца дня по
+    // Гринвичу и было дефектом.
+    const from = new Date('2026-08-31T21:00:00Z');
+    const to = new Date('2026-09-30T21:00:00Z');
     await listOrgInvoices(prisma, { scope: null, organizationId: 'org1', from, to });
-    expect(findMany.mock.calls[0][0].where.createdAt).toEqual({ gte: from, lte: to });
+    expect(findMany.mock.calls[0][0].where.createdAt).toEqual({ gte: from, lt: to });
     expect(paymentFindMany.mock.calls[0][0].where).toEqual({ orderId: { in: ['o1', 'o2'] } });
   });
 
   it('только нижняя или только верхняя граница', async () => {
-    const from = new Date('2026-09-01T00:00:00Z');
+    const from = new Date('2026-08-31T21:00:00Z');
     await listOrgInvoices(prisma, { scope: null, organizationId: 'org1', from });
     expect(findMany.mock.calls[0][0].where.createdAt).toEqual({ gte: from });
-    const to = new Date('2026-09-30T00:00:00Z');
+    const to = new Date('2026-09-30T21:00:00Z');
     await listOrgInvoices(prisma, { scope: null, organizationId: 'org1', to });
-    expect(findMany.mock.calls[1][0].where.createdAt).toEqual({ lte: to });
+    expect(findMany.mock.calls[1][0].where.createdAt).toEqual({ lt: to });
+  });
+
+  it('прогон №36: «с 31.08 по 31.08» — московский день целиком, 01:30 МСК следующего дня — нет', async () => {
+    // Путь как на странице: поле формы → parseInvoiceDate → where сервиса.
+    // `createdAt` счёта — `now()` сервера (мгновение); опасное окно —
+    // 21:00–24:00 по Гринвичу (00:00–03:00 по Москве).
+    await listOrgInvoices(prisma, {
+      scope: null,
+      organizationId: 'org1',
+      from: parseInvoiceDate('2026-08-31', 'from'),
+      to: parseInvoiceDate('2026-08-31', 'to'),
+    });
+    const cond = findMany.mock.calls[0][0].where.createdAt as { gte: Date; lt: Date };
+    const inside = (d: Date) => d >= cond.gte && d < cond.lt;
+    expect(inside(new Date('2026-08-30T22:30:00Z'))).toBe(true); // 31.08 01:30 МСК
+    expect(inside(new Date('2026-08-31T20:30:00Z'))).toBe(true); // 31.08 23:30 МСК
+    expect(inside(new Date('2026-08-31T22:30:00Z'))).toBe(false); // 01.09 01:30 МСК
+    expect(inside(new Date('2026-08-30T20:30:00Z'))).toBe(false); // 30.08 23:30 МСК
   });
 });
 
@@ -204,11 +225,14 @@ describe('разбор параметров адреса', () => {
     expect(parseInvoiceState(undefined)).toBeUndefined();
   });
 
-  it('дата — YYYY-MM-DD, «по» — конец дня; мусор — без границы', () => {
-    expect(parseInvoiceDate('2026-09-01', 'from')?.toISOString()).toBe('2026-09-01T00:00:00.000Z');
-    expect(parseInvoiceDate('2026-09-30', 'to')?.toISOString()).toBe('2026-09-30T23:59:59.999Z');
+  // Прогон №36: сутки — московские. Прежние ожидания «00:00Z» и «23:59:59.999Z»
+  // закрепляли сутки по Гринвичу — это и был дефект.
+  it('дата — YYYY-MM-DD, «с» — московская полночь, «по» — полночь следующих суток; мусор — без границы', () => {
+    expect(parseInvoiceDate('2026-09-01', 'from')?.toISOString()).toBe('2026-08-31T21:00:00.000Z');
+    expect(parseInvoiceDate('2026-09-30', 'to')?.toISOString()).toBe('2026-09-30T21:00:00.000Z');
     expect(parseInvoiceDate('30.09.2026', 'to')).toBeUndefined();
     expect(parseInvoiceDate('2026-13-45', 'from')).toBeUndefined();
+    expect(parseInvoiceDate('2026-02-30', 'to')).toBeUndefined();
     expect(parseInvoiceDate(undefined, 'from')).toBeUndefined();
   });
 });

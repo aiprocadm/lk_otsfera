@@ -147,7 +147,9 @@ beforeEach(() => {
 });
 
 describe('parseExportPackageFilter — фильтр из адресной строки', () => {
-  it('даты, тип и статус разбираются; всё — начало дня UTC', () => {
+  // Прогон сопровождения №36: день — московские сутки. Прежнее ожидание
+  // «начало дня UTC» и было дефектом: 00:00 по Гринвичу — это 03:00 по Москве.
+  it('даты, тип и статус разбираются; даты — московская полночь начала дня', () => {
     expect(
       parseExportPackageFilter({
         from: '2026-09-01',
@@ -156,11 +158,35 @@ describe('parseExportPackageFilter — фильтр из адресной стр
         oneCPushStatus: 'failed',
       })
     ).toEqual({
-      from: new Date('2026-09-01T00:00:00Z'),
-      to: new Date('2026-09-03T00:00:00Z'),
+      from: new Date('2026-08-31T21:00:00Z'),
+      to: new Date('2026-09-02T21:00:00Z'),
       type: 'act',
       oneCPushStatus: 'failed',
     });
+  });
+
+  it('несуществующий день (30 февраля) — «без даты», а не 2 марта', () => {
+    expect(parseExportPackageFilter({ from: '2026-02-30' }).from).toBeUndefined();
+  });
+
+  it('прогон №36: «с 04.09 по 04.09» берёт документ 04.09 в 01:30 МСК и не берёт 05.09 в 01:30 МСК', async () => {
+    // `createdAt` документа — `now()` сервера (мгновение). Опасное окно —
+    // 21:00–24:00 по Гринвичу: по Гринвичу это ещё предыдущий день.
+    const prisma = makePrisma([]);
+    await listExportCandidates(
+      prisma,
+      admin,
+      parseExportPackageFilter({ from: '2026-09-04', to: '2026-09-04' })
+    );
+    const cond = prisma.document.findMany.mock.calls[0][0].where.createdAt as {
+      gte: Date;
+      lt: Date;
+    };
+    const inside = (d: Date) => d >= cond.gte && d < cond.lt;
+    expect(inside(new Date('2026-09-03T22:30:00Z'))).toBe(true); // 04.09 01:30 МСК
+    expect(inside(new Date('2026-09-04T20:30:00Z'))).toBe(true); // 04.09 23:30 МСК
+    expect(inside(new Date('2026-09-04T22:30:00Z'))).toBe(false); // 05.09 01:30 МСК
+    expect(inside(new Date('2026-09-03T20:30:00Z'))).toBe(false); // 03.09 23:30 МСК
   });
 
   it('пустая строка запроса — фильтр без единого ключа', () => {
@@ -215,9 +241,10 @@ describe('listExportCandidates — что войдёт в пакет', () => {
 
   it('руководитель — только своя компания; фильтр по датам, типу и статусу ложится в where', async () => {
     const prisma = makePrisma([]);
+    // Границы — то, что отдаёт `parseExportPackageFilter` (московские полуночи).
     await listExportCandidates(prisma, leader, {
-      from: new Date('2026-09-01T00:00:00Z'),
-      to: new Date('2026-09-03T00:00:00Z'),
+      from: new Date('2026-08-31T21:00:00Z'),
+      to: new Date('2026-09-02T21:00:00Z'),
       type: 'act',
       oneCPushStatus: 'failed',
     });
@@ -227,8 +254,8 @@ describe('listExportCandidates — что войдёт в пакет', () => {
       supersededAt: null,
       externalId: null,
       oneCPushStatus: 'failed',
-      // «по 3 сентября включительно» = строго до полуночи 4-го.
-      createdAt: { gte: new Date('2026-09-01T00:00:00Z'), lt: new Date('2026-09-04T00:00:00Z') },
+      // «по 3 сентября включительно» = строго до московской полуночи 4-го.
+      createdAt: { gte: new Date('2026-08-31T21:00:00Z'), lt: new Date('2026-09-03T21:00:00Z') },
     });
   });
 
@@ -607,5 +634,18 @@ describe('buildExportPackage — сборка ZIP', () => {
     const res = await buildExportPackage(makePrisma([doc()]), nameless);
     expect(res.ok).toBe(true);
     expect(writeSyncLog.mock.calls[0][0].payload.actorName).toBeNull();
+  });
+
+  it('прогон №36: пакет, собранный в 01:30 по Москве, назван сегодняшним московским числом', async () => {
+    // 04.09 01:30 МСК по Гринвичу — ещё 03.09 22:30: `toISOString()` дал бы
+    // «1c-documents-2026-09-03.zip». Подменяем только часы — таймеры живые.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-03T22:30:00Z'));
+    try {
+      const res = await buildExportPackage(makePrisma([doc()]), admin);
+      expect(res.ok && res.fileName).toBe('1c-documents-2026-09-04.zip');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

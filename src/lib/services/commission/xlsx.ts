@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import type { CommissionStatement, CommissionStatementItem } from '@prisma/client';
+import { fmtDate, fmtMonthPeriod } from '@/lib/format';
 
 export type RenderStatementXlsxArgs = {
   statement: CommissionStatement;
@@ -19,12 +20,6 @@ function n(val: unknown): number {
 // Excel/LibreOffice/Sheets. Prefix a single quote to force literal text.
 function safeText(value: string): string {
   return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-}
-
-function periodLabel(from: Date, to: Date): string {
-  const f = new Date(from);
-  const t = new Date(to);
-  return `${f.toLocaleDateString('ru-RU')} — ${t.toLocaleDateString('ru-RU')}`;
 }
 
 export async function renderStatementXlsx(args: RenderStatementXlsxArgs): Promise<Buffer> {
@@ -96,9 +91,12 @@ export async function renderStatementXlsx(args: RenderStatementXlsxArgs): Promis
 
   const summaryRows: [string, string | number][] = [
     ['Партнёр', safeText(partner.name)],
-    ['Период', periodLabel(statement.periodFrom, statement.periodTo)],
+    // Прогон сопровождения №36: период и дата — по Москве, той же подписью, что
+    // в PDF. Прежние «дд.мм.гггг — дд.мм.гггг» по часам процесса (UTC) давали
+    // за август «31.07.2026 — 31.08.2026»: ведомость режется по Москве (`Д-22`).
+    ['Период', fmtMonthPeriod(statement.periodFrom, statement.periodTo, 'long')],
     ['Статус', safeText(statement.status)],
-    ['Сформировано', new Date(statement.calculatedAt).toLocaleDateString('ru-RU')],
+    ['Сформировано', fmtDate(statement.calculatedAt)],
     ['Итого база, ₽', n(statement.totalBaseAmount)],
     ['Средняя ставка', n(statement.averageRate)],
     ['Итого комиссия, ₽', n(statement.totalCommissionAmount)],

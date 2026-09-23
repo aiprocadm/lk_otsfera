@@ -1,5 +1,6 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
+import { moscowDayRange } from '@/lib/dates/calendar';
 import type { OrgOrderScope } from '@/lib/auth/organizationPolicy';
 import {
   invoicePaymentState,
@@ -58,6 +59,7 @@ export type OrgInvoiceRow = {
 export type OrgInvoicesFilter = {
   organizationId: string;
   from?: Date | undefined;
+  /** Верх периода, не включая его: полночь по Москве после дня «по». */
   to?: Date | undefined;
   state?: OrgInvoiceState | undefined;
   /** `У-236`: граница видимости участника; `null` — видно всё по организации. */
@@ -80,11 +82,19 @@ export function parseInvoiceState(raw: string | undefined): OrgInvoiceState | un
   return ORG_INVOICE_STATES.find((s) => s === raw);
 }
 
-/** `YYYY-MM-DD` из строки запроса → дата; `to` — конец дня. Мусор — «без границы». */
+/**
+ * `YYYY-MM-DD` из строки запроса → граница московских суток: `from` — их
+ * начало (включительно), `to` — полночь следующих суток (не включая, `lt`).
+ * Мусор и несуществующий день — «без границы».
+ *
+ * Прогон сопровождения №36: раньше сутки считались по Гринвичу. Счёт,
+ * выставленный 31.08 в 01:30 по Москве (30.08 22:30 по Гринвичу), не попадал в
+ * период «с 31.08», а выставленный 01.09 в 01:30 МСК попадал в «по 31.08».
+ */
 export function parseInvoiceDate(raw: string | undefined, edge: 'from' | 'to'): Date | undefined {
-  if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return undefined;
-  const d = new Date(edge === 'from' ? `${raw}T00:00:00.000Z` : `${raw}T23:59:59.999Z`);
-  return Number.isNaN(d.getTime()) ? undefined : d;
+  const day = raw ? moscowDayRange(raw) : null;
+  if (!day) return undefined;
+  return edge === 'from' ? day.gte : day.lt;
 }
 
 type InvoiceDoc = {
@@ -154,7 +164,8 @@ export async function listOrgInvoices(
       ? {
           createdAt: {
             ...(filter.from ? { gte: filter.from } : {}),
-            ...(filter.to ? { lte: filter.to } : {}),
+            // `to` — полночь после последнего дня периода (`parseInvoiceDate`).
+            ...(filter.to ? { lt: filter.to } : {}),
           },
         }
       : {};

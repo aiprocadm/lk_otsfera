@@ -3,6 +3,7 @@ import React from 'react';
 import Link from 'next/link';
 import { requireSettingsSection } from '@/lib/auth/requireSettings';
 import { prisma } from '@/lib/db/prisma';
+import { moscowRangeFilter } from '@/lib/dates/calendar';
 import type { AuditEntity } from '@/lib/auth/audit';
 import { listAudit, listAuditFilters } from '@/lib/services/admin/auditLog';
 import { AuditLogFilters } from '@/components/admin/audit-log-filters';
@@ -23,22 +24,20 @@ type SP = {
   cursor?: string;
 };
 
-function parseDate(v?: string): Date | undefined {
-  if (!v) return undefined;
-  const d = new Date(v);
-  return Number.isFinite(d.getTime()) ? d : undefined;
-}
-
 export default async function AdminAuditPage({ searchParams }: { searchParams: Promise<SP> }) {
   await requireSettingsSection('security.audit', 'admin');
   const sp = await searchParams;
+  // Прогон сопровождения №36: поля «С/По» — московские сутки. Раньше
+  // `new Date('2026-08-31')` давал 00:00 по Гринвичу (03:00 по Москве), и
+  // «по 31.08» терял почти весь день 31.08, а «с 01.08» — первые три часа.
+  const range = moscowRangeFilter(sp.from, sp.to);
 
   const filters = {
     entity: sp.entity as AuditEntity | undefined,
     action: sp.action || undefined,
     actorUserId: sp.actorUserId || undefined,
-    from: parseDate(sp.from),
-    to: parseDate(sp.to),
+    from: range.gte,
+    to: range.lt,
     q: sp.q?.trim() || undefined,
     cursor: sp.cursor || undefined,
     take: 50,

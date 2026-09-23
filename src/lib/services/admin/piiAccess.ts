@@ -1,5 +1,6 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { fmtDate } from '@/lib/format';
 import { PII_CONTEXTS, type PiiContextKey, type PiiSubjectType } from '@/lib/pii/contexts';
 
 export type PiiAccessFilters = {
@@ -8,7 +9,13 @@ export type PiiAccessFilters = {
   context?: PiiContextKey;
   subjectType?: PiiSubjectType;
   subjectId?: string; // точный id — GIN `has`, «кто смотрел субъекта X»
+  /** Начало выборки включительно. */
   from?: Date;
+  /**
+   * Верх выборки **не включая** его (прогон сопровождения №36): страница
+   * передаёт полночь по Москве после дня «по» (`moscowRangeFilter`), и `lt`
+   * отдаёт этот день целиком, но не первый миг следующего.
+   */
   to?: Date;
   take?: number; // default 50, max 100
   cursor?: string;
@@ -115,7 +122,9 @@ async function resolveSubjectLabels(
       where: { id: { in: ids('bitrix_batch') } },
       select: { id: true, createdAt: true },
     })) {
-      put(b.id, `Пакет миграции от ${b.createdAt.toLocaleDateString('ru-RU')}`);
+      // Прогон №36: дата — по Москве. Пакет, заведённый в 01:30 МСК, по часам
+      // процесса (UTC) подписывался вчерашним числом.
+      put(b.id, `Пакет миграции от ${fmtDate(b.createdAt)}`);
     }
   }
   return labels;
@@ -138,7 +147,7 @@ export async function listPiiAccess(
   if (filters.from || filters.to) {
     where.createdAt = {};
     if (filters.from) (where.createdAt as Prisma.DateTimeFilter).gte = filters.from;
-    if (filters.to) (where.createdAt as Prisma.DateTimeFilter).lte = filters.to;
+    if (filters.to) (where.createdAt as Prisma.DateTimeFilter).lt = filters.to;
   }
 
   const rows = await prisma.piiAccessEvent.findMany({

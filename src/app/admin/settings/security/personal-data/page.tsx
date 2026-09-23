@@ -3,6 +3,7 @@ import React from 'react';
 import Link from 'next/link';
 import { requireSettingsSection } from '@/lib/auth/requireSettings';
 import { prisma } from '@/lib/db/prisma';
+import { moscowRangeFilter } from '@/lib/dates/calendar';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import {
   listPiiAccess,
@@ -29,12 +30,6 @@ type SP = {
   cursor?: string;
 };
 
-function parseDate(v?: string): Date | undefined {
-  if (!v) return undefined;
-  const d = new Date(v);
-  return Number.isNaN(d.getTime()) ? undefined : d;
-}
-
 export default async function AdminPiiAccessPage({ searchParams }: { searchParams: Promise<SP> }) {
   const session = await requireSettingsSection('security.personalData', 'admin');
   const sp = await searchParams;
@@ -44,8 +39,10 @@ export default async function AdminPiiAccessPage({ searchParams }: { searchParam
   const context = (sp.context || undefined) as PiiContextKey | undefined;
   const subjectType = (sp.subjectType || undefined) as PiiSubjectType | undefined;
   const subjectId = sp.subjectId?.trim() || undefined;
-  const from = parseDate(sp.from);
-  const to = parseDate(sp.to);
+  // Прогон сопровождения №36: поля «С/По» — московские сутки. Раньше
+  // `new Date('2026-08-31')` давал 00:00 по Гринвичу (03:00 по Москве), и
+  // «по 31.08» терял почти весь день 31.08, а «с 01.08» — первые три часа.
+  const { gte: from, lt: to } = moscowRangeFilter(sp.from, sp.to);
   const cursor = sp.cursor || undefined;
 
   // exactOptionalPropertyTypes: PiiAccessFilters различает «поля нет» и «поле = undefined».

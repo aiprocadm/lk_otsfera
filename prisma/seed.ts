@@ -9,6 +9,7 @@ import { syncDocumentsProcessor } from '../src/worker/processors/sync-documents'
 import { calculateStatementForPartner } from '../src/lib/services/commission/statement';
 import { backfillContacts } from '../src/lib/services/contacts/backfill';
 import { recordAudit } from '../src/lib/auth/audit';
+import { startOfMoscowMonth } from '../src/lib/dates/calendar';
 import type { SyncJobPayload } from '../src/lib/jobs/types';
 
 const PARTNER_SLUG = '1c-partner-001';
@@ -136,20 +137,15 @@ async function main() {
   });
 
   // ─── Demo: paid order + commission statement for prev month ─────────
-  const prevMonthFrom = new Date();
-  prevMonthFrom.setDate(1);
-  prevMonthFrom.setMonth(prevMonthFrom.getMonth() - 1);
-  prevMonthFrom.setHours(0, 0, 0, 0);
-
-  const prevMonthTo = new Date(
-    prevMonthFrom.getFullYear(),
-    prevMonthFrom.getMonth() + 1,
-    0,
-    23,
-    59,
-    59,
-    999
-  );
+  // Прошлый месяц по МОСКВЕ — ровно как у воркера `calculate-monthly-commissions`
+  // (`Д-22`). Прогон сопровождения №36, замечание проверки: сид считал месяц
+  // местными `setHours`/`new Date(y, m, 0, 23, 59, 59, 999)`, а процесс живёт в
+  // UTC — и каждый `prisma db seed` писал ведомость «01.07 03:00 … 01.08 02:59»
+  // по Москве, то есть не ту, что считает бой.
+  const thisMonthFrom = startOfMoscowMonth();
+  const prevMonthFrom = startOfMoscowMonth(new Date(thisMonthFrom.getTime() - 1));
+  // Конец включающий (`lte` в выборке оплат) — миг до начала текущего месяца.
+  const prevMonthTo = new Date(thisMonthFrom.getTime() - 1);
 
   if (!firstOrg) {
     throw new Error(
@@ -182,7 +178,9 @@ async function main() {
       vatRate: 0.2,
       financialStatus: 'paid',
       executionStatus: 'completed',
-      closedAt: new Date(prevMonthFrom.getFullYear(), prevMonthFrom.getMonth(), 15),
+      // 15-е число прошлого месяца, 00:00 по Москве. Местные геттеры здесь
+      // нельзя: московское 1-е по часам процесса (UTC) — ещё прошлый месяц.
+      closedAt: new Date(prevMonthFrom.getTime() + 14 * 24 * 60 * 60 * 1000),
     },
   });
 
@@ -207,11 +205,18 @@ async function main() {
     },
   });
 
+  // Ищем по началу в пределах московского 1-го числа, а не по точным границам:
+  // ведомость этого месяца, записанная сидом до прогона №36, начинается в
+  // 03:00 МСК (полночь по Гринвичу) — вторая, по Москве, задвоила бы оплаты
+  // месяца у партнёра. Пересечение периодов не годится: такая июльская
+  // ведомость заходит на три часа в август и сошла бы за августовскую.
   const existingStatement = await prisma.commissionStatement.findFirst({
     where: {
       partnerId: partner.id,
-      periodFrom: prevMonthFrom,
-      periodTo: prevMonthTo,
+      periodFrom: {
+        gte: prevMonthFrom,
+        lt: new Date(prevMonthFrom.getTime() + 24 * 60 * 60 * 1000),
+      },
       supersededBy: null,
     },
   });

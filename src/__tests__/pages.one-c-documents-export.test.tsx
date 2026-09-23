@@ -63,8 +63,9 @@ describe.each([
       Page({ searchParams: Promise.resolve({ type: 'act', from: '2026-09-01', to: 'кривая' }) })
     );
     expect(requireSettingsSection).toHaveBeenCalledWith('integrations.oneC', cabinet);
+    // Прогон №36: «с 01.09» — московская полночь 01.09, а не 03:00 по Москве.
     expect(listExportCandidates).toHaveBeenCalledWith({ tag: 'prisma' }, session, {
-      from: new Date('2026-09-01T00:00:00Z'),
+      from: new Date('2026-08-31T21:00:00Z'),
       to: undefined,
       type: 'act',
       oneCPushStatus: undefined,

@@ -2,6 +2,7 @@ import type { OneCPushStatus, Prisma, PrismaClient } from '@prisma/client';
 import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
 import { recordAudit } from '@/lib/auth/audit';
+import { moscowCalendarDay, moscowDayRange } from '@/lib/dates/calendar';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { documentDownloadName, uniqueArchiveName } from '@/lib/documents/fileName';
 import { parseOneCPushStatus } from '@/lib/documents/oneCPushStatus';
@@ -38,9 +39,9 @@ import { importScope } from './scope';
 export const EXPORT_PACKAGE_LIMIT = 500;
 
 export type ExportPackageFilter = {
-  /** Дата выпуска — с этого дня (начало дня). */
+  /** Дата выпуска — с этого дня (московская полночь его начала). */
   from?: Date | undefined;
-  /** Дата выпуска — по этот день включительно (начало дня). */
+  /** Дата выпуска — по этот день включительно (московская полночь его начала). */
   to?: Date | undefined;
   type?: OneCPushableType | undefined;
   oneCPushStatus?: OneCPushStatus | undefined;
@@ -54,11 +55,16 @@ export type ExportPackageQuery = {
   oneCPushStatus?: string | undefined;
 };
 
-/** `2026-09-04` → полночь UTC; всё остальное — «без даты». */
+/**
+ * `2026-09-04` → московская полночь начала этого дня; всё остальное (и
+ * несуществующий день вроде `2026-02-30`) — «без даты».
+ *
+ * Прогон сопровождения №36: раньше день начинался в полночь по Гринвичу, то
+ * есть в 03:00 по Москве. Документ, выпущенный 04.09 в 01:30 МСК, не попадал
+ * в пакет «с 04.09 по 04.09», а выпущенный 05.09 в 01:30 МСК — попадал.
+ */
 function parseDay(value: string | undefined): Date | undefined {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
-  const d = new Date(`${value}T00:00:00Z`);
-  return Number.isNaN(d.getTime()) ? undefined : d;
+  return value ? moscowDayRange(value)?.gte : undefined;
 }
 
 /** Фильтр из адресной строки: чужое слово — не ошибка, а «без фильтра» (как `parseOneCPushStatus`). */
@@ -115,7 +121,11 @@ const candidateSelect = {
 
 type CandidateRow = Prisma.DocumentGetPayload<{ select: typeof candidateSelect }>;
 
-/** Границы дня считаются в UTC — так же, как их разобрал `parseDay`. */
+/**
+ * Полночь следующих суток после московской полуночи `d` (её дал `parseDay`).
+ * Прибавить UTC-сутки к московской полуночи честно: Москва без перехода на
+ * летнее время с 2014 года, сутки в ней — ровно 24 часа.
+ */
 function nextDay(d: Date): Date {
   const n = new Date(d);
   n.setUTCDate(n.getUTCDate() + 1);
@@ -431,7 +441,9 @@ export async function buildExportPackage(
     after: { documents: packed.length, skipped: skipped.length, documentIds },
   });
 
-  const stamp = now.toISOString().slice(0, 10);
+  // Прогон №36: день в имени файла — московский. `toISOString()` с 00:00 до
+  // 03:00 по Москве давал вчерашнее число.
+  const stamp = moscowCalendarDay(now);
   return {
     ok: true,
     zip: buffer,

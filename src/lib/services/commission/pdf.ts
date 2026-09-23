@@ -2,6 +2,7 @@ import { renderToBuffer, Document, Page, Text, View, Image, StyleSheet } from '@
 import React from 'react';
 import QRCode from 'qrcode';
 import type { CommissionStatement, CommissionStatementItem } from '@prisma/client';
+import { fmtDate, fmtMonthPeriod } from '@/lib/format';
 import { log } from '@/lib/logging';
 
 export type RenderStatementPdfArgs = {
@@ -87,34 +88,14 @@ function fmtRate(val: unknown): string {
   return isNaN(n) ? '—' : (n * 100).toFixed(2) + '%';
 }
 
-function periodLabel(from: Date, to: Date): string {
-  const months = [
-    'январь',
-    'февраль',
-    'март',
-    'апрель',
-    'май',
-    'июнь',
-    'июль',
-    'август',
-    'сентябрь',
-    'октябрь',
-    'ноябрь',
-    'декабрь',
-  ];
-  const f = new Date(from);
-  const t = new Date(to);
-  if (f.getMonth() === t.getMonth() && f.getFullYear() === t.getFullYear()) {
-    return `${months[f.getMonth()]} ${f.getFullYear()}`;
-  }
-  return `${f.toLocaleDateString('ru-RU')} — ${t.toLocaleDateString('ru-RU')}`;
-}
-
 type StatementDocumentProps = RenderStatementPdfArgs & { qrDataUrl: string | null };
 
 function StatementDocument({ statement, items, partner, qrDataUrl }: StatementDocumentProps) {
-  const period = periodLabel(statement.periodFrom, statement.periodTo);
-  const calculatedAtStr = new Date(statement.calculatedAt).toLocaleDateString('ru-RU');
+  // Прогон сопровождения №36: период и дата формирования — по Москве. Ведомость
+  // режется московскими границами месяца (`Д-22`), а подпись считалась по часам
+  // процесса (UTC) и печатала «31.07.2026 — 31.08.2026» вместо «август 2026».
+  const period = fmtMonthPeriod(statement.periodFrom, statement.periodTo, 'long');
+  const calculatedAtStr = fmtDate(statement.calculatedAt);
 
   return React.createElement(
     Document,

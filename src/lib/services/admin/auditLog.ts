@@ -13,7 +13,13 @@ export type AuditFilters = {
   entity?: AuditEntity | undefined;
   action?: string | undefined;
   actorUserId?: string | undefined;
+  /** Начало выборки включительно. */
   from?: Date | undefined;
+  /**
+   * Верх выборки **не включая** его (прогон сопровождения №36): страница
+   * передаёт полночь по Москве после дня «по» (`moscowRangeFilter`), и `lt`
+   * отдаёт этот день целиком, но не первый миг следующего.
+   */
   to?: Date | undefined;
   q?: string | undefined;
   take?: number | undefined; // default 50, max 100
@@ -43,7 +49,7 @@ export async function listAudit(
   if (filters.from || filters.to) {
     where.createdAt = {};
     if (filters.from) (where.createdAt as Prisma.DateTimeFilter).gte = filters.from;
-    if (filters.to) (where.createdAt as Prisma.DateTimeFilter).lte = filters.to;
+    if (filters.to) (where.createdAt as Prisma.DateTimeFilter).lt = filters.to;
   }
   if (filters.q) {
     // Prisma's JsonFilter cannot full-text search a JSON object — the previous

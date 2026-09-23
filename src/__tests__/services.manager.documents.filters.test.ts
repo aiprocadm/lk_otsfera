@@ -78,18 +78,35 @@ describe('listDocuments — фильтры этапа 8', () => {
 
   it('год превращается в границы года, а не в сравнение дат', async () => {
     // Иначе документ, созданный 31 декабря вечером, в выборку не попадёт.
+    // Прогон сопровождения №36: границы — московский год. Прежнее ожидание
+    // `Date.UTC(2026, 0, 1)` (01.01 03:00 по Москве) и было дефектом.
     const { prisma, findMany } = db();
     await listDocuments(prisma, { session: SESSION, year: 2026 });
     expect(filtersOf(findMany)).toEqual(
       expect.arrayContaining([
         {
           createdAt: {
-            gte: new Date(Date.UTC(2026, 0, 1)),
-            lt: new Date(Date.UTC(2027, 0, 1)),
+            gte: new Date('2025-12-31T21:00:00.000Z'),
+            lt: new Date('2026-12-31T21:00:00.000Z'),
           },
         },
       ])
     );
+  });
+
+  it('прогон №36: документ 1 января в 01:30 МСК — в новом году, в 23:30 МСК 31 декабря — в старом', async () => {
+    // `createdAt` документа — `now()` сервера (мгновение). По Гринвичу
+    // 01.01.2026 01:30 МСК — это ещё 31.12.2025, и год 2026 его терял.
+    const { prisma, findMany } = db();
+    await listDocuments(prisma, { session: SESSION, year: 2026 });
+    const yearFilter = filtersOf(findMany).find(
+      (f: Record<string, unknown>) => 'createdAt' in f
+    ) as { createdAt: { gte: Date; lt: Date } };
+    const inYear = (d: Date) => d >= yearFilter.createdAt.gte && d < yearFilter.createdAt.lt;
+    expect(inYear(new Date('2025-12-31T22:30:00Z'))).toBe(true); // 01.01.2026 01:30 МСК
+    expect(inYear(new Date('2026-12-31T20:30:00Z'))).toBe(true); // 31.12.2026 23:30 МСК
+    expect(inYear(new Date('2026-12-31T21:30:00Z'))).toBe(false); // 01.01.2027 00:30 МСК
+    expect(inYear(new Date('2025-12-31T20:30:00Z'))).toBe(false); // 31.12.2025 23:30 МСК
   });
 
   it('источник берётся из общего реестра, а не пишется здесь заново', async () => {

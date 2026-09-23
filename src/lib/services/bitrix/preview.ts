@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
+import { moscowDayRange } from '@/lib/dates/calendar';
 import { getQueue } from '@/lib/jobs/queues';
 import { bestEffort } from '@/lib/logging';
 import type { BitrixMappingTables } from './mapping/types';
@@ -96,13 +97,26 @@ function readSettings(raw: Prisma.JsonValue | null): BitrixBatchSettings {
   };
 }
 
-/** Период пакета в виде фильтра источника; пустые границы — «вся история». */
+/**
+ * Период пакета в виде фильтра источника; пустые и кривые границы — «вся
+ * история».
+ *
+ * Прогон сопровождения №36: границы — московские сутки. Форма отдаёт дни
+ * («2026-08-31»), а `new Date('2026-08-31')` — это 00:00 по Гринвичу, то есть
+ * 03:00 по Москве. Источник сравнивает дату создания включительно (REST —
+ * `<=DATE_CREATE`, файл и демо — `inCreatedRange`), и лиды последнего дня
+ * периода, созданные после 03:00 МСК, **не переносились**, а первые три часа
+ * первого дня терялись. Дата создания у источника — настоящий момент (портал
+ * отдаёт `2026-08-31T23:30:00+03:00`), поэтому верх — последний миг московских
+ * суток «по»: включительное сравнение отдаёт день целиком и не берёт полночь
+ * следующего.
+ */
 export function filterOf(settings: BitrixBatchSettings): SourceFilter {
-  const from = settings.from ? new Date(settings.from) : null;
-  const to = settings.to ? new Date(settings.to) : null;
+  const from = settings.from ? moscowDayRange(settings.from) : null;
+  const to = settings.to ? moscowDayRange(settings.to) : null;
   return {
-    ...(from && !Number.isNaN(from.getTime()) ? { from } : {}),
-    ...(to && !Number.isNaN(to.getTime()) ? { to } : {}),
+    ...(from ? { from: from.gte } : {}),
+    ...(to ? { to: new Date(to.lt.getTime() - 1) } : {}),
     openOnly: settings.openOnly,
   };
 }

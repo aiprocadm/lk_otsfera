@@ -1,5 +1,12 @@
 ﻿import { describe, it, expect, vi, afterEach } from 'vitest';
-import { fmtMoney, fmtDate, fmtDateTime, fmtLastLogin, pluralizeRu } from '@/lib/format';
+import {
+  fmtMoney,
+  fmtDate,
+  fmtDateTime,
+  fmtLastLogin,
+  fmtMonthPeriod,
+  pluralizeRu,
+} from '@/lib/format';
 
 describe('fmtMoney', () => {
   it('форматирует число с пробелами-разделителями и ₽', () => {
@@ -137,5 +144,105 @@ describe('pluralizeRu', () => {
     expect(pluralizeRu(11, 'заказ', 'заказа', 'заказов')).toBe('заказов');
     expect(pluralizeRu(12, 'заказ', 'заказа', 'заказов')).toBe('заказов');
     expect(pluralizeRu(14, 'заказ', 'заказа', 'заказов')).toBe('заказов');
+  });
+});
+
+/**
+ * Прогон сопровождения №36, группа Б спеки `2026-09-23-moscow-time-in-server-code`.
+ *
+ * Границы — ровно те, что пишет расчёт ведомости
+ * (`worker/processors/calculate-monthly-commissions.ts`): начало — московская
+ * полночь 1-го (`startOfMoscowMonth`), конец — миг до московской полуночи
+ * 1-го следующего месяца. По часам процесса (UTC) начало августа — это ещё
+ * 31 июля: пять прежних копий подписи печатали «31.07.2026 — 31.08.2026».
+ */
+describe('fmtMonthPeriod', () => {
+  const AUG_FROM = new Date('2026-07-31T21:00:00.000Z'); // 01.08.2026 00:00 МСК
+  const AUG_TO = new Date('2026-08-31T20:59:59.999Z'); // 31.08.2026 23:59:59.999 МСК
+
+  it('август по московским границам — «август 2026», а не «31.07.2026 — 31.08.2026»', () => {
+    expect(fmtMonthPeriod(AUG_FROM, AUG_TO, 'long')).toBe('август 2026');
+  });
+
+  it('короткая подпись экранов — «авг 2026»', () => {
+    expect(fmtMonthPeriod(AUG_FROM, AUG_TO, 'short')).toBe('авг 2026');
+  });
+
+  it('январь — «январь 2026», а не прошлый год', () => {
+    // 01.01.2026 00:00 МСК = 31.12.2025 21:00 по Гринвичу: по часам процесса
+    // начало периода лежало в декабре 2025.
+    const from = new Date('2025-12-31T21:00:00.000Z');
+    const to = new Date('2026-01-31T20:59:59.999Z');
+    expect(fmtMonthPeriod(from, to, 'long')).toBe('январь 2026');
+    expect(fmtMonthPeriod(from, to, 'short')).toBe('янв 2026');
+  });
+
+  it('декабрь — последний месяц массива названий', () => {
+    const from = new Date('2026-11-30T21:00:00.000Z');
+    const to = new Date('2026-12-31T20:59:59.999Z');
+    expect(fmtMonthPeriod(from, to, 'long')).toBe('декабрь 2026');
+    expect(fmtMonthPeriod(from, to, 'short')).toBe('дек 2026');
+  });
+
+  it('строки ISO (так даты приходят через JSON) разбираются так же', () => {
+    expect(fmtMonthPeriod(AUG_FROM.toISOString(), AUG_TO.toISOString(), 'long')).toBe(
+      'август 2026'
+    );
+  });
+
+  it('разные московские месяцы — даты по Москве через тире', () => {
+    const from = new Date('2026-07-31T21:00:00.000Z'); // 01.08 00:00 МСК
+    const to = new Date('2026-09-30T20:59:59.999Z'); // 30.09 23:59 МСК
+    expect(fmtMonthPeriod(from, to, 'long')).toBe('01.08.2026 — 30.09.2026');
+  });
+
+  it('кривая дата — «—», а не падение страницы', () => {
+    expect(fmtMonthPeriod('кривая', AUG_TO, 'short')).toBe('—');
+    expect(fmtMonthPeriod(AUG_FROM, new Date('invalid'), 'short')).toBe('—');
+  });
+
+  /*
+   * Замечание проверки (прогон №36): ведомости, записанные до `Д-22` (воркер
+   * до #603) и демо-сидом, лежат в базе с границами месяца по Гринвичу —
+   * `new Date(y, m, 1)` … `new Date(y, m + 1, 0, 23, 59, 59, 999)` в процессе
+   * с UTC. Ровно такие две строки на стенде приёмки. По Москве их конец —
+   * уже 1-е число следующего месяца (02:59), и подпись стала бы диапазоном.
+   */
+  describe('ведомости с границами месяца по Гринвичу (до Д-22)', () => {
+    it('июльская ведомость стенда — «июль 2026», а не «01.07.2026 — 01.08.2026»', () => {
+      const from = '2026-07-01T00:00:00.000Z';
+      const to = '2026-07-31T23:59:59.999Z'; // 01.08.2026 02:59 МСК
+      expect(fmtMonthPeriod(from, to, 'long')).toBe('июль 2026');
+      expect(fmtMonthPeriod(from, to, 'short')).toBe('июл 2026');
+    });
+
+    it('июньская ведомость стенда — «июн 2026»', () => {
+      expect(
+        fmtMonthPeriod(
+          new Date('2026-06-01T00:00:00.000Z'),
+          new Date('2026-06-30T23:59:59.999Z'),
+          'short'
+        )
+      ).toBe('июн 2026');
+    });
+
+    it('декабрь по Гринвичу — прошлый год, хотя конец по Москве уже 1 января', () => {
+      const from = '2025-12-01T00:00:00.000Z';
+      const to = '2025-12-31T23:59:59.999Z'; // 01.01.2026 02:59 МСК
+      expect(fmtMonthPeriod(from, to, 'long')).toBe('декабрь 2025');
+    });
+
+    it('похожий, но не точный конец — это не след писателя, подпись датами', () => {
+      // Конец на секунду раньше последней миллисекунды месяца по Гринвичу.
+      const from = '2026-07-01T00:00:00.000Z';
+      const to = '2026-07-31T23:59:59.000Z'; // 01.08.2026 02:59 МСК
+      expect(fmtMonthPeriod(from, to, 'short')).toBe('01.07.2026 — 01.08.2026');
+    });
+
+    it('ручной расчёт за два месяца по Гринвичу — подпись датами', () => {
+      const from = '2026-07-01T00:00:00.000Z';
+      const to = '2026-08-31T23:59:59.999Z';
+      expect(fmtMonthPeriod(from, to, 'short')).toBe('01.07.2026 — 01.09.2026');
+    });
   });
 });

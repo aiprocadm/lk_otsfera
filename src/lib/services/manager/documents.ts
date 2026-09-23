@@ -8,6 +8,7 @@ import type {
   OneCPushStatus,
 } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { moscowYearRange } from '@/lib/dates/calendar';
 import {
   managerDocumentScope,
   canSeeOrder,
@@ -104,15 +105,11 @@ export async function listDocuments(
   if (opts.status) filters.push({ status: opts.status as DocumentStatus });
   if (opts.source) filters.push(documentSourceWhere(opts.source));
   if (opts.year !== undefined) {
-    // Границы года считаются в UTC — так же, как их считает остальной проект;
-    // «с 1 января по 1 января следующего» вместо `gte/lte` по дате, чтобы в
-    // выборку попал последний день целиком.
-    filters.push({
-      createdAt: {
-        gte: new Date(Date.UTC(opts.year, 0, 1)),
-        lt: new Date(Date.UTC(opts.year + 1, 0, 1)),
-      },
-    });
+    // Прогон сопровождения №36: год — московский, «с 1 января по 1 января
+    // следующего» полуоткрыто, чтобы последний день попал целиком. Границы по
+    // Гринвичу относили документ, выпущенный 1 января в 01:30 МСК, к прошлому
+    // году, а список лет на экране (`documentYearOptions`) уже считается по Москве.
+    filters.push({ createdAt: moscowYearRange(opts.year) });
   }
   if (opts.search) {
     /**

@@ -1,3 +1,4 @@
+import { moscowCalendarDay } from '@/lib/dates/calendar';
 import { isDocumentSource, type DocumentSource } from './source';
 
 /**
@@ -43,7 +44,10 @@ export const DOCUMENT_DIRECTION_FILTER_OPTIONS: ReadonlyArray<{ value: string; l
  * новый год.
  */
 export function documentYearOptions(now: Date = new Date()): number[] {
-  const current = now.getFullYear();
+  // Прогон сопровождения №36: текущий год — московский, как и граница года в
+  // выборке (`moscowYearRange`). `getFullYear()` по часам процесса (UTC)
+  // 1 января с 00:00 до 03:00 по Москве не давал выбрать наступивший год.
+  const current = Number(moscowCalendarDay(now).slice(0, 4));
   return [0, 1, 2, 3, 4, 5].map((back) => current - back);
 }
 

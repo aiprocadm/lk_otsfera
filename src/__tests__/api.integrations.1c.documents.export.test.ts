@@ -78,9 +78,10 @@ describe('GET /api/integrations/1c/documents/export (У-173)', () => {
     expect(res.headers.get('x-documents-count')).toBe('3');
     expect(res.headers.get('x-documents-skipped')).toBe('1');
     expect(Buffer.from(await res.arrayBuffer()).toString()).toBe('PK-stub');
+    // Прогон №36: день из адреса — московские сутки (полночь по Москве).
     expect(buildExportPackage).toHaveBeenCalledWith({}, admin, {
-      from: new Date('2026-09-01T00:00:00Z'),
-      to: new Date('2026-09-03T00:00:00Z'),
+      from: new Date('2026-08-31T21:00:00Z'),
+      to: new Date('2026-09-02T21:00:00Z'),
       type: 'act',
       oneCPushStatus: 'failed',
     });
