@@ -287,7 +287,13 @@ describe('NewDialogButton — отправка', () => {
     fireEvent.click(box.getByRole('button', { name: 'Открыть диалог' }));
     await waitFor(() => expect(box.getByRole('alert').textContent).toContain('вне вашей зоны'));
 
-    fireEvent.click(box.getByRole('button', { name: 'Отмена' }));
+    // Отказ появляется раньше, чем снимается «идёт запрос», а «Отмена» на это
+    // время заблокирована — щелчок по ней терялся, и тест «плавал» под
+    // нагрузкой (19.09 и 23.09.2026). Ждём, как ждал бы человек (прогон №37;
+    // тот же приём — в тестах каналов контакта и формы загрузки Битрикс24).
+    const cancel = box.getByRole('button', { name: 'Отмена' }) as HTMLButtonElement;
+    await waitFor(() => expect(cancel.disabled).toBe(false));
+    fireEvent.click(cancel);
     expect(document.querySelector('dialog[open]')).toBeNull();
 
     openForm();
