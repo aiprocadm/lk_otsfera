@@ -2,13 +2,13 @@ import { describe, it, expect } from 'vitest';
 import {
   SETTINGS_GROUPS,
   SETTINGS_SECTIONS,
-  legacyRedirectMap,
   sectionByPath,
   sectionsForCabinet,
   settingsHref,
   settingsRoot,
   settingsSectionHref,
 } from '@/lib/navigation/settings';
+import { REMOVED_PATHS } from '@/lib/navigation/removedPaths';
 
 /**
  * Реестр разделов — единственный источник правды для хаба «Настройки»
@@ -93,41 +93,17 @@ describe('реестр разделов настроек', () => {
     expect(sectionByPath('leader', '/leader/settings/security/audit')).toBeUndefined();
   });
 
-  it('карта редиректов покрывает все девять разделов из ТЗ', () => {
-    const map = legacyRedirectMap();
-    expect(Object.fromEntries(map)).toEqual({
-      '/admin/health': '/admin/settings/system/health',
-      '/admin/integrations': '/admin/settings/integrations',
-      '/admin/sync': '/admin/settings/integrations/1c/auto',
-      '/admin/import': '/admin/settings/integrations/1c/excel',
-      '/admin/payments-import': '/admin/settings/integrations/1c/payments',
-      // Этап 7 ТЗ импорта: старые адреса менеджерского кабинета уводят
-      // руководителя в ЕГО хаб (явный cabinet в LegacyRoute).
-      '/manager/import': '/leader/settings/integrations/1c/excel',
-      '/manager/payments-import': '/leader/settings/integrations/1c/payments',
-      '/admin/roles': '/admin/settings/access/roles',
-      '/leader/roles': '/leader/settings/access/roles',
-      '/admin/order-statuses': '/admin/settings/catalogs/application-statuses',
-      '/leader/settings/order-statuses': '/leader/settings/catalogs/application-statuses',
-      '/admin/custom-fields': '/admin/settings/catalogs/custom-fields',
-      '/leader/settings/custom-fields': '/leader/settings/catalogs/custom-fields',
-      '/admin/pii-access': '/admin/settings/security/personal-data',
-      '/admin/audit': '/admin/settings/security/audit',
-    });
-  });
-
-  it('старые пути не повторяются между разделами', () => {
-    const all = SETTINGS_SECTIONS.flatMap((s) => s.legacyHrefs.map((l) => l.from));
-    expect(new Set(all).size).toBe(all.length);
-  });
-
-  it('leader-путь редиректит в leader-хаб, admin-путь — в админский, manager-путь — к руководителю', () => {
-    for (const [from, to] of legacyRedirectMap()) {
-      // Пути менеджерского кабинета — исключение с явным cabinet: 'leader'
-      // (этап 7 ТЗ импорта); остальные кабинеты выводятся из префикса.
-      const cabinet =
-        from.startsWith('/leader') || from.startsWith('/manager') ? '/leader' : '/admin';
-      expect(to.startsWith(`${cabinet}/settings/`)).toBe(true);
+  it('удалённый адрес хаба подсказывает живой раздел реестра (У-263)', () => {
+    // Карты редиректов больше нет: шлюзы удалены (прогон сопровождения №37).
+    // Остался замороженный список удалённых адресов с подсказкой «где теперь»
+    // — она обязана вести в существующий раздел, иначе страж ссылок отправит
+    // человека по неверной подсказке.
+    const inHub = REMOVED_PATHS.filter((r) => /^\/(admin|leader)\/settings\//.test(r.movedTo));
+    expect(inHub.length).toBeGreaterThan(15);
+    for (const { path, movedTo } of inHub) {
+      const cabinet = movedTo.startsWith('/leader') ? 'leader' : 'admin';
+      const section = sectionByPath(cabinet, movedTo.split('?')[0] ?? movedTo);
+      expect(section, `${path} → ${movedTo}: такого раздела нет`).toBeDefined();
     }
   });
 });

@@ -80,13 +80,13 @@ ON CONFLICT (id) DO NOTHING;
 
 ### Step 7 — Students list
 
-- **Действие**: `/organization/students`. Поиск по фамилии (если есть).
+- **Действие**: `/organization/company?tab=employees` (вкладка «Сотрудники» «Моей организации»; прежний `/organization/students` удалён, `У-263`). Поиск по фамилии (если есть).
 - **Ожидание**: только студенты test-org. Поиск работает по `name` (case-insensitive contains).
 
 ### Step 8 — Invite second member with role=member
 
-- **Действие**: `/organization/team` → «Пригласить» → email 2-го QA, name «Org Member», role `member`. Скопировать invite-link → анонимная вкладка → установить пароль → login.
-- **Ожидание для member**: sidebar показывает Главная / Заказы / Документы / Сотрудники, **пункт «Команда» скрыт**. Прямой переход на `/organization/team` → redirect на `/forbidden`.
+- **Действие**: `/organization/company?tab=settings` → «Пригласить участника» → email 2-го QA, name «Org Member», role `member`. Скопировать invite-link → анонимная вкладка → установить пароль → login.
+- **Ожидание для member**: sidebar показывает Главная / Заказы / Документы / Сотрудники, **пункт «Команда» скрыт**. Прямой переход на прежний `/organization/team` → 404 «раздел переехал» (адрес удалён, `У-263`).
 
 ### Step 9 — RBAC sanity (cross-org 404)
 
@@ -95,7 +95,7 @@ ON CONFLICT (id) DO NOTHING;
 
 ### Step 10 — Worker sync → email + in-app bell
 
-- **Действие**: на стороне 1С добавить тестовый платёж по заказу test-org (или через admin-route, имитирующую `sync-payments` job). Подождать ≤ 5 мин (или дёрнуть очередь вручную через `/admin/sync` → retry).
+- **Действие**: на стороне 1С добавить тестовый платёж по заказу test-org (или через admin-route, имитирующую `sync-payments` job). Подождать ≤ 5 мин (или дёрнуть очередь вручную через `/admin/settings/integrations/1c/auto` → retry).
 - **Ожидание**:
   - email шаблона `payment-received` приходит на адрес org-admin (от `EMAIL_FROM`, тема «Получена оплата … ₽»).
   - In-app bell (или notifications-badge) в org-кабинете +1.
@@ -159,7 +159,7 @@ ON CONFLICT (id) DO NOTHING;
 | 5 | ✅ | finance без commission ✓, comment POST 201 + visible after refresh |
 | 6 | ✅ | type-filter работает, infected→410, 3→2 docs после mark infected |
 | 7 | ✅ | zero-state «нет сотрудников» (seed не создаёт students) |
-| 8 | ✅ (code) | admin-only gate в [team/page.tsx:24-26](../src/app/organization/team/page.tsx) |
+| 8 | ✅ (code) | admin-only gate (тогда — `team/page.tsx`; сейчас вкладка «Настройки» [карточки организации](../src/app/organization/company/page.tsx), прежний адрес удалён, `У-263`) |
 | 9 | ✅ | cross-org → «404 Страница не найдена» |
 | 10 | ⏭ skipped | требует worker + Resend, локально no-op; код-путь верифицирован |
 | 11 | ⚠ code-only | партнёр-портфолио UI повис в RSC stream локально; integration test passes |

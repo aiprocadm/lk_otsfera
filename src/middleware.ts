@@ -61,9 +61,11 @@ export async function middleware(req: NextRequest) {
 
     if (role === 'partner') {
       const partnerRole = (payload as { partnerRole?: 'admin' | 'manager' }).partnerRole;
-      const isAdminOnly =
-        pathname.startsWith('/partner/team') ||
-        /^\/partner\/portfolio\/[^/]+\/settings(?:\/|$)/.test(pathname);
+      // `/partner/team` отсюда снят (`У-263`, прогон сопровождения №37): адрес
+      // был шлюзом во вкладку «Команда» настроек и удалён. Вкладку закрывает
+      // сама страница настроек — участнику без прав администратора её не
+      // показывают.
+      const isAdminOnly = /^\/partner\/portfolio\/[^/]+\/settings(?:\/|$)/.test(pathname);
 
       if (isAdminOnly && partnerRole !== 'admin') {
         return NextResponse.redirect(new URL('/forbidden', req.url));

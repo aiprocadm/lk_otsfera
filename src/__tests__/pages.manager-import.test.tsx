@@ -17,9 +17,6 @@ import { renderServerComponent } from './helpers/renderServerComponent';
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
-const { redirectToSettingsHub } = vi.hoisted(() => ({ redirectToSettingsHub: vi.fn() }));
-vi.mock('@/lib/navigation/settingsRedirect', () => ({ redirectToSettingsHub }));
-
 // Право подменяем, а `isManagerLeader` берём настоящий: разделение ролей на
 // странице должно проверяться боевым предикатом.
 const { mayImportOneC } = vi.hoisted(() => ({ mayImportOneC: vi.fn(() => true) }));
@@ -69,8 +66,6 @@ vi.mock('@/components/import/payment-queue-table', () => ({
 
 import ManagerExcelTab from '@/app/manager/exchange/excel/page';
 import ManagerPaymentsTab from '@/app/manager/exchange/payments/page';
-import ManagerImportGateway from '@/app/manager/import/page';
-import ManagerPaymentsImportGateway from '@/app/manager/payments-import/page';
 
 const PLAIN = { sub: 'm1', role: 'manager' as const, managedOrgIds: ['o1'] };
 const LEADER = { sub: 'l1', role: 'leader' as const };
@@ -78,7 +73,6 @@ const LEADER = { sub: 'l1', role: 'leader' as const };
 beforeEach(() => {
   requireManager.mockReset().mockResolvedValue(PLAIN);
   mayImportOneC.mockReset().mockReturnValue(true);
-  redirectToSettingsHub.mockReset();
   redirect.mockClear();
   listImportBatches.mockReset().mockResolvedValue({ ok: true, batches: [{ id: 'b1' }] });
   loadQueuePage.mockReset().mockResolvedValue({ rows: [], total: 0, take: 50, skip: 0 });
@@ -162,22 +156,5 @@ describe('вкладка «Выписка по счёту 51» раздела «
     requireManager.mockResolvedValue(LEADER);
     const { container } = await renderServerComponent(ManagerPaymentsTab({}));
     expect(container.textContent).toContain('ЛИДЕРСКАЯ:payments');
-  });
-});
-
-describe('старые адреса обмена остались рабочими шлюзами (У-113)', () => {
-  it('/manager/import ведёт на вкладку «Загрузка Excel»', async () => {
-    await expect(ManagerImportGateway()).rejects.toThrow('REDIRECT');
-    expect(redirect).toHaveBeenCalledWith('/manager/exchange/excel');
-  });
-
-  it('/manager/payments-import ведёт на вкладку «Выписка по счёту 51»', async () => {
-    await expect(ManagerPaymentsImportGateway()).rejects.toThrow('REDIRECT');
-    expect(redirect).toHaveBeenCalledWith('/manager/exchange/payments');
-  });
-
-  it('гард роли на шлюзах остаётся', async () => {
-    await expect(ManagerImportGateway()).rejects.toThrow('REDIRECT');
-    expect(requireManager).toHaveBeenCalled();
   });
 });

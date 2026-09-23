@@ -1,162 +1,93 @@
 /**
- * Dry-run перед удалением шлюза (`У-263`, этап 9).
+ * Где в базе остались ссылки на удалённые адреса (`У-263`).
  *
  *   npm run report:legacy-links
  *
- * **Зачем.** Шлюз — старый адрес, который уводит на новое место, чтобы
- * сохранённая ссылка не отдала «страница не найдена». Когда шлюз переваливает
- * за 90 дней, страж `navigation.legacy-gateways` просит его удалить. Но прежде
- * надо ответить на вопрос, которого страж не знает: **не осталось ли ссылок на
- * этот адрес там, откуда их уже не поправить?**
+ * **Что изменилось.** Раньше это был dry-run перед удалением шлюза: шлюз —
+ * старый адрес, который уводил на новое место. 23.09.2026 заказчик решил не
+ * ждать 90 дней, и шлюзы удалены (прогон сопровождения №37). Старый адрес
+ * теперь отвечает 404 «раздел переехал». Список удалённых адресов —
+ * `src/lib/navigation/removedPaths.ts`.
  *
- * **Что выяснилось при разборе (`У-263`).** Требование предполагало запрос к
- * базе «нет ли старых путей в ссылках уведомлений». Оказалось, что
- * уведомления **не хранят адрес**: у модели `Notification` есть тип и данные
- * события, а ссылка собирается при показе кодом (`lib/notifications/href.ts`).
- * То есть удаление шлюза ссылку в уведомлении сломать не может — она
- * пересоберётся текущим кодом.
+ * **Что проверяет теперь.** Код сторожит тест `navigation.no-gateway-links` —
+ * здесь его не повторяем. Остаются данные, которые тест не видит, потому что
+ * они живут в базе стенда и прода:
  *
- * Поэтому отчёт смотрит два настоящих места:
+ *   1. `Notification.meta` — ссылка уведомления (`meta.url`). В ленте она
+ *      не сломается: `lib/notifications/href.ts` не ведёт по удалённому адресу
+ *      и строит ссылку по таблице маршрутов. Отчёт показывает, сколько таких
+ *      строк, — чтобы было видно, на что опирается это правило.
+ *   2. `NotificationTemplate.subject` / `body` — текст писем, который правят
+ *      из интерфейса. Адрес, вписанный туда руками, уйдёт в каждое новое
+ *      письмо и приведёт в 404 — такие шаблоны нужно поправить.
+ *   3. `PartnerMaterial.externalUrl` — ссылка материала партнёра, её тоже
+ *      вписывают руками.
  *
- *   1. **Данные события** (`Notification.meta`) — туда адрес мог попасть как
- *      строка, если его когда-то положили руками.
- *   2. **Код** — не ссылается ли что-нибудь на старый адрес напрямую, минуя
- *      шлюз. Такая ссылка после удаления шлюза приведёт в никуда, и это
- *      единственный случай, который мы можем и должны починить сами.
+ * Чего отчёт не видит и видеть не может: ссылки в уже отправленных письмах и
+ * закладки в браузерах. Для них и написана страница 404 «раздел переехал».
  *
- * Чего отчёт НЕ видит и видеть не может: ссылки в уже отправленных письмах и
- * закладки в браузерах. Ради них и существует срок в 90 дней.
- *
- * Коды выхода: 0 — чисто, шлюзы можно удалять по сроку; 1 — найдены ссылки,
- * которые сломаются.
+ * Коды выхода: 0 — в шаблонах и материалах чисто (строки уведомлений только
+ * пересчитываются); 1 — есть шаблон или материал, который ведёт в 404.
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
 import { PrismaClient } from '@prisma/client';
-import { LEGACY_GATEWAYS } from '../src/lib/navigation/legacyGateways';
-import { SETTINGS_SECTIONS } from '../src/lib/navigation/settings';
-
-const REPO_ROOT = join(__dirname, '..');
-
-/** Все старые адреса из обоих реестров. */
-function legacyPaths(): string[] {
-  const out = LEGACY_GATEWAYS.map((g) => g.from);
-  for (const section of SETTINGS_SECTIONS) {
-    for (const legacy of section.legacyHrefs) out.push(legacy.from);
-  }
-  return [...new Set(out)].sort();
-}
-
-/** Файлы кода, где ссылка на старый адрес была бы настоящей ссылкой. */
-function codeFiles(dir: string, out: string[] = []): string[] {
-  for (const entry of readdirSync(dir)) {
-    if (entry === '__tests__' || entry === 'e2e' || entry === 'node_modules') continue;
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      codeFiles(full, out);
-      continue;
-    }
-    if (full.endsWith('.ts') || full.endsWith('.tsx')) out.push(full);
-  }
-  return out;
-}
+import { REMOVED_PATHS } from '../src/lib/navigation/removedPaths';
 
 /**
- * Текст файла без комментариев: упоминание адреса в пояснении — не ссылка.
- *
- * Без этого отчёт краснел бы на каждом комментарии вида «раньше жила по адресу
- * `/organization/students`», которых в проекте много и которые как раз
- * объясняют переезд.
+ * Регулярное выражение Postgres (`~`) с границей сегмента: `/admin/sync` не
+ * должен совпасть с `/admin/sync-log`, если такой раздел когда-нибудь
+ * появится. Хвост — конец строки, `/`, `?`, `#`, кавычка или пробел.
  */
-function stripComments(src: string): string {
-  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^[ \t]*\/\/.*$/gm, ' ');
+function pattern(path: string): string {
+  const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return `${escaped}($|[/?#"'\\s])`;
 }
 
-/**
- * Ссылается ли файл на старый адрес.
- *
- * **Почему не просто `includes("'" + path + "'")`.** Ровно так было написано
- * сначала — и отчёт молчал про настоящие ссылки. В разметке ссылка пишется
- * атрибутом: `href="/organization/students"`, в **двойных** кавычках; в коде
- * встречается и шаблонная строка с подстановкой:
- * `` `/organization/students/${id}` ``. Сухой прогон приёмки (этап 10) нашёл
- * две живые ссылки, которых отчёт не видел.
- *
- * Адрес карточки записан в реестре шаблоном (`/manager/students/[id]`);
- * искать его буквально бесполезно, поэтому ищем часть до первой скобки — она
- * же покрывает и список, и карточку.
- */
-function mentionsLegacy(src: string, legacyHref: string): boolean {
-  const needle = legacyHref.split('[')[0]?.replace(/\/$/, '') ?? legacyHref;
-  if (!needle) return false;
-  const body = stripComments(src);
-  // Адрес внутри строкового литерала любого из трёх видов. После адреса
-  // допускаем «/», «?», «#» и закрывающую кавычку — чтобы `/organization/students`
-  // не совпал с посторонним `/organization/students-import`.
-  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const re = new RegExp(`['"\`]${escaped}(?=['"\`/?#])`);
-  return re.test(body);
-}
-
-/** Файлы самих шлюзов и реестров: упоминание адреса там — норма, а не ссылка. */
-function isRegistryOrGateway(path: string, legacyHref: string): boolean {
-  if (path.includes('navigation/legacyGateways.ts')) return true;
-  if (path.includes('navigation/settings.ts')) return true;
-  if (path.includes('next.config.mjs')) return true;
-  // `featureFlags.ts` перечисляет маршруты, которые закрывает флаг. Это не
-  // ссылка, по которой пойдёт человек, а правило доступа: если раздел выключен,
-  // его шлюз обязан отвечать 404, а не уводить в хаб.
-  if (path.includes('lib/featureFlags.ts')) return true;
-  // Сама страница-шлюз называет свой адрес — это и есть её работа.
-  const asFile = legacyHref.replace(/^\//, '').replace(/\?.*$/, '');
-  return path.includes(join('app', asFile));
+async function count(prisma: PrismaClient, sql: string, path: string): Promise<number> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ n: bigint }>>(sql, pattern(path));
+  return Number(rows[0]?.n ?? 0);
 }
 
 async function main(): Promise<number> {
   const prisma = new PrismaClient();
   try {
-    const paths = legacyPaths();
-    console.log(`Старых адресов под наблюдением: ${paths.length}\n`);
-
-    // ─── 1. Данные событий ───────────────────────────────────────────────
-    console.log('Ссылки в данных уведомлений:');
-    let inData = 0;
-    for (const path of paths) {
-      const rows = await prisma.$queryRawUnsafe<Array<{ n: bigint }>>(
-        `SELECT count(*)::bigint AS n FROM "Notification" WHERE "meta"::text LIKE $1`,
-        `%${path}%`
+    console.log(`Удалённых адресов в списке: ${REMOVED_PATHS.length}\n`);
+    let notifications = 0;
+    let broken = 0;
+    for (const { path, movedTo } of REMOVED_PATHS) {
+      const inMeta = await count(
+        prisma,
+        `SELECT count(*)::bigint AS n FROM "Notification" WHERE "meta"::text ~ $1`,
+        path
       );
-      const n = Number(rows[0]?.n ?? 0);
-      if (n > 0) {
-        inData += n;
-        console.log(`  ${path}: ${n} записей`);
-      }
-    }
-    if (inData === 0) console.log('  не найдено.');
-
-    // ─── 2. Код ──────────────────────────────────────────────────────────
-    console.log('\nПрямые ссылки в коде (мимо шлюза):');
-    const files = codeFiles(join(REPO_ROOT, 'src'));
-    let inCode = 0;
-    for (const path of paths) {
-      const hits = files.filter(
-        (f) => !isRegistryOrGateway(f, path) && mentionsLegacy(readFileSync(f, 'utf8'), path)
+      const inTemplates = await count(
+        prisma,
+        `SELECT count(*)::bigint AS n FROM "NotificationTemplate" WHERE "subject" ~ $1 OR "body" ~ $1`,
+        path
       );
-      if (hits.length > 0) {
-        inCode += hits.length;
-        console.log(`  ${path}:`);
-        for (const h of hits) console.log(`    ${h.replace(`${REPO_ROOT}/`, '')}`);
-      }
+      const inMaterials = await count(
+        prisma,
+        `SELECT count(*)::bigint AS n FROM "PartnerMaterial" WHERE "externalUrl" ~ $1`,
+        path
+      );
+      if (inMeta + inTemplates + inMaterials === 0) continue;
+      notifications += inMeta;
+      broken += inTemplates + inMaterials;
+      console.log(`${path} (теперь: ${movedTo})`);
+      if (inMeta > 0) console.log(`  уведомления: ${inMeta} — ссылка пересчитается по таблице`);
+      if (inTemplates > 0) console.log(`  шаблоны писем: ${inTemplates} — поправить адрес`);
+      if (inMaterials > 0) console.log(`  материалы партнёров: ${inMaterials} — поправить адрес`);
     }
-    if (inCode === 0) console.log('  не найдено.');
-
-    if (inData + inCode === 0) {
-      console.log('\nИтог: чисто — шлюзы можно удалять по сроку (90 дней).');
+    if (notifications + broken === 0) {
+      console.log('Итог: чисто — ни одной ссылки на удалённые адреса в базе.');
+      return 0;
+    }
+    if (broken === 0) {
+      console.log('\nИтог: исправлять нечего — старые адреса только в уведомлениях.');
       return 0;
     }
     console.log(
-      '\nИтог: удаление шлюза сломает найденное выше. Сначала переведите ссылки\n' +
-        'на новые адреса, потом удаляйте.'
+      '\nИтог: шаблоны писем или материалы ведут в 404. Замените адрес на новый\n' +
+        '(он указан рядом) в «Настройки → Тексты писем» или в материалах партнёров.'
     );
     return 1;
   } finally {

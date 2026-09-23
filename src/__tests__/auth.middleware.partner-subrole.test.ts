@@ -19,23 +19,26 @@ describe('middleware partner sub-role', () => {
     process.env.JWT_SECRET = 'middleware-sub-test-secret-with-at-least-32-chars';
   });
 
-  it('redirects partner manager away from /partner/team to /forbidden', async () => {
+  it('удалённый /partner/team middleware больше не охраняет — дальше его встретит 404 (У-263)', async () => {
+    // Адрес был шлюзом во вкладку «Команда» настроек и удалён (прогон
+    // сопровождения №37). Отбивать участника в /forbidden с несуществующей
+    // страницы незачем: Next ответит «раздел переехал» любому.
     vi.mocked(jwtVerify).mockResolvedValue({
       payload: { role: 'partner', partnerRole: 'manager', assignedOrgIds: [] },
     } as any);
 
     const res = await middleware(req('/partner/team'));
 
-    expect(res.status).toBe(307);
-    expect(res.headers.get('location')).toBe('https://app.local/forbidden');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('location')).toBeNull();
   });
 
-  it('allows partner admin on /partner/team', async () => {
+  it('allows partner admin on /partner/portfolio/abc/settings', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({
       payload: { role: 'partner', partnerRole: 'admin', assignedOrgIds: [] },
     } as any);
 
-    const res = await middleware(req('/partner/team'));
+    const res = await middleware(req('/partner/portfolio/abc/settings'));
 
     expect(res.status).toBe(200);
     expect(res.headers.get('location')).toBeNull();
@@ -67,7 +70,7 @@ describe('middleware partner sub-role', () => {
       payload: { role: 'admin' },
     } as any);
 
-    const res = await middleware(req('/partner/team'));
+    const res = await middleware(req('/partner/portfolio/abc/settings'));
 
     // Model A (ось 4 аудита): admin не входит в чужой кабинет — protectedPrefixes
     // отбивает его на /partner раньше, чем дойдёт до partner-sub-role проверки.
@@ -76,12 +79,12 @@ describe('middleware partner sub-role', () => {
     expect(res.headers.get('location')).toBe('https://app.local/forbidden');
   });
 
-  it('treats partner without partnerRole (legacy) as non-admin (cannot access /partner/team)', async () => {
+  it('treats partner without partnerRole (legacy) as non-admin (cannot access portfolio settings)', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({
       payload: { role: 'partner', partnerId: 'p1' },
     } as any);
 
-    const res = await middleware(req('/partner/team'));
+    const res = await middleware(req('/partner/portfolio/abc/settings'));
 
     expect(res.status).toBe(307);
     expect(res.headers.get('location')).toBe('https://app.local/forbidden');

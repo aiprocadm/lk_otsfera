@@ -45,7 +45,9 @@ type Section =
   | 'finance'
   | 'commission-statements'
   | 'calls'
-  | 'sync'
+  // `'sync'` снят (`У-263`, прогон сопровождения №37): раздел давал
+  // `/admin/sync`, а этого адреса больше нет. Ссылку обмена `sync_error`
+  // строит сам, прямым адресом хаба.
   // Этап 6 (`У-237`): «Материалы» — только у партнёра, только список.
   | 'materials';
 
@@ -60,7 +62,6 @@ const CABINET_SECTIONS: Record<Cabinet, Partial<Record<Section, boolean>>> = {
     organizations: true,
     messages: false,
     'commission-statements': true,
-    sync: false,
   },
   leader: {
     orders: true,
@@ -97,7 +98,8 @@ const CABINET_SECTIONS: Record<Cabinet, Partial<Record<Section, boolean>>> = {
     documents: true,
     requests: true,
     enrollments: true,
-    deals: true,
+    // `deals` у партнёра нет (`У-109`, `У-263`): его заказы живут в `orders`,
+    // а прежний адрес `/partner/deals` удалён — таблица собрала бы ссылку в 404.
     materials: false,
     certificates: false,
     finance: false,

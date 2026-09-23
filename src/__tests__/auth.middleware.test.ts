@@ -150,7 +150,7 @@ describe('auth middleware — гейт флагов', () => {
     process.env.FEATURE_ROLE_CONSTRUCTOR = '0';
     vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'leader' } } as never);
 
-    const res = await middleware(req('/leader/roles', 'tkn'));
+    const res = await middleware(req('/leader/settings/access/roles', 'tkn'));
 
     expect(res.status).toBe(404);
   });
@@ -159,7 +159,7 @@ describe('auth middleware — гейт флагов', () => {
     process.env.FEATURE_ROLE_CONSTRUCTOR = '1';
     vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'leader' } } as never);
 
-    const res = await middleware(req('/leader/roles', 'tkn'));
+    const res = await middleware(req('/leader/settings/access/roles', 'tkn'));
 
     expect(res.status).toBe(200);
   });
@@ -176,7 +176,7 @@ describe('auth middleware — гейт флагов', () => {
   it('неавторизованного уводит на вход, а не на «не найдено»', async () => {
     process.env.FEATURE_ROLE_CONSTRUCTOR = '0';
 
-    const res = await middleware(req('/leader/roles'));
+    const res = await middleware(req('/leader/settings/access/roles'));
 
     // Ответь мы «404», посетитель узнал бы, что такой раздел существует.
     expect(res.status).toBe(307);

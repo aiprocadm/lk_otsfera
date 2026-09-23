@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { navItemsFor } from '@/lib/navigation/cabinet';
 import { splitPinnedItems } from '@/lib/navigation/groupItems';
-import { SETTINGS_SECTIONS } from '@/lib/navigation/settings';
+import { REMOVED_PATHS } from '@/lib/navigation/removedPaths';
 
 /**
  * Состав меню под флагом `settings_hub` (ТЗ раздел 2 и критерий приёмки 1):
@@ -10,10 +10,14 @@ import { SETTINGS_SECTIONS } from '@/lib/navigation/settings';
  */
 const ORIGINAL_ENV = { ...process.env };
 
-/** Все старые адреса разделов, которые ТЗ требует убрать из основного меню. */
-const LEGACY_ADMIN_HREFS = SETTINGS_SECTIONS.flatMap((s) =>
-  s.legacyHrefs.map((l) => l.from)
-).filter((href) => href.startsWith('/admin'));
+/**
+ * Все старые адреса служебных разделов админа. Раньше их брали из поля
+ * `legacyHrefs` реестра хаба; шлюзы удалены (`У-263`, прогон сопровождения
+ * №37), и адреса помнит замороженный список удалённых.
+ */
+const LEGACY_ADMIN_HREFS = REMOVED_PATHS.map((r) => r.path).filter((href) =>
+  href.startsWith('/admin')
+);
 
 function enableEverything() {
   // Меню админа частично под opt-in флагами: включаем их, чтобы сравнивать

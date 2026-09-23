@@ -16,63 +16,14 @@ const securityHeaders = [
 ];
 
 /**
- * Хаб «Настройки» (ТЗ 2026-08-04 §5.1): старые адреса служебных разделов
- * переезжают на новые НАСТОЯЩИМ HTTP-редиректом. Страница-шлюз с `redirect()`
- * тоже осталась (вторая линия), но при стриминге RSC она отдаёт 200 и уводит
- * уже на клиенте — закладке и внешнему клиенту нужен честный код ответа.
- *
- * Список продублирован здесь намеренно: `next.config.mjs` читается до сборки и
- * не может импортировать TS-реестр. От расхождения защищает тест
- * `lib.navigation.settings-redirect` — он сверяет эту карту с реестром.
- *
- * Редирект временный (307): постоянный 308 браузер кэширует навсегда, и откат
- * флага раскатки оставил бы пользователей с мёртвой навигацией. Переключить на
- * постоянный — шагом снятия флага после приёмки.
+ * HTTP-редиректов со старых адресов здесь больше нет (`У-263`, прогон
+ * сопровождения №37, 23.09.2026). Раньше два списка — служебные разделы,
+ * переехавшие в хаб «Настройки», и `/organization/team` — уводили закладки на
+ * новое место. Заказчик решил не ждать 90 дней: шлюзы удалены, старый адрес
+ * отвечает общей страницей 404 «раздел переехал» (`src/app/not-found.tsx`) с
+ * кнопкой в кабинет. Список удалённых адресов — `src/lib/navigation/removedPaths.ts`;
+ * вернуть сюда `redirects()` не даёт страж `navigation.legacy-gateways`.
  */
-export const SETTINGS_HUB_REDIRECTS = [
-  ['/admin/health', '/admin/settings/system/health'],
-  ['/admin/integrations', '/admin/settings/integrations'],
-  ['/admin/sync', '/admin/settings/integrations/1c/auto'],
-  ['/admin/import', '/admin/settings/integrations/1c/excel'],
-  ['/admin/payments-import', '/admin/settings/integrations/1c/payments'],
-  ['/manager/import', '/leader/settings/integrations/1c/excel'],
-  ['/manager/payments-import', '/leader/settings/integrations/1c/payments'],
-  ['/admin/roles', '/admin/settings/access/roles'],
-  ['/leader/roles', '/leader/settings/access/roles'],
-  ['/admin/order-statuses', '/admin/settings/catalogs/application-statuses'],
-  ['/leader/settings/order-statuses', '/leader/settings/catalogs/application-statuses'],
-  ['/admin/custom-fields', '/admin/settings/catalogs/custom-fields'],
-  ['/leader/settings/custom-fields', '/leader/settings/catalogs/custom-fields'],
-  ['/admin/pii-access', '/admin/settings/security/personal-data'],
-  ['/admin/audit', '/admin/settings/security/audit'],
-];
-
-/**
- * Переезды ВНЕ хаба настроек сотрудников.
- *
- * Та же беда, что у списка выше: страница-шлюз с `redirect()` при стриминге RSC
- * отдаёт 200 и уводит уже на клиенте, а закладке и письму нужен честный код.
- * Разница в том, что реестр `SETTINGS_SECTIONS` описывает только кабинеты
- * `admin`/`leader`, поэтому переезд из кабинета ЗАКАЗЧИКА в него не помещается
- * и живёт отдельным списком.
- *
- * `/organization/team` → вкладка «Настройки» карточки своей организации: по
- * старому адресу приходят из ранее разосланных писем-приглашений. Без этой
- * записи человек попадал на карточку с вкладкой по умолчанию («Обзор»), где
- * ни списка участников, ни кнопки «Пригласить участника» нет — найдено
- * сопровождением 08.09.2026 (страж `organization-team-modal-focus-trap` падал
- * стабильно, а не флейком).
- *
- * Флагом не гейтится: переезд состоялся вместе с единой карточкой организации,
- * отката к старому экрану не предполагается.
- */
-export const LEGACY_REDIRECTS = [['/organization/team', '/organization/company?tab=settings']];
-
-/** Тот же разбор значения, что и в src/lib/featureFlags.ts (opt-in флаг). */
-function isSettingsHubEnabled() {
-  const raw = process.env.FEATURE_SETTINGS_HUB?.trim().toLowerCase();
-  return raw === '1' || raw === 'true' || raw === 'on';
-}
 
 /**
  * Предел размера тела server action'а. Общий на все действия форм, поэтому
@@ -97,14 +48,6 @@ const nextConfig = {
   poweredByHeader: false,
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
-  },
-  async redirects() {
-    const hub = isSettingsHubEnabled() ? SETTINGS_HUB_REDIRECTS : [];
-    return [...hub, ...LEGACY_REDIRECTS].map(([source, destination]) => ({
-      source,
-      destination,
-      permanent: false,
-    }));
   },
 };
 

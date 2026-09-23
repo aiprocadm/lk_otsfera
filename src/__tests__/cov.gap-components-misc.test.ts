@@ -3,9 +3,11 @@
  * Добивка покрытия по группе «components-misc»: ветки, до которых не
  * дотягивались соседние тест-файлы.
  *
- *  1. страница «Личная безопасность» руководителя — включённый флаг staff_2fa
- *     (в соседнем тесте с флагом рендерилась только админская страница);
- *  2. AuditDiffDialog — пустая строка в значении поля показывается прочерком.
+ *  - AuditDiffDialog — пустая строка в значении поля показывается прочерком.
+ *
+ * Пункт про страницу-шлюз «Личная безопасность» руководителя снят вместе с
+ * самой страницей: шлюзы старых адресов удалены (`У-263`, прогон
+ * сопровождения №37).
  *
  * Пункт про `LeaderAppShell` (фильтр «Настройки» по `hasAnySettingsAccess`)
  * уехал в `pages.cabinet-layouts.test.tsx`: этап 2 схлопнул пять шеллов в один,
@@ -15,43 +17,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render } from '@testing-library/react';
 
-import type { SessionPayload } from '@/lib/auth/jwt';
-
-const LEADER: SessionPayload = { sub: 'l1', role: 'leader' };
-
-// --- страница «Личная безопасность» руководителя ---
-const { requireSettingsSection } = vi.hoisted(() => ({ requireSettingsSection: vi.fn() }));
-vi.mock('@/lib/auth/requireSettings', () => ({ requireSettingsSection }));
-
-const { redirect } = vi.hoisted(() => ({ redirect: vi.fn() }));
-vi.mock('next/navigation', () => ({ redirect }));
-
-const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
-vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
-
-vi.mock('@/components/settings/security-card', () => ({
-  SecurityCard: () => React.createElement('div', { 'data-testid': 'security-card' }, 'SECURITY'),
-}));
-vi.mock('@/components/settings/staff-backup-codes-section', () => ({
-  StaffBackupCodesSection: () =>
-    React.createElement('div', { 'data-testid': 'backup-codes' }, 'BACKUP'),
-}));
-
-import LeaderPersonalSecurityPage from '@/app/leader/settings/security/personal/page';
 import { AuditDiffDialog } from '@/components/admin/audit-diff-dialog';
-
-describe('Личная безопасность руководителя — старый адрес (`У-114`)', () => {
-  beforeEach(() => {
-    requireSettingsSection.mockReset().mockResolvedValue(LEADER);
-    isFeatureEnabled.mockReset();
-    redirect.mockReset();
-  });
-
-  it('уводит на вкладку «Безопасность» нового раздела, а не в 404', () => {
-    LeaderPersonalSecurityPage();
-    expect(redirect).toHaveBeenCalledWith('/leader/settings/personal?tab=security');
-  });
-});
 
 describe('AuditDiffDialog — пустая строка в значении поля', () => {
   beforeEach(() => {

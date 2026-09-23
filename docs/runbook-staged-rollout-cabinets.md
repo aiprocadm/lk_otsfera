@@ -91,8 +91,8 @@
 - [ ] Под пользователем нужной роли `/{organization|manager}/dashboard` отдаёт страницу (не 404).
 - [ ] В сайдбаре появились пункты кабинета (для manager-leader — также «Команда»).
 - [ ] Под **чужой** ролью префикс по-прежнему даёт 404 / `/forbidden` (RBAC не сломан).
-- [ ] `GET /api/health` всё ещё green; в `/admin/health` нет новых красных сигналов.
-- [ ] В `/admin/sync` cursor-lag в норме (флип кабинета не должен влиять, но сверяем базлайн).
+- [ ] `GET /api/health` всё ещё green; в `/admin/settings/system/health` нет новых красных сигналов.
+- [ ] В `/admin/settings/integrations/1c/auto` cursor-lag в норме (флип кабинета не должен влиять, но сверяем базлайн).
 
 Если любой пункт ❌ — **откат (§5)**, разбор по логам, повтор.
 
@@ -104,8 +104,8 @@
 
 **Дашборды и сигналы:**
 
-- [`/admin/health`](../src/app/admin/health/page.tsx) — DB / Redis / worker / очереди.
-- [`/admin/sync`](../src/app/admin/sync/page.tsx) — cursor-lag 1С (база; retry джоб вручную при необходимости).
+- [`/admin/settings/system/health`](../src/app/admin/settings/system/health/page.tsx) — DB / Redis / worker / очереди.
+- [`/admin/settings/integrations/1c/auto`](../src/app/admin/settings/integrations/1c/auto/page.tsx) — cursor-lag 1С (база; retry джоб вручную при необходимости).
 - [`GET /api/health`](../src/app/api/health/route.ts) — readiness (DB+Redis, fail-closed).
 - **Alerting** ([plan](superpowers/plans/2026-05-31-alerting-DONE.md)): queue depth / **DLQ** (failed-jobs хранятся, `removeOnFail:false`) / sync-lag → in-app + email + Telegram. Следить за новыми алертами после флипа.
 - **Audit log** — всплеск ошибок? Новые потоки (`org_member_invited`, `document_download_signed_url`, `notification_sent`, …).

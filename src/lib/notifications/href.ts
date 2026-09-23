@@ -1,3 +1,4 @@
+import { isRemovedPath } from '@/lib/navigation/removedPaths';
 import { notificationRoute } from './routes';
 
 /**
@@ -24,6 +25,11 @@ import { notificationRoute } from './routes';
  * - заказчику и партнёру — сначала `meta.url` (их продьюсеры всегда писали
  *   свой кабинет, включая особые адреса вроде `/organization/settings`),
  *   потом таблица.
+ *
+ * `meta.url`, ведущий в удалённый раздел (`removedPaths.ts`), не используется
+ * вовсе: строка лежит в базе с тех времён, когда адрес был жив, а теперь он
+ * отвечает 404. Вместо неё — адрес по таблице (`У-263`, прогон сопровождения
+ * №37: шлюзы удалены, и лечить старую ссылку переходом больше некому).
  */
 export type NotificationRole = 'admin' | 'manager' | 'leader' | 'partner' | 'organization';
 
@@ -52,7 +58,8 @@ export function notificationHref(
 ): string | null {
   const m = meta !== null && typeof meta === 'object' ? (meta as Record<string, unknown>) : null;
   const url = m?.url;
-  const fromUrl = typeof url === 'string' ? localPathFromUrl(url) : null;
+  const local = typeof url === 'string' ? localPathFromUrl(url) : null;
+  const fromUrl = local !== null && isRemovedPath(local) ? null : local;
   const fromTable = notificationRoute(type, m, role);
 
   return STAFF_ROLES.has(role) ? (fromTable ?? fromUrl) : (fromUrl ?? fromTable);

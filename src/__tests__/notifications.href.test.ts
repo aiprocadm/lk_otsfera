@@ -148,8 +148,11 @@ describe('notificationHref', () => {
 
     it('когда таблица молчит, сотрудник получает url из строки', () => {
       expect(
-        notificationHref('admin', 'task_assigned', { taskId: 't1', url: '/admin/audit' })
-      ).toBe('/admin/audit');
+        notificationHref('admin', 'task_assigned', {
+          taskId: 't1',
+          url: '/admin/settings/security/audit',
+        })
+      ).toBe('/admin/settings/security/audit');
     });
 
     it('admin + ops_alert → здоровье системы (meta у алертов отсутствует)', () => {

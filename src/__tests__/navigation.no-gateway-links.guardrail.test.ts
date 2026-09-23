@@ -2,40 +2,38 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { readSource } from './helpers/source';
-import { LEGACY_GATEWAYS } from '@/lib/navigation/legacyGateways';
-import { SETTINGS_SECTIONS } from '@/lib/navigation/settings';
+import { REMOVED_PATHS, isRemovedPath } from '@/lib/navigation/removedPaths';
+import {
+  notificationRoute,
+  NOTIFICATION_ROUTE_CABINETS,
+  NOTIFICATION_ROUTE_TYPES,
+} from '@/lib/notifications/routes';
+import { notificationHref } from '@/lib/notifications/href';
 
 /**
- * `У-263` — код не ссылается на адрес-шлюз.
+ * `У-263` — код не ведёт на удалённый адрес.
  *
- * **Что такое шлюз.** Раздел переехал, старый адрес остался и уводит на новое
- * место, чтобы сохранённая ссылка не отдала «страница не найдена». Обещание
- * дано **людям** — их закладкам и ссылкам в отправленных письмах. Нашему
- * собственному коду оно не нужно: он знает новый адрес.
+ * **Что было.** Раздел переезжал, старый адрес оставался «шлюзом» и уводил на
+ * новое место. Шлюзы удалены решением заказчика 23.09.2026 (прогон
+ * сопровождения №37): старый адрес отвечает 404 «раздел переехал». Любая
+ * ссылка на него из кода теперь ведёт в никуда — и обнаружится это не раньше,
+ * чем кто-нибудь по ней нажмёт.
  *
- * **Чем плоха ссылка на шлюз изнутри.** Во-первых, человек идёт лишним
- * переходом. Во-вторых — и это важнее — шлюз живёт не дольше 90 дней
- * (`navigation.legacy-gateways`). В день, когда его удалят, каждая такая
- * ссылка приведёт в никуда, и обнаружится это не раньше, чем кто-нибудь по
- * ней нажмёт.
+ * **Список замороженный** (`lib/navigation/removedPaths.ts`): страницы
+ * удалены, а адрес помнится, чтобы на него не сослались снова — по памяти или
+ * копированием из старого кода.
  *
- * **Почему страж, а не отчёт.** Отчёт `npm run report:legacy-links` есть, но
- * его запускают перед удалением шлюза — то есть раз в квартал. Сухой прогон
- * приёмки (этап 10) нашёл две живые ссылки, и обе отчёт пропустил: он искал
- * адрес только в ОДИНАРНЫХ кавычках, а в разметке ссылка пишется атрибутом —
- * `href="/organization/students"`, в двойных. Страж смотрит все три вида
- * кавычек и падает сразу, в том же PR.
+ * Страж смотрит три места, где ссылка рождается:
+ * 1. строковые литералы кода (все три вида кавычек: `href="/…"` в разметке
+ *    пишется в двойных — отчёт, искавший только одинарные, однажды пропустил
+ *    две живые ссылки);
+ * 2. таблицу маршрутов уведомлений — там адрес собирается из кусков
+ *    (`/${кабинет}/${раздел}`) и текстом не ищется: так у партнёра жил раздел
+ *    `deals`, который собрал бы `/partner/deals`;
+ * 3. сохранённую в базе ссылку уведомления (`meta.url`) — её пишут на годы
+ *    вперёд, и удалённый адрес в ней остаётся навсегда.
  */
 const SRC_ROOT = join(process.cwd(), 'src');
-
-/** Все старые адреса из обоих реестров. */
-function legacyPaths(): string[] {
-  const out = LEGACY_GATEWAYS.map((g) => g.from);
-  for (const section of SETTINGS_SECTIONS) {
-    for (const legacy of section.legacyHrefs) out.push(legacy.from);
-  }
-  return [...new Set(out)].sort();
-}
 
 function codeFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -50,76 +48,133 @@ function codeFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/**
- * Файлы, где упоминание старого адреса — это его работа, а не ссылка:
- * сами реестры и страница-шлюз, которая обязана знать свой адрес.
- */
-function isRegistryOrGateway(path: string, legacyHref: string): boolean {
-  if (path.includes(join('lib', 'navigation', 'legacyGateways.ts'))) return true;
-  if (path.includes(join('lib', 'navigation', 'settings.ts'))) return true;
-  if (path.includes(join('lib', 'navigation', 'settingsRedirect.ts'))) return true;
-  // Реестр флагов перечисляет маршруты, которые закрывает флаг. Это правило
-  // доступа, а не ссылка, по которой пойдёт человек.
-  if (path.includes(join('lib', 'featureFlags.ts'))) return true;
-  const asFile = legacyHref.replace(/^\//, '').replace(/\?.*$/, '');
-  return path.includes(join('app', asFile));
-}
+/** Сам список удалённых адресов — единственное место, где им положено быть. */
+const REGISTRY = join('lib', 'navigation', 'removedPaths.ts');
 
 /**
- * Ссылается ли исходник на старый адрес.
- *
- * Адрес карточки записан в реестре шаблоном (`/manager/students/[id]`) —
- * буквально его в коде не встретить, поэтому ищем часть до первой скобки.
- * Она же покрывает и список, и карточку.
+ * Ссылается ли исходник на удалённый адрес: адрес в начале строкового
+ * литерала любого вида. Хвост ограничиваем, чтобы `/organization/students` не
+ * совпал с посторонним `/organization/students-x`.
  */
-function mentionsLegacy(src: string, legacyHref: string): boolean {
-  const needle = legacyHref.split('[')[0]?.replace(/\/$/, '') ?? legacyHref;
-  if (!needle) return false;
-  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  // Адрес в начале строкового литерала любого вида. Хвост ограничиваем, чтобы
-  // `/organization/students` не совпал с посторонним `/organization/students-x`.
+function mentionsRemoved(src: string, path: string): boolean {
+  const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return new RegExp(`['"\`]${escaped}(?=['"\`/?#])`).test(src);
 }
 
-describe('код не ссылается на адрес-шлюз (У-263)', () => {
-  const paths = legacyPaths();
+/** Идентификаторы всех ключей meta — чтобы каждый маршрут построился. */
+const IDS = {
+  orderId: 'o1',
+  taskId: 't1',
+  dialogId: 'd1',
+  documentId: 'doc1',
+  requestId: 'r1',
+  statementId: 's1',
+  organizationId: 'org1',
+  entityId: 'e1',
+  sourceId: 's1',
+};
+const ENTITIES = [
+  'task',
+  'order',
+  'dialog',
+  'lead',
+  'deal',
+  'document',
+  'client_request',
+  'payment',
+  'organization',
+  'enrollment',
+  'other',
+];
+const KINDS = ['push_document_failed', 'push_lead_failed', 'other'];
+const SOURCES = ['client_request', 'enrollment', 'inbound', 'call', 'dialog', 'other'];
+
+/** Все сочетания «сущность × вид × источник», с идентификаторами и без. */
+function metas(): Array<Record<string, unknown>> {
+  const out: Array<Record<string, unknown>> = [{}];
+  for (const entity of ENTITIES) {
+    for (const kind of KINDS) {
+      for (const sourceType of SOURCES) {
+        out.push({ ...IDS, entity, kind, sourceType });
+        out.push({ entity, kind, sourceType });
+      }
+    }
+  }
+  return out;
+}
+
+describe('код не ведёт на удалённый адрес (У-263)', () => {
   const files = codeFiles(SRC_ROOT);
 
-  it('реестры шлюзов непусты и файлы найдены', () => {
-    expect(paths.length).toBeGreaterThan(10);
+  it('список удалённых адресов непуст и файлы найдены', () => {
+    expect(REMOVED_PATHS.length).toBeGreaterThan(20);
     expect(files.length).toBeGreaterThan(500);
   });
 
   it('шаблон ловит ссылку во всех трёх видах кавычек', () => {
     // Мутация страж проверяет на себе: без этой проверки легко написать
     // выражение, которое не совпадёт ни с чем и будет вечно зелёным.
-    expect(mentionsLegacy(`href="/organization/students"`, '/organization/students')).toBe(true);
-    expect(mentionsLegacy(`href='/organization/students'`, '/organization/students')).toBe(true);
-    expect(mentionsLegacy('`/organization/students/${id}`', '/organization/students/[id]')).toBe(
-      true
+    expect(mentionsRemoved(`href="/organization/students"`, '/organization/students')).toBe(true);
+    expect(mentionsRemoved(`href='/partner/team'`, '/partner/team')).toBe(true);
+    expect(mentionsRemoved('`/organization/students/${id}`', '/organization/students')).toBe(true);
+    expect(mentionsRemoved(`'/partner/settings?tab=team'`, '/partner/team')).toBe(false);
+    expect(mentionsRemoved(`href="/organization/students-x"`, '/organization/students')).toBe(
+      false
     );
-    expect(mentionsLegacy(`href="/organization/students-x"`, '/organization/students')).toBe(false);
     expect(
-      mentionsLegacy(`from '@/lib/services/organization/students'`, '/organization/students')
+      mentionsRemoved(`from '@/lib/services/organization/students'`, '/organization/students')
     ).toBe(false);
   });
 
-  it('ни один файл не ведёт на старый адрес', () => {
+  it('ни один файл не ведёт на удалённый адрес', () => {
     const hits: string[] = [];
-    for (const legacy of paths) {
+    for (const { path, movedTo } of REMOVED_PATHS) {
       for (const file of files) {
-        if (isRegistryOrGateway(file, legacy)) continue;
-        if (!mentionsLegacy(readSource(file), legacy)) continue;
-        hits.push(`  ${legacy} ← ${file.slice(file.indexOf('src'))}`);
+        if (file.endsWith(REGISTRY)) continue;
+        if (!mentionsRemoved(readSource(file), path)) continue;
+        hits.push(`  ${path} ← ${file.slice(file.indexOf('src'))} (теперь: ${movedTo})`);
       }
     }
     expect(
       hits,
-      'Эти места ведут на адрес-шлюз вместо настоящего:\n' +
+      'Эти места ведут на удалённый адрес — человек попадёт на 404:\n' +
         hits.join('\n') +
-        '\n\nЧеловек пойдёт лишним переходом, а в день удаления шлюза (90 дней,\n' +
-        '`navigation.legacy-gateways`) ссылка приведёт в никуда. Возьмите новый\n' +
-        'адрес из реестра `lib/navigation/legacyGateways.ts` (поле `to`).'
+        '\n\nВозьмите новый адрес (он указан в скобках).'
     ).toEqual([]);
+  });
+
+  it('таблица маршрутов уведомлений не собирает удалённый адрес', () => {
+    const bad = new Set<string>();
+    for (const type of NOTIFICATION_ROUTE_TYPES) {
+      for (const cabinet of NOTIFICATION_ROUTE_CABINETS) {
+        for (const meta of metas()) {
+          const route = notificationRoute(type, meta, cabinet);
+          if (route && isRemovedPath(route)) bad.add(`${type} × ${cabinet} → ${route}`);
+        }
+      }
+    }
+    expect([...bad], 'уведомление поведёт в 404').toEqual([]);
+  });
+
+  it('сохранённая ссылка уведомления на удалённый адрес не используется', () => {
+    // Заказчику и партнёру `meta.url` важнее таблицы — старая строка в базе
+    // отправила бы их в 404. Вместо неё — адрес по таблице.
+    expect(
+      notificationHref('partner', 'payment_received', { url: '/partner/deals/o1', orderId: 'o1' })
+    ).toBe('/partner/orders/o1');
+    expect(
+      notificationHref('organization', 'order_status_changed', {
+        url: 'https://lk.example/organization/team?x=1',
+        orderId: 'o1',
+      })
+    ).toBe('/organization/orders/o1');
+    // Сотруднику — тоже: при пустой таблице ссылки нет, а не ссылка в 404.
+    expect(notificationHref('admin', 'нет_такого_типа', { url: '/admin/sync' })).toBeNull();
+    // Живой адрес с похожим началом — не удалённый.
+    expect(
+      notificationHref('admin', 'нет_такого_типа', {
+        url: '/admin/settings/security/personal-data',
+      })
+    ).toBe('/admin/settings/security/personal-data');
   });
 });
