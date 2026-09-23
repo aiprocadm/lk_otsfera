@@ -121,6 +121,28 @@ describe('setCompanyTaxSettingsAction — разбор формы', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/leader/settings');
   });
 
+  // Прогон сопровождения №37 (критерий §0.3): срок действия КП из формы
+  // доезжает до сервиса сырой строкой — и пустой тоже (сервис объяснит), а не
+  // пропадает молча; формы без поля его не передают вовсе.
+  it('срок действия КП передаётся сервису как есть, включая пустой', async () => {
+    await setCompanyTaxSettingsAction(
+      'leader',
+      fd({ companyId: 'co-1', defaultVatRate: '0.2', proposalValidDays: '30' })
+    );
+    expect(setCompanyTaxSettings).toHaveBeenLastCalledWith({}, LEADER, 'co-1', {
+      defaultVatRate: '0.2',
+      pricesIncludeVat: false,
+      proposalValidDays: '30',
+    });
+
+    await setCompanyTaxSettingsAction('leader', fd({ companyId: 'co-1', proposalValidDays: '' }));
+    expect(setCompanyTaxSettings).toHaveBeenLastCalledWith({}, LEADER, 'co-1', {
+      defaultVatRate: null,
+      pricesIncludeVat: false,
+      proposalValidDays: '',
+    });
+  });
+
   it('ошибка сервиса возвращается как есть, без ревалидации', async () => {
     setCompanyTaxSettings.mockResolvedValue({ ok: false, error: 'forbidden' });
     expect(

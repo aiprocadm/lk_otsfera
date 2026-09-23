@@ -151,16 +151,16 @@ describe('listOrderStudentOptions', () => {
     });
   });
 
-  // Заказ без организации на практике не встречается (Order.organizationId
-  // обязателен), но защитная ветка со страницы сохранена: фильтра нет — для
-  // Prisma пустой where и `organizationId: undefined` эквивалентны.
-  it('заказ без организации: запрос уходит без фильтра по организации', async () => {
-    const findMany = vi.fn().mockResolvedValue([]);
+  // Прогон сопровождения №37: заказ без организации на практике не
+  // встречается, но защитная ветка раньше уходила в базу с пустым where —
+  // селект получал слушателей ВСЕЙ платформы. Страховка обязана отказывать:
+  // пустой список и ни одного запроса.
+  it('заказ без организации: пустой список, в базу не ходим', async () => {
+    const findMany = vi.fn().mockResolvedValue([{ id: 's-foreign', name: 'Чужой', email: 'x@y' }]);
     const prisma = { student: { findMany } } as never;
 
-    await listOrderStudentOptions(prisma, null);
-
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
+    expect(await listOrderStudentOptions(prisma, null)).toEqual([]);
+    expect(findMany).not.toHaveBeenCalled();
   });
 });
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button, Field, Input, Select } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
+import { PROPOSAL_VALID_DAYS_MAX, PROPOSAL_VALID_DAYS_MIN } from '@/lib/config/proposal';
 import type { DocumentNumbering } from '@/lib/services/admin/companyBranding';
 import {
   setCompanyNumberingAction,
@@ -13,8 +14,8 @@ import {
 import type { SettingsCabinet } from '@/lib/navigation/settings';
 
 /**
- * Этап 5 (`У-138`) — блоки «Налоги» и «Нумерация документов» экрана
- * «Реквизиты исполнителя». Клиентская пара к server-actions
+ * Этап 5 (`У-138`) — блоки «Налоги и коммерческие предложения» и «Нумерация
+ * документов» экрана «Реквизиты исполнителя». Клиентская пара к server-actions
  * `companyBranding`: границу компании (админ — любая, руководитель — своя)
  * энфорсит сервис, здесь только формы.
  */
@@ -57,6 +58,7 @@ export function CompanyTaxForm({
   companyId,
   defaultVatRate,
   pricesIncludeVat,
+  proposalValidDays,
 }: {
   /** Кабинет для гарда раздела в action (`requireSettingsSection`). */
   cabinet: SettingsCabinet;
@@ -64,6 +66,8 @@ export function CompanyTaxForm({
   /** Ставка строкой фиксированной точности ('0.2000') или null = не облагается. */
   defaultVatRate: string | null;
   pricesIncludeVat: boolean;
+  /** Срок действия КП по умолчанию, дней (`У-162`; прогон сопровождения №37). */
+  proposalValidDays: number;
 }) {
   const router = useRouter();
   const uid = useId();
@@ -85,7 +89,7 @@ export function CompanyTaxForm({
       setError(renderFailure(res));
       return;
     }
-    toast.success('Налоговые настройки сохранены.');
+    toast.success('Настройки налогов и КП сохранены.');
     router.refresh();
   }
 
@@ -113,6 +117,28 @@ export function CompanyTaxForm({
         />
         цены включают НДС
       </label>
+
+      {/* Прогон сопровождения №37 (критерий §0.3): срок раньше правился только
+          в базе. Поле обязательное — пустое сервис всё равно отклонит. */}
+      <Field
+        htmlFor={`${uid}-proposal-days`}
+        label="Срок действия КП по умолчанию, дней"
+        hint="Столько дней действует новое коммерческое предложение, если дату не указать вручную."
+      >
+        <Input
+          id={`${uid}-proposal-days`}
+          name="proposalValidDays"
+          type="number"
+          inputMode="numeric"
+          min={PROPOSAL_VALID_DAYS_MIN}
+          max={PROPOSAL_VALID_DAYS_MAX}
+          step={1}
+          required
+          disabled={busy}
+          defaultValue={proposalValidDays}
+          className="w-32"
+        />
+      </Field>
 
       <div>
         <Button type="submit" size="sm" loading={busy}>

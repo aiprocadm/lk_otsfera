@@ -60,6 +60,15 @@ describe('moveFunnelLeadAction', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/leader/funnel');
     expect(revalidatePath).toHaveBeenCalledWith('/manager/funnel');
   });
+  // Прогон сопровождения №37: перенос меняет статус лида и может создать
+  // сделку или заказ — списки, где это видно, тоже сбрасываются.
+  it('refreshes leads, deal boards and orders after a successful move', async () => {
+    moveFunnelLead.mockResolvedValue({ ok: true });
+    await moveFunnelLeadAction(form({ leadId: 'l1', toStageId: 'default:promoted_to_deal' }));
+    for (const path of ['/manager/leads', '/manager/deals', '/leader/deals', '/manager/orders']) {
+      expect(revalidatePath).toHaveBeenCalledWith(path);
+    }
+  });
   it('missing ids → not_found, no service call', async () => {
     expect(await moveFunnelLeadAction(form({ leadId: 'l1' }))).toEqual({
       ok: false,

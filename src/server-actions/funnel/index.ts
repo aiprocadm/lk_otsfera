@@ -26,6 +26,19 @@ function revalidate(): void {
   revalidatePath('/manager/funnel');
 }
 
+/**
+ * Прогон сопровождения №37 (зеркало сброса в deals/index.ts): перенос карточки
+ * меняет статус лида, а перенос в «Передан в сделку» / «Передан в заказ»
+ * создаёт сделку или заказ. Без сброса список лидов, канбан сделок и список
+ * заказов показывали состояние до переноса.
+ */
+function revalidateLeadConsumers(): void {
+  revalidatePath('/manager/leads');
+  revalidatePath('/manager/deals');
+  revalidatePath('/leader/deals');
+  revalidatePath('/manager/orders');
+}
+
 export async function moveFunnelLeadAction(
   fd: FormData
 ): Promise<ActionResult<MoveFunnelLeadError>> {
@@ -42,6 +55,7 @@ export async function moveFunnelLeadAction(
   });
   if (!res.ok) return { ok: false, error: res.error };
   revalidate();
+  revalidateLeadConsumers();
   return { ok: true };
 }
 

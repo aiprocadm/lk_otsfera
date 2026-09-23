@@ -8,6 +8,7 @@ import { getQueue } from '@/lib/jobs/queues';
 import type { ScanDocumentPayload } from '@/lib/jobs/types';
 import { log } from '@/lib/logging';
 import { BRANDING_MAX_BYTES, BRANDING_MAX_FILE_MB } from '@/lib/config/branding';
+import { PROPOSAL_VALID_DAYS_MAX, PROPOSAL_VALID_DAYS_MIN } from '@/lib/config/proposal';
 import { VAT_RATES } from './catalogItems';
 
 /**
@@ -49,37 +50,68 @@ export function guardCompany(session: SessionPayload, companyId: string): Forbid
 }
 
 // ---------------------------------------------------------------------------
-// Налоги (`У-138`): ставка НДС по умолчанию + «цены включают НДС»
+// Налоги (`У-138`): ставка НДС по умолчанию + «цены включают НДС»; и срок
+// действия КП по умолчанию (`У-162`) — тот же блок экрана.
 // ---------------------------------------------------------------------------
+
+/**
+ * Срок действия КП в днях: только целое число в границах. `Number('')` = 0 и
+ * `Number('1e2')` = 100, поэтому сначала проверяем, что это одни цифры.
+ */
+function parseProposalValidDays(raw: string): number | null {
+  const text = raw.trim();
+  if (!/^\d+$/.test(text)) return null;
+  const days = Number(text);
+  return days >= PROPOSAL_VALID_DAYS_MIN && days <= PROPOSAL_VALID_DAYS_MAX ? days : null;
+}
 
 export async function setCompanyTaxSettings(
   prisma: PrismaClient,
   session: SessionPayload,
   companyId: string,
-  input: { defaultVatRate: string | null; pricesIncludeVat: boolean }
+  input: {
+    defaultVatRate: string | null;
+    pricesIncludeVat: boolean;
+    /**
+     * Прогон сопровождения №37 (критерий §0.3): срок действия КП по умолчанию,
+     * сырой строкой из формы. Не передан — столбец не трогаем (форма без поля).
+     */
+    proposalValidDays?: string | undefined;
+  }
 ): Promise<{ ok: true } | Forbidden | NotFound | Validation> {
   const denied = guardCompany(session, companyId);
   if (denied) return denied;
+  const messages: string[] = [];
   let vatRate: string | null = null;
   if (input.defaultVatRate !== null) {
     const rate = Number(input.defaultVatRate);
     if (!VAT_RATES.includes(rate as (typeof VAT_RATES)[number])) {
-      return {
-        ok: false,
-        error: 'validation',
-        messages: ['Ставка НДС: 0%, 5%, 7%, 10%, 20% или «не облагается»'],
-      };
+      messages.push('Ставка НДС: 0%, 5%, 7%, 10%, 20% или «не облагается»');
     }
     vatRate = rate.toFixed(4);
   }
+  let proposalValidDays: number | undefined;
+  if (input.proposalValidDays !== undefined) {
+    const days = parseProposalValidDays(input.proposalValidDays);
+    if (days === null) {
+      messages.push(
+        `Срок действия КП: целое число дней от ${PROPOSAL_VALID_DAYS_MIN} до ${PROPOSAL_VALID_DAYS_MAX}`
+      );
+    } else {
+      proposalValidDays = days;
+    }
+  }
+  if (messages.length > 0) return { ok: false, error: 'validation', messages };
   const before = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { defaultVatRate: true, pricesIncludeVat: true },
+    select: { defaultVatRate: true, pricesIncludeVat: true, proposalValidDays: true },
   });
   if (!before) return { ok: false, error: 'not_found' };
+  // exactOptionalPropertyTypes + аргументы Prisma: «ключа нет» ≠ «ключ = undefined».
+  const daysPatch = proposalValidDays !== undefined ? { proposalValidDays } : {};
   await prisma.company.update({
     where: { id: companyId },
-    data: { defaultVatRate: vatRate, pricesIncludeVat: input.pricesIncludeVat },
+    data: { defaultVatRate: vatRate, pricesIncludeVat: input.pricesIncludeVat, ...daysPatch },
   });
   await recordAudit(prisma, {
     userId: session.sub,
@@ -89,8 +121,9 @@ export async function setCompanyTaxSettings(
     before: {
       defaultVatRate: before.defaultVatRate === null ? null : before.defaultVatRate.toFixed(4),
       pricesIncludeVat: before.pricesIncludeVat,
+      ...(proposalValidDays !== undefined ? { proposalValidDays: before.proposalValidDays } : {}),
     },
-    after: { defaultVatRate: vatRate, pricesIncludeVat: input.pricesIncludeVat },
+    after: { defaultVatRate: vatRate, pricesIncludeVat: input.pricesIncludeVat, ...daysPatch },
   });
   return { ok: true };
 }

@@ -22,6 +22,9 @@ export type CompanyRequisites = RequisitesValues & {
   // `У-138`: налоги и нумерация — блоки того же экрана «Реквизиты исполнителя».
   defaultVatRate: string | null;
   pricesIncludeVat: boolean;
+  // Прогон сопровождения №37 (`У-162`, критерий §0.3): срок действия КП по
+  // умолчанию, дней — правится в том же блоке, что и НДС.
+  proposalValidDays: number;
   numbering: DocumentNumbering | null;
   // `У-169` (этап 8): правило выгрузки в 1С — четвёртый блок того же экрана.
   oneCDocumentPushMode: OneCDocumentPushMode;
@@ -47,6 +50,7 @@ const REQ_SELECT = {
   email: true,
   defaultVatRate: true,
   pricesIncludeVat: true,
+  proposalValidDays: true,
   documentNumbering: true,
   oneCDocumentPushMode: true,
   oneCDocumentPushTypes: true,

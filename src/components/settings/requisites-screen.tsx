@@ -88,10 +88,13 @@ export function RequisitesScreen({
 
             <section className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
               <div>
-                <h2 className="text-sm font-semibold text-[#111111]">Налоги</h2>
+                <h2 className="text-sm font-semibold text-[#111111]">
+                  Налоги и коммерческие предложения
+                </h2>
                 {/* §15: подзаголовок объясняет, что здесь делают. */}
                 <p className="text-xs text-gray-500">
-                  Ставка НДС по умолчанию — подставляется в новые строки заказов и документы.
+                  Ставка НДС и срок действия КП по умолчанию — подставляются в новые заказы и
+                  документы.
                 </p>
               </div>
               <CompanyTaxForm
@@ -99,6 +102,7 @@ export function RequisitesScreen({
                 companyId={c.id}
                 defaultVatRate={c.defaultVatRate}
                 pricesIncludeVat={c.pricesIncludeVat}
+                proposalValidDays={c.proposalValidDays}
               />
             </section>
 
