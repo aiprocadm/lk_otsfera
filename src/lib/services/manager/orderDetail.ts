@@ -81,19 +81,20 @@ export type OrderStudentOption = { id: string; name: string; email: string | nul
  * `organizationId` берётся из уже проверенного заказа. Отдельной проверки прав
  * здесь нет намеренно — вызывать сервис с произвольной организацией нельзя.
  *
- * `organizationId = null` — защитная ветка: на странице она была записана как
- * `organizationId ?? undefined`, то есть «фильтра нет» (для Prisma `undefined`
- * и отсутствующий ключ — одно и то же). Здесь это записано пустым `where`:
- * поведение то же, но проходит `exactOptionalPropertyTypes`. В реальных данных
- * `Order.organizationId` не бывает null — ветка остаётся страховкой.
+ * `organizationId = null` — защитная ветка, и она ЗАКРЫТА (пустой список).
+ * Прогон сопровождения №37: раньше здесь стоял пустой `where` («фильтра нет»,
+ * наследие `organizationId ?? undefined` со страницы) — то есть заказ без
+ * организации открыл бы в селекте слушателей ВСЕЙ платформы, чужих компаний
+ * тоже. Страховка обязана отказывать, а не открывать: в реальных данных
+ * `Order.organizationId` не бывает null, и пустой селект здесь честнее утечки.
  */
 export async function listOrderStudentOptions(
   prisma: PrismaClient,
   organizationId: string | null
 ): Promise<OrderStudentOption[]> {
-  const where: Prisma.StudentWhereInput = organizationId === null ? {} : { organizationId };
+  if (organizationId === null) return [];
   return prisma.student.findMany({
-    where,
+    where: { organizationId },
     select: { id: true, name: true, email: true },
     orderBy: { name: 'asc' },
   });
