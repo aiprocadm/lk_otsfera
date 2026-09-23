@@ -6,6 +6,7 @@ import { resolveTaskColumns, columnForTask, type TaskColumnView } from '@/lib/ta
 import { recordAudit } from '@/lib/auth/audit';
 import { taskLinkField, taskLinkValue, type TaskLinkRef } from '@/lib/tasks/links';
 import { parseRecurrence, type RecurrenceRule } from '@/lib/tasks/recurrence';
+import { pastDueWhere } from '@/lib/tasks/due';
 import { hasOpenChecklistItems } from './checklist';
 import { materializeNextOccurrenceSafely } from './recurrence';
 
@@ -195,7 +196,10 @@ export function taskFiltersWhere(
     and.push({ assignees: { some: { userId: filters.assigneeId } } });
   }
   if (filters?.overdue) {
-    and.push({ dueDate: { lt: now }, status: { not: 'done' } });
+    // Прогон сопровождения №36 (`Р-М-3`): просрочена, когда закончился
+    // московский день срока, а не «срок < сейчас» — иначе задача со сроком
+    // из формы (полночь UTC = 03:00 МСК) краснела в сам день срока.
+    and.push({ dueDate: pastDueWhere(now), status: { not: 'done' } });
   }
   return and.length === 1 ? base : { AND: and };
 }

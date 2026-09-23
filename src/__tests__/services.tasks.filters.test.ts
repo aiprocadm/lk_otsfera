@@ -80,11 +80,43 @@ describe('taskFiltersWhere', () => {
     });
   });
 
-  it('overdue — срок в прошлом и статус не done', () => {
+  it('overdue — московский день срока закончился и статус не done', () => {
     const w = taskFiltersWhere(manager(), { overdue: true }, NOW);
+    // Прогон сопровождения №36 (`Р-М-3`): граница — 00:00 МСК «сегодня»
+    // (NOW = 26.07 15:00 МСК), а не сам момент. Прежнее ожидание
+    // `dueDate: { lt: NOW }` закрепляло дефект: срок «26.07» из формы
+    // (полночь UTC = 03:00 МСК) краснел в сам день срока.
     expect(w).toEqual({
-      AND: [{ companyId: 'co-A' }, { dueDate: { lt: NOW }, status: { not: 'done' } }],
+      AND: [
+        { companyId: 'co-A' },
+        { dueDate: { lt: new Date('2026-07-26T00:00:00+03:00') }, status: { not: 'done' } },
+      ],
     });
+  });
+
+  it('overdue на краях суток: форма (полночь UTC) и Битрикс24 (00:00–03:00 МСК)', () => {
+    const overdueAt = (now: Date) => {
+      const w = taskFiltersWhere(manager(), { overdue: true }, now) as {
+        AND: [unknown, { dueDate: { lt: Date } }];
+      };
+      return (due: Date) => due < w.AND[1].dueDate.lt;
+    };
+    // Срок из формы задачи — `new Date(<input type="date">)`.
+    const FORM_DUE = new Date('2026-07-26');
+    // Срок из Битрикс24 «27.07 01:30 МСК» — адаптер хранит 26.07 22:30 UTC.
+    const BITRIX_DUE = new Date('2026-07-27T01:30:00+03:00');
+
+    // Весь день 26.07 по Москве срок «26.07» не просрочен — и в 03:00
+    // (прежний момент «покраснения»), и в 23:59.
+    expect(overdueAt(new Date('2026-07-26T03:00:00+03:00'))(FORM_DUE)).toBe(false);
+    expect(overdueAt(new Date('2026-07-26T23:59:00+03:00'))(FORM_DUE)).toBe(false);
+    // 27.07 00:30 МСК (сервер ещё в 26.07, 21:30 UTC) — день срока закончился.
+    const night = overdueAt(new Date('2026-07-27T00:30:00+03:00'));
+    expect(night(FORM_DUE)).toBe(true);
+    // Срок Битрикс24 «27.07 01:30 МСК» в 02:00 МСК 27.07 уже прошёл по часам,
+    // но его московский день ещё идёт — не просрочен.
+    expect(overdueAt(new Date('2026-07-27T02:00:00+03:00'))(BITRIX_DUE)).toBe(false);
+    expect(overdueAt(new Date('2026-07-28T00:00:00+03:00'))(BITRIX_DUE)).toBe(true);
   });
 
   it('комбинация всех фильтров', () => {

@@ -1,5 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { recordNotification, deliverNotificationToUser } from '@/lib/notifications';
+import { fmtDate } from '@/lib/format';
+import { dueByWhere } from '@/lib/tasks/due';
 
 /**
  * Этап 7 (ФТ-7.2) — дневной джоб «скоро срок задачи»: dueDate ≤ конца завтрашнего
@@ -13,22 +15,17 @@ import { recordNotification, deliverNotificationToUser } from '@/lib/notificatio
 
 const BATCH_LIMIT = 500;
 
-function endOfTomorrow(now: Date): Date {
-  const d = new Date(now);
-  d.setDate(d.getDate() + 1);
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
-
 export async function runTaskDueSoon(
   prisma: PrismaClient,
   now: Date
 ): Promise<{ notified: number }> {
-  const horizon = endOfTomorrow(now);
-
   const tasks = await prisma.task.findMany({
     where: {
-      dueDate: { not: null, lte: horizon },
+      // «До конца завтрашнего дня» — по МОСКОВСКОМУ календарю (прогон №36,
+      // `Р-М-3`). Было `setDate`/`setHours` в поясе процесса, а процесс живёт
+      // в UTC: конец «завтра» наступал в 02:59 МСК послезавтра, и срок из
+      // Битрикс24 «послезавтра 01:30 МСК» получал «скоро срок» на день раньше.
+      dueDate: { not: null, ...dueByWhere(now, 1) },
       status: { not: 'done' },
       dueSoonNotifiedAt: null,
     },
@@ -53,8 +50,9 @@ export async function runTaskDueSoon(
 
     const recipients =
       task.assignees.length > 0 ? task.assignees.map((a) => a.userId) : [task.createdById];
+    // Дата — по Москве (`fmtDate`), как на экране задачи.
     /* v8 ignore next -- defensive: where-фильтр отбирает только dueDate != null */
-    const dueLabel = task.dueDate ? new Date(task.dueDate).toLocaleDateString('ru-RU') : '';
+    const dueLabel = task.dueDate ? fmtDate(task.dueDate) : '';
     const title = 'Скоро срок задачи';
     const body = `«${task.title}» — срок ${dueLabel}.`;
     // `У-232`: ссылку на карточку задачи строит таблица маршрутов по `taskId`

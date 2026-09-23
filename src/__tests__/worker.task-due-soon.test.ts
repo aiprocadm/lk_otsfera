@@ -17,7 +17,11 @@ vi.mock('@/lib/db/prisma', () => ({
 
 import { runTaskDueSoon, taskDueSoonProcessor } from '@/worker/processors/task-due-soon';
 
-const NOW = new Date('2026-07-26T07:00:00');
+// Прогон сопровождения №36 (`Р-М-3`): моменты — с явным московским поясом.
+// Прежние `new Date('2026-07-26T07:00:00')` без пояса читались в зоне
+// процесса, и тест проверял ровно то, что было сломано: «конец завтра» в UTC.
+// 07:00 МСК — время расписания `notifications.taskDueSoon.cron`.
+const NOW = new Date('2026-07-26T07:00:00+03:00');
 
 function makePrisma(tasks: unknown[], claimCount = 1) {
   const findMany = vi.fn().mockResolvedValue(tasks);
@@ -29,7 +33,8 @@ function makePrisma(tasks: unknown[], claimCount = 1) {
 const TASK = {
   id: 't1',
   title: 'Позвонить',
-  dueDate: new Date('2026-07-27T00:00:00'),
+  // Срок из формы задачи: `new Date(<input type="date">)` — полночь UTC.
+  dueDate: new Date('2026-07-27'),
   createdById: 'creator',
   assignees: [{ userId: 'u1' }, { userId: 'u2' }, { userId: 'u1' }],
 };
@@ -48,10 +53,40 @@ describe('runTaskDueSoon', () => {
     const where = findMany.mock.calls[0]![0].where;
     expect(where.status).toEqual({ not: 'done' });
     expect(where.dueSoonNotifiedAt).toBeNull();
-    // Горизонт — конец завтрашнего дня (23:59:59.999 от NOW+1д).
-    const lte: Date = where.dueDate.lte;
-    expect(lte.getDate()).toBe(27);
-    expect(lte.getHours()).toBe(23);
+    // Горизонт — конец завтрашнего МОСКОВСКОГО дня: до 00:00 МСК послезавтра.
+    expect(where.dueDate).toEqual({ not: null, lt: new Date('2026-07-28T00:00:00+03:00') });
+  });
+
+  it('«до конца завтра» — по московскому календарю в любой час прогона (прогон №36)', async () => {
+    async function pickedAt(now: Date): Promise<(due: Date) => boolean> {
+      const { prisma, findMany } = makePrisma([]);
+      await runTaskDueSoon(prisma, now);
+      const { lt } = findMany.mock.calls[0]![0].where.dueDate as { lt: Date };
+      return (due) => due < lt;
+    }
+    // Утренний прогон 26.07 07:00 МСК. Срок из Битрикс24 «28.07 01:30 МСК»
+    // (= 27.07 22:30 UTC) — ПОСЛЕзавтра, не «скоро»; прежний «конец завтра»
+    // через `setHours(23, 59, …)` в поясе процесса (UTC) его захватывал.
+    const morning = await pickedAt(NOW);
+    expect(morning(new Date('2026-07-28T01:30:00+03:00'))).toBe(false);
+    // «Завтра 23:59 МСК» (27.07 20:59 UTC) — ещё завтра.
+    expect(morning(new Date('2026-07-27T23:59:00+03:00'))).toBe(true);
+
+    // Ночной прогон 26.07 01:30 МСК (сервер в UTC ещё живёт 25.07). Час прогона
+    // — не часть правила: задача, догнавшая очередь после простоя воркера,
+    // обязана ответить так же, как утренняя. Завтрашний срок из формы (27.07,
+    // полночь UTC) — «скоро»; прежний код считал «завтра» от 25.07 и терял его.
+    const night = await pickedAt(new Date('2026-07-26T01:30:00+03:00'));
+    expect(night(new Date('2026-07-27'))).toBe(true);
+    expect(night(new Date('2026-07-28'))).toBe(false);
+  });
+
+  it('дата в тексте — по Москве: срок Битрикс24 01:30 МСК не «съезжает» на вчера', async () => {
+    // Срок «27.07 01:30 МСК» хранится как 26.07 22:30 UTC (так его отдаёт
+    // адаптер Битрикс24: `new Date('2026-07-27T01:30:00+03:00')`).
+    const { prisma } = makePrisma([{ ...TASK, dueDate: new Date('2026-07-27T01:30:00+03:00') }]);
+    await runTaskDueSoon(prisma, NOW);
+    expect(recordNotification.mock.calls[0]![1].body).toBe('«Позвонить» — срок 27.07.2026.');
   });
 
   it('повтор за час (deduped: true) — строка «×N», доставка не зовётся, задача засчитана', async () => {

@@ -28,6 +28,20 @@ import { readSource } from './helpers/source';
 const ROOT = join(__dirname, '..', '..');
 const MIDNIGHT = /setHours\(\s*0\s*,\s*0\s*,\s*0/;
 
+/** Московская граница прямо из `lib/dates/calendar` (или явный пояс). */
+const MOSCOW_HELPER = /startOfMoscow(Day|Month|Year)\(|moscowMonthRange\(|Europe\/Moscow/;
+
+/**
+ * Или через правило сроков `lib/tasks/due.ts` (прогон сопровождения №36,
+ * `Р-М-3`): удостоверения, счётчики на главных и задачи берут границу оттуда,
+ * чтобы выборка и значок считали одно и то же. Сам модуль правила проверяется
+ * отдельно и строго — он обязан звать `startOfMoscowDay`, иначе цепочка
+ * «файл → правило → московский помощник» рвалась бы незаметно: имена его
+ * функций встречаются в нём самом и совпали бы с этим шаблоном.
+ */
+const DUE_RULE = /\b(pastDueWhere|dueByWhere|dueWithinDaysWhere|isPastDue|moscowDaysUntil)\(/;
+const DUE_RULE_FILE = 'src/lib/tasks/due.ts';
+
 /**
  * Вторая форма той же полуночи — сборка даты из частей часового пояса
  * процесса: `new Date(now.getFullYear(), now.getMonth(), 1)`,
@@ -145,14 +159,24 @@ describe('даты: начало суток — по Москве (`Д-22`)', ()
       // `startOfMoscowDay` — мутация «убрать вызов, оставить пояснение»
       // проходила зелёной.
       const src = readSource(join(ROOT, f));
-      expect(src, `${f}: граница суток не из московского помощника`).toMatch(
-        /startOfMoscow(Day|Month|Year)\(|moscowMonthRange\(|Europe\/Moscow/
-      );
+      expect(
+        MOSCOW_HELPER.test(src) || DUE_RULE.test(src),
+        `${f}: граница суток не из московского помощника`
+      ).toBe(true);
       expect(src, `${f}: вернулась полночь процесса`).not.toMatch(MIDNIGHT);
       expect(buildsLocalDate(src), `${f}: вернулась полночь процесса (сборка даты из частей)`).toBe(
         false
       );
     }
+  });
+
+  it('правило сроков само берёт границу из startOfMoscowDay (прогон №36)', () => {
+    const src = readSource(join(ROOT, DUE_RULE_FILE));
+    expect(src, `${DUE_RULE_FILE}: граница суток не из московского помощника`).toMatch(
+      /startOfMoscowDay\(/
+    );
+    expect(src, `${DUE_RULE_FILE}: вернулась полночь процесса`).not.toMatch(MIDNIGHT);
+    expect(buildsLocalDate(src), `${DUE_RULE_FILE}: сборка даты из частей`).toBe(false);
   });
 
   it('новых мест с полуночью процесса не появилось', () => {

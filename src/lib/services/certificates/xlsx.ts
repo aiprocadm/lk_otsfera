@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import { certificateStatus, type CertificateRow } from '@/lib/services/training/certificates';
+import { fmtDate } from '@/lib/format';
 
 /**
  * Xlsx-рендерер клиентского реестра удостоверений (этап 3 PR-2, ФТ-6.5 /
@@ -22,10 +23,6 @@ const STATUS_RU: Record<ReturnType<typeof certificateStatus>, string> = {
 // формулу — префиксуем одинарной кавычкой (как в commission/xlsx.ts).
 function safeText(value: string): string {
   return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-}
-
-function fmt(d: Date): string {
-  return new Date(d).toLocaleDateString('ru-RU');
 }
 
 export function renderCertificatesXlsx(args: {
@@ -70,8 +67,12 @@ export function renderCertificatesXlsx(args: {
       ...(args.showOrganization ? { organization: safeText(c.organization.name) } : {}),
       direction: safeText(c.direction.name),
       number: safeText(c.number),
-      issuedAt: fmt(c.issuedAt),
-      validUntil: c.validUntil ? fmt(c.validUntil) : 'бессрочно',
+      // Даты — по Москве (`fmtDate`, прогон №36), как в реестре на экране:
+      // файл собирается на сервере в UTC, и без пояса выдача в 00:00–03:00
+      // МСК попадала бы во вчерашний день. Статус — тем же `certificateStatus`,
+      // что и значок реестра, по московскому дню.
+      issuedAt: fmtDate(c.issuedAt),
+      validUntil: c.validUntil ? fmtDate(c.validUntil) : 'бессрочно',
       status: STATUS_RU[certificateStatus(c.validUntil, now)],
       scan: c.documentId ? 'есть' : 'готовится',
     });

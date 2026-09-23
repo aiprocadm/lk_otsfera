@@ -3,6 +3,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { managerOrderScope } from '@/lib/auth/managerPolicy';
 import { taskWhereForLevel } from '@/lib/auth/accessProfile';
 import { auditActionLabel } from '@/lib/audit/labels';
+import { fmtDate } from '@/lib/format';
 import { recordPiiAccess } from '@/lib/pii/record';
 import { DIALOG_CHANNEL_LABELS, isDialogChannel } from '@/lib/services/messengers/channels';
 import { isUserOwnedChannel } from './channels';
@@ -418,7 +419,9 @@ export async function listContactTab(
             r.assignees.length > 0
               ? r.assignees.map((a) => a.user.name).join(', ')
               : 'без исполнителя',
-            r.dueDate ? `до ${r.dueDate.toLocaleDateString('ru-RU')}` : null,
+            // По Москве (`fmtDate`, прогон №36): срок из Битрикс24 со временем
+            // 00:00–03:00 МСК сервер в UTC подписывал вчерашним днём.
+            r.dueDate ? `до ${fmtDate(r.dueDate)}` : null,
           ]
             .filter(Boolean)
             .join(' · '),

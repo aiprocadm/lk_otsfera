@@ -5,6 +5,8 @@ import { DIALOG_STATUS } from '@/lib/services/messengers/dialogStatus';
 import { MESSENGER_LABELS, isMessengerChannel } from '@/lib/services/messengers/channels';
 import { log } from '@/lib/logging';
 import { emitAutomationEvent } from '@/lib/automation/dispatch';
+import { fmtDate } from '@/lib/format';
+import { pastDueWhere } from '@/lib/tasks/due';
 
 /**
  * Этап 7 (§4.4, ФТ-8.5, PR-3) — SLA-эскалация Intake: единицы БЕЗ
@@ -339,7 +341,10 @@ async function notifyOverdueAssignees(
     where: {
       companyId: company.id,
       status: { not: 'done' },
-      dueDate: { lt: now },
+      // Прогон №36 (`Р-М-3`): «в день просрочки» — это первый московский день
+      // ПОСЛЕ дня срока. Прежнее «срок < сейчас» (прогон каждые 30 минут)
+      // будило исполнителя в 03:00 по Москве в сам день срока.
+      dueDate: pastDueWhere(now),
       overdueNotifiedAt: null,
     },
     orderBy: { dueDate: 'asc' },
@@ -366,7 +371,9 @@ async function notifyOverdueAssignees(
     const recipients =
       task.assignees.length > 0 ? task.assignees.map((a) => a.userId) : [task.createdById];
     const title = 'Задача просрочена';
-    const due = task.dueDate ? new Date(task.dueDate).toLocaleDateString('ru-RU') : '—';
+    // Дата — по Москве (`fmtDate`): срок из Битрикс24 «25.09 01:30 МСК»
+    // хранится как 24.09 22:30 UTC, и без пояса письмо называло бы 24.09.
+    const due = task.dueDate ? fmtDate(task.dueDate) : '—';
     const body = `«${task.title}»: срок был ${due}.`;
     await notifyTask(prisma, recipients, task.id, title, body);
     sent += 1;
@@ -384,12 +391,14 @@ async function escalateOverdueToLeaders(
   // `0` — компания выключила эскалацию. Руководителей нет — сообщать некому.
   if (days <= 0 || company.leaders.length === 0) return 0;
 
-  const deadline = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
   const tasks = await prisma.task.findMany({
     where: {
       companyId: company.id,
       status: { not: 'done' },
-      dueDate: { lt: deadline },
+      // «На N-й день просрочки» по московскому календарю (прогон №36): срок
+      // «10.09» при N = 3 уходит руководителю 13.09 с 00:00 МСК. Прежнее
+      // «срок < сейчас − N суток» считало от 03:00 МСК дня срока.
+      dueDate: pastDueWhere(now, days),
       overdueEscalatedAt: null,
     },
     orderBy: { dueDate: 'asc' },
@@ -405,7 +414,7 @@ async function escalateOverdueToLeaders(
     });
     if (claimed.count === 0) continue;
 
-    const due = task.dueDate ? new Date(task.dueDate).toLocaleDateString('ru-RU') : '—';
+    const due = task.dueDate ? fmtDate(task.dueDate) : '—';
     await notifyTask(
       prisma,
       company.leaders,

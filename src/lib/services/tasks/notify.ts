@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db/prisma';
 import { recordNotification, deliverNotificationToUser } from '@/lib/notifications';
 import { log } from '@/lib/logging';
+import { fmtDate } from '@/lib/format';
 
 /**
  * Этап 7 (ФТ-7.2) — уведомления по задачам. Fan-out деградирует gracefully (§3
@@ -21,7 +22,10 @@ export async function notifyTaskAssigned(args: {
   if (recipients.length === 0) return;
 
   const title = 'Вам назначена задача';
-  const due = args.dueDate ? `, срок до ${new Date(args.dueDate).toLocaleDateString('ru-RU')}` : '';
+  // Дата — по Москве (`fmtDate`, прогон №36): срок из Битрикс24 «25.09 01:30
+  // МСК» хранится как 24.09 22:30 UTC, и без пояса сервер (UTC) написал бы
+  // «до 24.09» — на день раньше, чем на экране задачи.
+  const due = args.dueDate ? `, срок до ${fmtDate(args.dueDate)}` : '';
   const body = `«${args.taskTitle}»${due}.`;
   const meta = { taskId: args.taskId };
 

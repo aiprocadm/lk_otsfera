@@ -103,9 +103,12 @@ describe('страж: просрочка напоминает дважды и в
     const where = taskFindMany.mock.calls[1][0].where;
     // Поле ДРУГОЕ — иначе второе напоминание никогда бы не ушло.
     expect(where.overdueEscalatedAt).toBeNull();
-    // И порог другой: не «просрочена», а «просрочена дольше трёх дней».
-    const deadline = where.dueDate.lt as Date;
-    expect(Math.round((NOW.getTime() - deadline.getTime()) / 86_400_000)).toBe(3);
+    // И порог другой: не «просрочена», а «идёт третий день просрочки». Прогон
+    // сопровождения №36 (`Р-М-3`): дни — московские. NOW = 15.09 12:00 МСК,
+    // третий день просрочки у сроков по 12.09 включительно → граница 13.09
+    // 00:00 МСК. Прежняя проверка «NOW минус трое суток» закрепляла отсчёт от
+    // 03:00 МСК дня срока.
+    expect(where.dueDate).toEqual({ lt: new Date('2026-09-13T00:00:00+03:00') });
     expect(taskUpdateMany.mock.calls[0][0].data).toEqual({ overdueEscalatedAt: NOW });
     expect(recordNotification.mock.calls[0][1].userId).toBe('boss');
   });
@@ -168,6 +171,62 @@ describe('страж: просрочка напоминает дважды и в
     tasks([TASK], [{ id: 't2', title: 'Старая', dueDate: TASK.dueDate }]);
     const res = await runTaskOverdue(prisma, NOW);
     expect(res).toEqual({ notified: 1, escalated: 1 });
+  });
+});
+
+/**
+ * Прогон сопровождения №36 (`Р-М-3`): «в день просрочки» и «на N-й день» —
+ * московские дни. Сроки — такие, какие пишут настоящие писатели: форма задачи
+ * (`new Date(<input type="date">)`, полночь UTC) и адаптер Битрикс24
+ * (`new Date('…T01:30:00+03:00')` — 22:30 UTC накануне).
+ */
+describe('просрочка — по московскому дню срока (прогон №36)', () => {
+  /** Попал бы срок в выборку исполнителю (0) или руководителю (1) в момент `now`. */
+  async function pickedAt(now: Date, which: 0 | 1): Promise<(due: Date) => boolean> {
+    tasks([], []);
+    await runTaskOverdue(prisma, now);
+    const { lt } = taskFindMany.mock.calls[which][0].where.dueDate as { lt: Date };
+    taskFindMany.mockClear();
+    return (due) => due < lt;
+  }
+
+  it('исполнителю — не в сам день срока, а с 00:00 МСК следующего', async () => {
+    const FORM_DUE = new Date('2026-09-15');
+    // 15.09 в 23:30 МСК — срок «15.09» ещё идёт (прежнее «< now» будило
+    // исполнителя в 03:00 МСК того же дня: прогон идёт каждые 30 минут).
+    expect((await pickedAt(new Date('2026-09-15T23:30:00+03:00'), 0))(FORM_DUE)).toBe(false);
+    // 16.09 00:30 МСК — сервер (UTC) ещё в 15.09, но московский день кончился.
+    expect((await pickedAt(new Date('2026-09-16T00:30:00+03:00'), 0))(FORM_DUE)).toBe(true);
+    // Срок из Битрикс24 «16.09 01:30 МСК» в 02:00 МСК 16.09 — час прошёл,
+    // день ещё нет: не просрочен.
+    const BITRIX_DUE = new Date('2026-09-16T01:30:00+03:00');
+    expect((await pickedAt(new Date('2026-09-16T02:00:00+03:00'), 0))(BITRIX_DUE)).toBe(false);
+    expect((await pickedAt(new Date('2026-09-17T00:00:00+03:00'), 0))(BITRIX_DUE)).toBe(true);
+  });
+
+  it('руководителю — на 3-й московский день просрочки, с его 00:00', async () => {
+    // Срок «10.09» из формы: просрочка 11, 12, 13.09 → письмо 13.09 с 00:00 МСК
+    // (прежний отсчёт «now − 3 суток» ждал до 03:00 МСК).
+    const FORM_DUE = new Date('2026-09-10');
+    expect((await pickedAt(new Date('2026-09-12T23:59:00+03:00'), 1))(FORM_DUE)).toBe(false);
+    expect((await pickedAt(new Date('2026-09-13T00:30:00+03:00'), 1))(FORM_DUE)).toBe(true);
+    // Срок из Битрикс24 «11.09 01:30 МСК» (10.09 22:30 UTC) — его день 11.09,
+    // третий день просрочки — 14.09.
+    const BITRIX_DUE = new Date('2026-09-11T01:30:00+03:00');
+    expect((await pickedAt(new Date('2026-09-13T23:30:00+03:00'), 1))(BITRIX_DUE)).toBe(false);
+    expect((await pickedAt(new Date('2026-09-14T00:30:00+03:00'), 1))(BITRIX_DUE)).toBe(true);
+  });
+
+  it('дата в письме — по Москве: срок Битрикс24 01:30 МСК не «съезжает» на вчера', async () => {
+    const BITRIX_DUE = new Date('2026-09-11T01:30:00+03:00');
+    tasks([{ ...TASK, dueDate: BITRIX_DUE }], [{ id: 't2', title: 'Старая', dueDate: BITRIX_DUE }]);
+    await runTaskOverdue(prisma, NOW);
+    expect(recordNotification.mock.calls[0][1].body).toBe(
+      '«Проверить документы»: срок был 11.09.2026.'
+    );
+    expect(recordNotification.mock.calls[1][1].body).toBe(
+      '«Старая»: срок был 11.09.2026, прошло больше 3 дн.'
+    );
   });
 });
 
