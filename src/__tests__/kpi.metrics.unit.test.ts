@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import { KPI_METRICS, kpiMetric, isKpiMetricKey, MAX_ACTIVE_METRICS } from '@/lib/kpi/metrics';
@@ -173,6 +173,63 @@ describe('расчёт каждого показателя', () => {
     expect(fact.total).toBe('5');
     expect(fact.byManager.get('m1')).toBe('2');
     expect(raw.task.count.mock.calls[0][0].where.companyId).toBe('c1');
+  });
+
+  /**
+   * Прогон сопровождения №36 (`Р-М-3`). Было `dueDate < to`: у текущего
+   * месяца `to` — 00:00 МСК 1 октября, и задача со сроком «28.09», открытая
+   * 23.09, уже считалась просроченной, хотя подсказка обещает счёт «на момент
+   * показа». Срок из формы — полночь UTC (03:00 МСК того же дня).
+   */
+  describe('Просроченные задачи — на момент показа, по московскому дню', () => {
+    afterEach(() => vi.useRealTimers());
+
+    async function overdueWhere(nowIso: string, period = PERIOD) {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(nowIso));
+      const { prisma, raw } = db({
+        taskAssignee: { groupBy: vi.fn(async () => []) },
+        task: { count: vi.fn(async () => 0) },
+      });
+      await kpiMetric('tasks_overdue').compute(prisma, period);
+      const byAssignee = raw.taskAssignee.groupBy.mock.calls[0][0].where.task.dueDate;
+      const unassigned = raw.task.count.mock.calls[0][0].where.dueDate;
+      // Итог и разрез считаются от одной границы — иначе они разойдутся.
+      expect(unassigned).toEqual(byAssignee);
+      return byAssignee as { lt: Date };
+    }
+
+    const overdue = (w: { lt: Date }, dueIso: string) => new Date(dueIso) < w.lt;
+
+    it('текущий месяц, 12:00 МСК 23.09: срок 28.09 — ещё не просрочен, срок 22.09 — просрочен', async () => {
+      const w = await overdueWhere('2026-09-23T09:00:00.000Z');
+      expect(w).toEqual({ lt: new Date('2026-09-22T21:00:00.000Z') });
+      expect(overdue(w, '2026-09-28T00:00:00.000Z')).toBe(false);
+      expect(overdue(w, '2026-09-23T00:00:00.000Z')).toBe(false);
+      expect(overdue(w, '2026-09-22T00:00:00.000Z')).toBe(true);
+    });
+
+    it('00:30 МСК 23.09 (21:30 UTC 22.09): срок 22.09 уже просрочен', async () => {
+      const w = await overdueWhere('2026-09-22T21:30:00.000Z');
+      expect(overdue(w, '2026-09-22T00:00:00.000Z')).toBe(true);
+    });
+
+    it('23:59 МСК 22.09: срок 22.09 ещё не просрочен — день не закончился', async () => {
+      const w = await overdueWhere('2026-09-22T20:59:00.000Z');
+      expect(overdue(w, '2026-09-22T00:00:00.000Z')).toBe(false);
+    });
+
+    it('прошедший месяц — состояние на его конец, как и было: граница `to`', async () => {
+      const august = {
+        companyId: 'c1',
+        from: new Date('2026-07-31T21:00:00.000Z'),
+        to: new Date('2026-08-31T21:00:00.000Z'),
+      };
+      const w = await overdueWhere('2026-09-23T09:00:00.000Z', august);
+      expect(w).toEqual({ lt: august.to });
+      expect(overdue(w, '2026-08-31T00:00:00.000Z')).toBe(true);
+      expect(overdue(w, '2026-09-01T00:00:00.000Z')).toBe(false);
+    });
   });
 
   it('Удостоверения: считаются по компании организации, разреза нет', async () => {

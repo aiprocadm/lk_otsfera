@@ -57,7 +57,13 @@ export async function getFinanceKpis(
 export type ListStatementsOptions = {
   partnerId: string;
   status?: string;
+  /** Начало периода не раньше этого момента (включительно). */
   from?: Date;
+  /**
+   * Начало периода строго раньше этого момента — полуоткрытая граница, как у
+   * администратора (`admin/commissionStatements.ts`, прогон №36): «по 31.08»
+   * приходит сюда московской полуночью 1 сентября.
+   */
   to?: Date;
   skip?: number;
   take?: number;
@@ -79,7 +85,7 @@ function statementsWhere(
   if (from || to) {
     where.periodFrom = {};
     if (from) (where.periodFrom as Prisma.DateTimeFilter).gte = from;
-    if (to) (where.periodFrom as Prisma.DateTimeFilter).lte = to;
+    if (to) (where.periodFrom as Prisma.DateTimeFilter).lt = to;
   }
   return where;
 }

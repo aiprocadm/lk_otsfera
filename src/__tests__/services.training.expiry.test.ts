@@ -32,3 +32,43 @@ describe('selectDueReminders', () => {
     expect(due).toEqual([{ certificateId: 'c1', thresholdDays: 7 }]);
   });
 });
+
+/**
+ * Прогон сопровождения №36 (`Р-М-3`): остаток — московские дни, как у значков
+ * реестра (`moscowDaysUntil`), а не `Math.ceil` от момента прогона. Прогон по
+ * расписанию — 07:00 МСК (04:00 UTC); удостоверение из формы хранит срок
+ * полуночью UTC (03:00 МСК того же дня).
+ */
+describe('selectDueReminders — московские дни (прогон №36)', () => {
+  it('срок «30.09 12:00 МСК», прогон 07:00 МСК 23.09 — порог 7 сегодня, а не завтра', () => {
+    const due = selectDueReminders(
+      [cert('c1', '2026-09-30T12:00:00+03:00', [30])],
+      new Date('2026-09-23T04:00:00.000Z')
+    );
+    expect(due).toEqual([{ certificateId: 'c1', thresholdDays: 7 }]);
+  });
+
+  it('прогон в 01:30 МСК 23.09 (22:30 UTC 22.09): до 30.09 ровно 7 московских дней', () => {
+    const due = selectDueReminders(
+      [cert('c1', '2026-09-30T00:00:00.000Z', [30])],
+      new Date('2026-09-22T22:30:00.000Z')
+    );
+    expect(due).toEqual([{ certificateId: 'c1', thresholdDays: 7 }]);
+  });
+
+  it('последний день: срок 30.09, прогон 07:00 МСК 30.09 — напоминание уходит', () => {
+    const due = selectDueReminders(
+      [cert('c1', '2026-09-30T00:00:00.000Z')],
+      new Date('2026-09-30T04:00:00.000Z')
+    );
+    expect(due).toEqual([{ certificateId: 'c1', thresholdDays: 7 }]);
+  });
+
+  it('00:30 МСК 01.10 (21:30 UTC 30.09): срок 30.09 уже истёк — напоминания нет', () => {
+    const due = selectDueReminders(
+      [cert('c1', '2026-09-30T00:00:00.000Z')],
+      new Date('2026-09-30T21:30:00.000Z')
+    );
+    expect(due).toEqual([]);
+  });
+});

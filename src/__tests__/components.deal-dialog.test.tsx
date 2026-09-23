@@ -242,6 +242,24 @@ describe('DealDialog', () => {
       expect((screen.getByLabelText('Ответственный') as HTMLSelectElement).value).toBe('m-2');
     });
 
+    /**
+     * Прогон сопровождения №36 (`Р-М-2`): поле даты показывает МОСКОВСКИЙ день.
+     * Битрикс24 отдаёт `CLOSEDATE` с поясом портала — «2026-09-25T00:00:00+03:00»
+     * (24.09 21:00 UTC). По UTC форма открывалась с «24.09», хотя доска писала
+     * «25.09», и «Сохранить» переносило сделку на день раньше.
+     */
+    it.each([
+      ['дата из Битрикс24 — 00:00 МСК 25.09 (24.09 21:00 UTC)', '2026-09-25T00:00:00+03:00'],
+      ['02:59 МСК 25.09 — ещё «вчера» по UTC', '2026-09-24T23:59:00.000Z'],
+      ['23:59 МСК 25.09 — последний миг московского дня', '2026-09-25T20:59:59.999Z'],
+    ])('поле «Ожидаемое закрытие» — московский день: %s', async (_label, iso) => {
+      renderCreate({ target: { ...target, expectedCloseAt: new Date(iso) } });
+      await screen.findByText('Сделка');
+      expect((screen.getByLabelText('Ожидаемое закрытие') as HTMLInputElement).value).toBe(
+        '2026-09-25'
+      );
+    });
+
     it('submit calls updateDealAction with the target id and toasts "Сделка обновлена."', async () => {
       updateDealAction.mockResolvedValue({ ok: true });
       renderCreate({ target });

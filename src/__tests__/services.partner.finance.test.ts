@@ -81,9 +81,13 @@ describe('listStatements', () => {
     );
   });
 
-  it('со статусом и диапазоном from/to строит where.periodFrom', async () => {
-    const from = new Date('2026-01-01');
-    const to = new Date('2026-02-01');
+  // Прогон сопровождения №36 (`Р-М-2`): верх диапазона полуоткрыт (`lt`), как
+  // у администратора. Прежнее ожидание `lte` закрепляло дефект: роут отдавал
+  // сюда «31.08» полуночью UTC, и ведомость за август (начало — 31.07 21:00
+  // UTC) не находилась. Роут теперь передаёт московскую полночь следующего дня.
+  it('со статусом и диапазоном from/to строит where.periodFrom (верх — строго меньше)', async () => {
+    const from = new Date('2026-01-01T00:00:00+03:00');
+    const to = new Date('2026-02-01T00:00:00+03:00');
     await listStatements(prisma, {
       partnerId: 'p1',
       status: 'approved',
@@ -94,7 +98,7 @@ describe('listStatements', () => {
     });
     const arg = findMany.mock.calls[0][0];
     expect(arg.where.status).toBe('approved');
-    expect(arg.where.periodFrom).toEqual({ gte: from, lte: to });
+    expect(arg.where.periodFrom).toEqual({ gte: from, lt: to });
     expect(arg.skip).toBe(5);
     expect(arg.take).toBe(10);
   });
@@ -106,9 +110,9 @@ describe('listStatements', () => {
   });
 
   it('только to (без from)', async () => {
-    const to = new Date('2026-02-01');
+    const to = new Date('2026-02-01T00:00:00+03:00');
     await listStatements(prisma, { partnerId: 'p1', to });
-    expect(findMany.mock.calls[0][0].where.periodFrom).toEqual({ lte: to });
+    expect(findMany.mock.calls[0][0].where.periodFrom).toEqual({ lt: to });
   });
 
   it('сериализует Decimal totalCommissionAmount в строку (RSC-safe, не утекает Prisma.Decimal в клиент)', async () => {
@@ -139,15 +143,15 @@ describe('countStatements — счётчик для пагинации (С-6, х
 
   it('уважает status и диапазон from/to — иначе «всего» не сойдётся со списком', async () => {
     count.mockResolvedValue(3);
-    const from = new Date('2026-01-01');
-    const to = new Date('2026-03-31');
+    const from = new Date('2026-01-01T00:00:00+03:00');
+    const to = new Date('2026-04-01T00:00:00+03:00');
     await countStatements(prisma, { partnerId: 'p1', status: 'paid', from, to });
     expect(count).toHaveBeenCalledWith({
       where: {
         partnerId: 'p1',
         supersededBy: null,
         status: 'paid',
-        periodFrom: { gte: from, lte: to },
+        periodFrom: { gte: from, lt: to },
       },
     });
   });

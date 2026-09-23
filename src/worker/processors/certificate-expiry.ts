@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { selectDueReminders, REMINDER_THRESHOLDS } from '@/lib/services/training/expiry';
 import { recordNotification, deliverNotificationToUser } from '@/lib/notifications';
+import { dueWithinDaysWhere } from '@/lib/tasks/due';
 
 /**
  * Получатели напоминания: пользователи организации → партнёр (если есть) →
@@ -44,10 +45,14 @@ export async function runCertificateExpiry(
   today: Date
 ): Promise<{ remindersSent: number }> {
   const maxThreshold = Math.max(...REMINDER_THRESHOLDS);
-  const horizon = new Date(today.getTime() + maxThreshold * 24 * 60 * 60 * 1000);
 
+  // Окно — московские дни, та же граница, что у `selectDueReminders` и значков
+  // реестра (прогон сопровождения №36, `Р-М-3`): от сегодняшнего дня по Москве
+  // (включительно) до дня «сегодня + 90». Было `gte: today` от момента
+  // прогона: срок «30.09» (полночь UTC, 03:00 МСК) в 07:00 МСК 30.09 уже
+  // «прошёл», и удостоверение в свой последний день из выборки выпадало.
   const certs = await prisma.certificate.findMany({
-    where: { validUntil: { not: null, gte: today, lte: horizon } },
+    where: { validUntil: { not: null, ...dueWithinDaysWhere(today, maxThreshold) } },
     select: {
       id: true,
       organizationId: true,

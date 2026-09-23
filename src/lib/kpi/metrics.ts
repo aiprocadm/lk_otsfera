@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import { leadCompanyWhere } from '@/lib/auth/leadScope';
+import { pastDueWhere } from '@/lib/tasks/due';
 
 /**
  * Реестр показателей компании (`У-242`, этап 7 ТЗ 12.09.2026).
@@ -294,16 +295,26 @@ export const KPI_METRICS: KpiMetric[] = [
     perManager: true,
     hint: 'Задачи компании, у которых срок в прошлом, а работа не завершена. Считается на момент показа.',
     async compute(prisma, { companyId, to }) {
-      // Просрочка — состояние на конец периода, а не событие внутри него.
+      // Просрочка — состояние, а не событие внутри периода: на конец прошедшего
+      // периода и на момент показа — для текущего (прогон сопровождения №36).
+      // Было `dueDate < to` всегда: у текущего месяца `to` — 1-е число
+      // следующего, и задача со сроком «28.09», открытая 23.09, уже считалась
+      // просроченной, хотя подсказка обещает счёт «на момент показа». Граница —
+      // общее правило сроков (`lib/tasks/due.ts`, `Р-М-3`): срок просрочен,
+      // когда закончился его московский день. Для прошедшего месяца
+      // `pastDueWhere(to)` — ровно прежнее `dueDate < to`: `to` — московская
+      // полночь.
+      const asOf = new Date(Math.min(Date.now(), to.getTime()));
+      const dueDate = pastDueWhere(asOf);
       const rows = await prisma.taskAssignee.groupBy({
         by: ['userId'],
         where: {
-          task: { companyId, status: { not: 'done' }, dueDate: { lt: to } },
+          task: { companyId, status: { not: 'done' }, dueDate },
         },
         _count: { _all: true },
       });
       const unassigned = await prisma.task.count({
-        where: { companyId, status: { not: 'done' }, dueDate: { lt: to }, assignees: { none: {} } },
+        where: { companyId, status: { not: 'done' }, dueDate, assignees: { none: {} } },
       });
       const fact = countFact(rows.map((r) => ({ managerId: r.userId, count: r._count._all })));
       return { total: String(Number(fact.total) + unassigned), byManager: fact.byManager };
