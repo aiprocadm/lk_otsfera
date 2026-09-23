@@ -9,7 +9,13 @@ export type ExpiringCertificate = {
   sentThresholds: number[];
 };
 
-export type DueReminder = { certificateId: string; thresholdDays: number };
+/**
+ * `daysLeft` — настоящий московский остаток дней на момент прогона. Текст
+ * напоминания пишется по нему, а не по порогу: удостоверение, заведённое за 3
+ * дня до конца срока, попадает в порог 7, но «истекает через 7 дн.» было бы
+ * неправдой (прогон сопровождения №36).
+ */
+export type DueReminder = { certificateId: string; thresholdDays: number; daysLeft: number };
 
 /**
  * Для каждого удостоверения определяет «активный» порог — наименьший из порогов,
@@ -38,7 +44,7 @@ export function selectDueReminders(certs: ExpiringCertificate[], today: Date): D
     // Активный порог: наименьший t такой, что daysLeft <= t.
     const active = ascThresholds.find((t) => daysLeft <= t);
     if (active != null && !c.sentThresholds.includes(active)) {
-      out.push({ certificateId: c.id, thresholdDays: active });
+      out.push({ certificateId: c.id, thresholdDays: active, daysLeft });
     }
   }
   return out;

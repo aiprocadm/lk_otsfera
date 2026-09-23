@@ -89,7 +89,8 @@ export async function runCertificateExpiry(
 
     const recipients = await recipientsForOrg(prisma, cert.organizationId);
     const title = 'Истекает срок удостоверения';
-    const body = `Удостоверение № ${cert.number} (${cert.student.name}) истекает через ${d.thresholdDays} дн.`;
+    const when = d.daysLeft === 0 ? 'сегодня' : `через ${d.daysLeft} дн.`;
+    const body = `Удостоверение № ${cert.number} (${cert.student.name}) истекает ${when}`;
 
     const meta = { certificateId: cert.id, thresholdDays: d.thresholdDays };
     for (const userId of recipients) {

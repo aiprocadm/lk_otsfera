@@ -85,6 +85,25 @@ describe('runCertificateExpiry — окно по московским дням (
     expect(reminderCreate).toHaveBeenCalledWith({
       data: { certificateId: 'LAST', thresholdDays: 7 },
     });
+    // Порог 7, а в тексте — правда: срок сегодня.
+    expect(recordNotification).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ body: 'Удостоверение № LAST (Иван Петров) истекает сегодня' })
+    );
+  });
+
+  it('текст — по настоящему остатку, а не по порогу: за 3 дня до срока «через 3 дн.»', async () => {
+    // Удостоверение завели поздно: до конца срока 3 московских дня, порог
+    // сработал 7-й. Раньше письмо обещало «через 7 дн.» (прогон №36).
+    const { prisma, reminderCreate } = db([certRow('LATE', '2026-10-03T00:00:00.000Z')]);
+    await runCertificateExpiry(prisma, new Date('2026-09-30T04:00:00.000Z'));
+    expect(reminderCreate).toHaveBeenCalledWith({
+      data: { certificateId: 'LATE', thresholdDays: 7 },
+    });
+    expect(recordNotification).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ body: 'Удостоверение № LATE (Иван Петров) истекает через 3 дн.' })
+    );
   });
 
   it('00:30 МСК 01.10: срок 30.09 истёк — вне окна; срок 01.10 — ещё в нём', async () => {
