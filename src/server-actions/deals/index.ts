@@ -38,6 +38,18 @@ function revalidate(): void {
   revalidatePath('/leader/deals');
 }
 
+/**
+ * Прогон сопровождения №37: воронка — это доска ЛИДОВ, и конверсия лида в
+ * сделку меняет то, что она показывает (статус лида → «Передан в сделку»).
+ * Без сброса менеджер после конверсии видел в воронке старую колонку: прогон
+ * №31 показал, что revalidatePath нужен и force-dynamic-страницам — он же
+ * сбрасывает клиентский кэш роутера.
+ */
+function revalidateFunnel(): void {
+  revalidatePath('/manager/funnel');
+  revalidatePath('/leader/funnel');
+}
+
 export async function moveDealAction(fd: FormData): Promise<ActionResult<MoveDealError>> {
   const session = await requireSession();
   const dealId = str(fd, 'dealId');
@@ -129,6 +141,7 @@ export async function convertLeadToDealAction(
   if (!res.ok) return { ok: false, error: res.error };
   revalidate();
   revalidatePath('/manager/leads');
+  revalidateFunnel();
   return { ok: true, dealId: res.deal.id };
 }
 

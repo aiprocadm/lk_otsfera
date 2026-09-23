@@ -264,6 +264,15 @@ describe('convertLeadToDealAction (PR-2)', () => {
     expect(revalidatePath).not.toHaveBeenCalledWith('/manager/orders');
   });
 
+  // Прогон сопровождения №37: воронка — доска лидов; конверсия меняет статус
+  // лида, поэтому обе воронки (менеджера и руководителя) сбрасываются.
+  it('refreshes both funnels after conversion', async () => {
+    convertLeadToDeal.mockResolvedValue({ ok: true, deal: { id: 'd-new' }, lead: { id: 'l1' } });
+    await convertLeadToDealAction(form({ leadId: 'l1' }));
+    expect(revalidatePath).toHaveBeenCalledWith('/manager/funnel');
+    expect(revalidatePath).toHaveBeenCalledWith('/leader/funnel');
+  });
+
   it('missing leadId → not_found; service error passes through without revalidating', async () => {
     expect(await convertLeadToDealAction(new FormData())).toEqual({
       ok: false,
