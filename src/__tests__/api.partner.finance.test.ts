@@ -106,6 +106,78 @@ describe('GET /api/partner/finance', () => {
   });
 });
 
+describe('GET /api/partner/finance — «с … по …» по московским суткам (прогон №36)', () => {
+  /**
+   * `Р-М-2`. Было `new Date('2026-08-01')` (00:00 UTC) и `lte`: ведомость за
+   * август начинается в московскую полночь 1 августа — 31.07 21:00 UTC — и
+   * фильтр «с 01.08 по 31.08» её не находил.
+   */
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(getSession).mockResolvedValue(partnerManagerSession);
+    vi.mocked(getFinanceKpis).mockResolvedValue(stubKpis);
+    vi.mocked(listStatements).mockResolvedValue([]);
+  });
+
+  async function boundsFor(query: string): Promise<{ from?: Date; to?: Date }> {
+    const res = await GET(getReq(`http://x/?${query}`));
+    expect(res.status).toBe(200);
+    const opts = vi.mocked(listStatements).mock.calls[0][1];
+    return { ...(opts.from ? { from: opts.from } : {}), ...(opts.to ? { to: opts.to } : {}) };
+  }
+
+  /** Так же, как режет сервис: `gte from`, `lt to`. */
+  function inRange(b: { from?: Date; to?: Date }, iso: string): boolean {
+    const t = new Date(iso).getTime();
+    return (!b.from || t >= b.from.getTime()) && (!b.to || t < b.to.getTime());
+  }
+
+  it('день — московские сутки: ведомость за август (с 00:00 МСК 01.08) находится', async () => {
+    const b = await boundsFor('from=2026-08-01&to=2026-08-31');
+    expect(b).toEqual({
+      from: new Date('2026-07-31T21:00:00.000Z'),
+      to: new Date('2026-08-31T21:00:00.000Z'),
+    });
+    // Настоящее начало ведомости за август — `startOfMoscowMonth`.
+    expect(inRange(b, '2026-08-01T00:00:00+03:00')).toBe(true);
+    // 00:30 МСК 01.08 и 23:30 МСК 31.08 — внутри; 00:30 МСК 01.09 — уже нет.
+    expect(inRange(b, '2026-07-31T21:30:00.000Z')).toBe(true);
+    expect(inRange(b, '2026-08-31T20:30:00.000Z')).toBe(true);
+    expect(inRange(b, '2026-08-31T21:30:00.000Z')).toBe(false);
+    // Ведомость за сентябрь (00:00 МСК 01.09) — не «по 31.08».
+    expect(inRange(b, '2026-09-01T00:00:00+03:00')).toBe(false);
+    // До 00:00 МСК 01.08 — за пределами «с 01.08».
+    expect(inRange(b, '2026-07-31T20:59:59.999Z')).toBe(false);
+  });
+
+  it('полный момент ISO — прежний контракт API: сам момент, «по» включительно', async () => {
+    const b = await boundsFor(
+      'from=2026-08-01T00%3A00%3A00%2B03%3A00&to=2026-08-31T23%3A59%3A59.999%2B03%3A00'
+    );
+    expect(b).toEqual({
+      from: new Date('2026-07-31T21:00:00.000Z'),
+      to: new Date('2026-08-31T21:00:00.000Z'),
+    });
+    expect(inRange(b, '2026-08-31T20:59:59.999Z')).toBe(true);
+  });
+
+  it('только одна граница — вторая не выставляется', async () => {
+    expect(await boundsFor('from=2026-08-01')).toEqual({
+      from: new Date('2026-07-31T21:00:00.000Z'),
+    });
+    vi.mocked(listStatements).mockClear();
+    expect(await boundsFor('to=2026-08-31T12%3A00%3A00Z')).toEqual({
+      to: new Date('2026-08-31T12:00:00.001Z'),
+    });
+  });
+
+  it('несуществующий день (2026-02-30) — 400, а не молча 2 марта', async () => {
+    const res = await GET(getReq('http://x/?from=2026-02-30'));
+    expect(res.status).toBe(400);
+    expect(listStatements).not.toHaveBeenCalled();
+  });
+});
+
 describe('GET /api/partner/finance — мусор в строке запроса (хотфикс №41)', () => {
   /**
    * Прогон №24, С-6. Роут читал `skip`/`take` через `parseInt`, `from`/`to`

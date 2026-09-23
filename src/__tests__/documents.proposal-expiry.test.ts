@@ -5,6 +5,7 @@ import {
   expiredProposalsWhere,
   proposalDisplayStatus,
 } from '@/lib/documents/proposalExpiry';
+import { fmtDate } from '@/lib/format';
 
 /**
  * `У-164` (этап 7) — истечение срока коммерческого предложения.
@@ -91,13 +92,52 @@ describe('isProposalExpired', () => {
   });
 });
 
+/**
+ * Прогон сопровождения №36 (`Р-М-3`): предложение, выпущенное до починки
+ * писателя (`documents/generate.ts`) в 01:30 МСК 1 сентября на 14 дней, хранит
+ * срок МОМЕНТОМ «14.09 22:30 UTC» (01:30 МСК 15.09) и печатается «до
+ * 15.09.2026». Прежняя граница — полночь UTC сегодняшнего московского дня —
+ * объявляла его истёкшим весь последний день, с 00:00 МСК 15.09.
+ */
+describe('срок со временем от 00:00 до 03:00 МСК (прогон №36)', () => {
+  const legacyUntil = new Date(new Date('2026-08-31T22:30:00.000Z').getTime() + 14 * 86_400_000);
+  const legacy = { type: 'commercial_proposal', status: 'sent', validUntil: legacyUntil };
+
+  it('бумага обещает «до 15.09.2026» — и 15-го предложение действует до 23:59 МСК', () => {
+    expect(legacyUntil.toISOString()).toBe('2026-09-14T22:30:00.000Z');
+    expect(fmtDate(legacyUntil)).toBe('15.09.2026');
+    // 00:30 МСК 15.09 (21:30 UTC 14.09) — первые минуты последнего дня.
+    expect(isProposalExpired(legacy, new Date('2026-09-14T21:30:00.000Z'))).toBe(false);
+    // 12:00 МСК 15.09.
+    expect(isProposalExpired(legacy, new Date('2026-09-15T09:00:00.000Z'))).toBe(false);
+    // 23:59:59 МСК 15.09.
+    expect(isProposalExpired(legacy, new Date('2026-09-15T20:59:59.000Z'))).toBe(false);
+  });
+
+  it('с 00:00 МСК 16.09 — истёк; выборка ночной задачи говорит то же самое', () => {
+    const now = new Date('2026-09-15T21:00:00.000Z');
+    expect(isProposalExpired(legacy, now)).toBe(true);
+    const cutoff = (expiredProposalsWhere(now).validUntil as { lt: Date }).lt;
+    expect(legacyUntil.getTime() < cutoff.getTime()).toBe(true);
+    // А минутой раньше — ни функция, ни выборка его не трогают.
+    const before = new Date('2026-09-15T20:59:00.000Z');
+    expect(isProposalExpired(legacy, before)).toBe(false);
+    const cutoffBefore = (expiredProposalsWhere(before).validUntil as { lt: Date }).lt;
+    expect(legacyUntil.getTime() < cutoffBefore.getTime()).toBe(false);
+  });
+});
+
 describe('expiredProposalsWhere — парный строитель', () => {
   it('повторяет ВСЕ четыре условия чистой функции', () => {
+    // Прогон №36 (`Р-М-3`): граница — МОМЕНТ 00:00 МСК (21:00 UTC накануне),
+    // общее правило сроков `lib/tasks/due.ts`. Прежнее ожидание «полночь UTC
+    // 17.09» закрепляло дефект: срок «01:30 МСК 17.09» (22:30 UTC 16.09) по
+    // нему истекал уже 17-го — в свой последний день.
     const now = new Date('2026-09-16T21:00:00.000Z');
     expect(expiredProposalsWhere(now)).toEqual({
       type: 'commercial_proposal',
       status: 'sent',
-      validUntil: { not: null, lt: new Date('2026-09-17T00:00:00.000Z') },
+      validUntil: { not: null, lt: new Date('2026-09-16T21:00:00.000Z') },
     });
   });
 
@@ -117,6 +157,10 @@ describe('expiredProposalsWhere — парный строитель', () => {
       KP('2026-09-16'),
       KP('2026-09-17'),
       KP('2026-09-15T23:59:59.000Z'),
+      // Сроки со временем от 00:00 до 03:00 МСК — по обе стороны границы.
+      KP('2026-09-16T20:59:59.999Z'),
+      KP('2026-09-16T21:00:00.000Z'),
+      KP('2026-09-16T22:30:00.000Z'),
       KP(null),
       KP('2026-01-01', 'draft'),
       KP('2026-01-01', 'accepted'),

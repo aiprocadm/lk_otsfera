@@ -6,6 +6,7 @@ import { Button, Input, Select, Field, Dialog, Textarea } from '@/components/ui'
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { fmtDateTime } from '@/lib/format';
+import { moscowCalendarDay } from '@/lib/dates/calendar';
 import {
   createDealAction,
   updateDealAction,
@@ -66,9 +67,19 @@ function contactsForOrganization(
   return contacts.filter((c) => c.organizationId === null || c.organizationId === organizationId);
 }
 
+/**
+ * Значение `<input type="date">` для сохранённой даты закрытия — **московский**
+ * календарный день (прогон сопровождения №36, `Р-М-2`).
+ *
+ * Было `toISOString().slice(0, 10)` — день по UTC. Для даты из этой же формы
+ * (полночь UTC) это совпадало, но Битрикс24 отдаёт `CLOSEDATE` с поясом
+ * портала — «2026-09-25T00:00:00+03:00», то есть 24.09 21:00 UTC. Доска
+ * показывала «25.09» (`fmtDate` — по Москве), а форма открывалась с «24.09»:
+ * простое «Сохранить» переносило сделку на день раньше.
+ */
 function dateValue(d: Date | null): string {
   if (!d) return '';
-  return new Date(d).toISOString().slice(0, 10);
+  return moscowCalendarDay(new Date(d));
 }
 
 export function DealDialog({
