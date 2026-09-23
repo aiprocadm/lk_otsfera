@@ -110,7 +110,7 @@
 
 ## 5. Страж
 
-`src/__tests__/dates.moscow-time.guardrail.test.ts` — по исходникам `src/**`
+`src/__tests__/dates.moscow-display.guardrail.test.ts` — по исходникам `src/**`
 (без тестов, комментарии вырезаны помощником стражей):
 
 1. `toLocaleDateString(` / `toLocaleTimeString(` / `new Intl.DateTimeFormat(` —
@@ -165,6 +165,7 @@
 | `Р-М-3` | Срок просрочен, когда закончился его московский день | Одно правило для «только даты» и срока со временем из Битрикс24 |
 | `Р-М-4` | `datetime-local` и строки портала без пояса — Москва | Все сотрудники и портал заказчика — в Москве |
 | `Р-М-5` | Пять PR по группам, страж последним | Каждый PR проверяем отдельно; страж не краснеет посреди работы |
+| `Р-М-6` | События календаря, созданные до починки, **не пересчитываются** | Календарь сотрудников в бою выключен (`staff_calendar` — opt-in, в боевом примере настроек не включён), единственный писатель — форма; сдвинутые на 3 часа записи есть только на стенде (демо). Миграция данных ради демо-записей — риск без пользы |
 
 ## 9. Вне объёма
 
@@ -172,8 +173,7 @@
   правило продукта (все даты по Москве, `lib/format.ts`), а не дефект.
 - Колонки `@db.Date` и их писатели не меняются: миграций нет.
 - Хранимые значения не пересчитываются: неверным было чтение и показ, а не
-  запись (кроме календаря — см. группу Д: события, созданные до починки,
-  сдвинуты на 3 часа; миграция данных вне объёма — `⚠`, вопрос заказчику).
+  запись (кроме календаря — см. группу Д и решение `Р-М-6`).
 
 ## Приложение А. Реестр мест
 
@@ -267,3 +267,11 @@
 - `src/lib/services/contacts/get.ts:421` — The formatting part of the claim is true. src/lib/services/contacts/get.ts:421 calls `r.dueDate.toLocaleDateString('ru-RU')` with no timeZone, on the server. Task.dueDate is a full `DateTime?` (prisma/schema.prisma:1195), not @db.Date. The counterexample fails…
 - `src/lib/services/leader/managerLoad.ts:53` — Это не ошибка часового пояса. Сам пример воспроизводится, но от пояса процесса он не зависит. 1) Кто записывает срок. Форма задачи (task-dialog.tsx:184, quick-task-dialog.tsx:63, linked-tasks-panel.tsx:109) использует <input type="date">. Серверное действие sr…
 - `src/lib/services/documents/zip.ts:68` — The mechanism is right, but a Moscow user never sees the result through the product. (1) src/lib/services/documents/zip.ts:67-70: archiveFileName(now) = `Документы ${now.toISOString().slice(0,10)}.zip`. This is always the UTC day, even in a Moscow process, bec…
+
+## Итог (23.09.2026)
+
+Отгружено пятью PR: [#674](https://github.com/aiprocadm/lk_otsfera/pull/674), [#675](https://github.com/aiprocadm/lk_otsfera/pull/675), [#676](https://github.com/aiprocadm/lk_otsfera/pull/676), [#678](https://github.com/aiprocadm/lk_otsfera/pull/678), [#677](https://github.com/aiprocadm/lk_otsfera/pull/677). Сверх реестра страж и агенты нашли ещё около
+двадцати мест того же класса (заказы и оплаты в кабинетах, письма об оплате,
+PDF заказа и КП, форма сделки, API финансов партнёра, напоминания об
+удостоверениях, срок КП, показатель «Просроченные задачи») — все починены.
+Попутно печать дат ускорена в ~70 раз (общий форматтер на модуль).

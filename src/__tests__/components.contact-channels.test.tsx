@@ -219,7 +219,13 @@ describe('ContactChannels — добавление', () => {
       contactId: 'c2',
       name: 'Пётр Петров',
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Объединить' }));
+    // Отказ появляется на экране раньше, чем снимается «идёт запрос»: пока
+    // переход не закончился, «Объединить» заблокирована, и щелчок по ней
+    // теряется. Ждём, как ждал бы человек, — иначе тест «плавал» (упал 1 раз
+    // из 3 отдельных прогонов, прогон сопровождения №36).
+    const merge = screen.getByRole('button', { name: 'Объединить' }) as HTMLButtonElement;
+    await waitFor(() => expect(merge.disabled).toBe(false));
+    fireEvent.click(merge);
     await waitFor(() =>
       expect(screen.getByTestId('merge-dialog').getAttribute('data-open')).toBe('true')
     );

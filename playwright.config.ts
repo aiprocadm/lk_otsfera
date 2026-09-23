@@ -41,9 +41,18 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report/html' }]],
   expect: {
     toHaveScreenshot: {
-      // Allow tiny anti-aliasing differences without re-baselining.
-      maxDiffPixelRatio: 0.02,
+      // Ноль отличающихся точек, а не доля снимка (прогон сопровождения №36).
+      // Прежние `maxDiffPixelRatio: 0.02` на снимке во всю страницу — это
+      // ~30 000 точек, а опечатка в заголовке («Главная» → «Главня») даёт
+      // 116, слово в подзаголовке — ~240: обе мутации проходили зелёными.
+      // На одних и тех же данных отрисовка повторяется точка в точку (79 из
+      // 79 снимков), поэтому сверять с запасом незачем. Даты сида меняются
+      // день ото дня — для сверки «код против кода» есть
+      // `scripts/visual-diff.ts`, он снимает обе стороны на одной базе.
+      maxDiffPixels: 0,
       animations: 'disabled',
+      // Значок dev-сервера Next.js — не часть интерфейса; см. сам файл.
+      stylePath: './src/e2e/screenshot.css',
     },
   },
   use: {
@@ -88,6 +97,14 @@ export default defineConfig({
         // Проверяем адаптив (390×844, isMobile — У-19 этапа 3), а не движок Safari.
         browserName: 'chromium',
         viewport: { width: 390, height: 844 },
+        // Плотность 1, а не 3 из пресета iPhone (прогон сопровождения №36).
+        // Снимок во всю страницу снимается в точках экрана и уменьшается до
+        // 390 CSS-пикселей; при плотности 3 коэффициент уменьшения зависит от
+        // дробной высоты страницы, и изменение высоты на долю пикселя (другие
+        // цифры времени в строке журнала) пересчитывало ВСЮ картинку — тысячи
+        // «отличий» без единой правки. Раскладку по-прежнему проверяет
+        // ширина 390 и isMobile, а не плотность.
+        deviceScaleFactor: 1,
         storageState: 'playwright-report/.auth/partner.json',
       },
       dependencies: ['setup'],
@@ -114,6 +131,7 @@ export default defineConfig({
         // Проверяем адаптив (390×844, isMobile — У-19 этапа 3), а не движок Safari.
         browserName: 'chromium',
         viewport: { width: 390, height: 844 },
+        deviceScaleFactor: 1,
         storageState: 'playwright-report/.auth/organization.json',
       },
       dependencies: ['setup'],
@@ -140,6 +158,7 @@ export default defineConfig({
         // Проверяем адаптив (390×844, isMobile — У-19 этапа 3), а не движок Safari.
         browserName: 'chromium',
         viewport: { width: 390, height: 844 },
+        deviceScaleFactor: 1,
         storageState: 'playwright-report/.auth/manager.json',
       },
       dependencies: ['setup'],
@@ -166,6 +185,7 @@ export default defineConfig({
         // Проверяем адаптив (390×844, isMobile — У-19 этапа 3), а не движок Safari.
         browserName: 'chromium',
         viewport: { width: 390, height: 844 },
+        deviceScaleFactor: 1,
         storageState: 'playwright-report/.auth/admin.json',
       },
       dependencies: ['setup'],
@@ -192,6 +212,7 @@ export default defineConfig({
         // Проверяем адаптив (390×844, isMobile — У-19 этапа 3), а не движок Safari.
         browserName: 'chromium',
         viewport: { width: 390, height: 844 },
+        deviceScaleFactor: 1,
         storageState: 'playwright-report/.auth/leader.json',
       },
       dependencies: ['setup'],
@@ -219,12 +240,20 @@ export default defineConfig({
         // Проверяем адаптив (390×844, isMobile — У-19 этапа 3), а не движок Safari.
         browserName: 'chromium',
         viewport: { width: 390, height: 844 },
+        deviceScaleFactor: 1,
         storageState: 'playwright-report/.auth/student.json',
       },
       dependencies: ['setup'],
       testMatch: /snapshots\/student-.*\.spec\.ts/,
     },
   ],
+  // `scripts/visual-diff.ts` (процедура `С-10`) снимает эталон кода `--base`
+  // во временную папку — закоммиченные эталоны при этом не трогаются.
+  ...(process.env.VISUAL_SNAPSHOT_DIR
+    ? {
+        snapshotPathTemplate: `${process.env.VISUAL_SNAPSHOT_DIR}/{testFileDir}/{testFileName}-snapshots/{arg}{-projectName}{-snapshotSuffix}{ext}`,
+      }
+    : {}),
   // PLAYWRIGHT_BASE_URL задан → сервер уже поднят снаружи, ключ `webServer`
   // не выставляем вовсе (при exactOptionalPropertyTypes `webServer: undefined`
   // не подходит под опциональное поле — «нет ключа» ≠ «ключ = undefined»).
