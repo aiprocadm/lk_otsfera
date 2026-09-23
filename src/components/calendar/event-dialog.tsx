@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { Button, Input, Textarea, Select, Field, Dialog } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
+import { dayKey } from '@/lib/calendar/month';
+import { toMoscowWallClockInput } from '@/lib/dates/wallClock';
 import { createEventAction, updateEventAction, deleteEventAction } from '@/server-actions/calendar';
 import type { CalendarItem, EventFormOptions } from '@/lib/services/calendar/items';
 
@@ -20,12 +22,24 @@ const REMIND_OPTIONS: { value: string; label: string }[] = [
   { value: '1440', label: 'За 1 день' },
 ];
 
-/** Date → значение для input type="datetime-local" в локальной TZ браузера. */
+/**
+ * Date → значение для input type="datetime-local" — московское «настенное»
+ * время (`Р-М-4`, прогон сопровождения №36). Сервер читает поле тем же
+ * правилом (`parseMoscowWallClock`); прежде поле заполнялось по поясу браузера,
+ * а читалось по поясу сервера, и нетронутое событие после «Сохранить»
+ * уезжало на три часа.
+ */
 function dateTimeValue(d: Date | null): string {
-  if (!d) return '';
-  const dt = new Date(d);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+  return d ? toMoscowWallClockInput(new Date(d)) : '';
+}
+
+/**
+ * Начало нового события — 10:00 по Москве в МОСКОВСКИЙ день клетки. Клетка
+ * сетки — московская полночь (21:00 предыдущих суток по Гринвичу), поэтому
+ * `setHours(10)` в поясе, отличном от московского, ставил встречу во вчера.
+ */
+function createStartValue(createDate: Date): string {
+  return `${dayKey(new Date(createDate))}T10:00`;
 }
 
 export function EventDialog({
@@ -46,10 +60,10 @@ export function EventDialog({
   const [submitting, setSubmitting] = useState(false);
 
   const defaultStart = target
-    ? new Date(target.date)
+    ? dateTimeValue(target.date)
     : createDate
-      ? new Date(new Date(createDate).setHours(10, 0, 0, 0))
-      : null;
+      ? createStartValue(createDate)
+      : '';
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -117,7 +131,7 @@ export function EventDialog({
               name="startsAt"
               type="datetime-local"
               required
-              defaultValue={dateTimeValue(defaultStart)}
+              defaultValue={defaultStart}
             />
           </Field>
           <Field htmlFor="ev-ends" label="Окончание (необязательно)">

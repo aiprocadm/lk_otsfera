@@ -4,6 +4,7 @@ import { recordAudit } from '@/lib/auth/audit';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canReadDocument } from '@/lib/auth/policy';
 import { documentDownloadName, uniqueArchiveName } from '@/lib/documents/fileName';
+import { startOfMoscowDay } from '@/lib/documents/proposalExpiry';
 import { log } from '@/lib/logging';
 import { getObjectStorage } from '@/lib/storage';
 import type { ZipSkipped } from '@/lib/documents/zipSummary';
@@ -63,9 +64,15 @@ const emptySkipped = (): ZipSkipped => ({
   unavailable: 0,
 });
 
-/** Имя самого архива: дата в имени помогает не спутать два скачивания подряд. */
+/**
+ * Имя самого архива: дата в имени помогает не спутать два скачивания подряд.
+ * День — московский (прогон сопровождения №36): `now.toISOString()` давал день
+ * по Гринвичу, и архив, собранный в 01:30 по Москве, назывался вчерашним
+ * числом. `startOfMoscowDay` отдаёт московский день полночью UTC — её ISO-вид
+ * и есть «ГГГГ-ММ-ДД» этого дня.
+ */
 function archiveFileName(now: Date): string {
-  const d = now.toISOString().slice(0, 10);
+  const d = startOfMoscowDay(now).toISOString().slice(0, 10);
   return `Документы ${d}.zip`;
 }
 

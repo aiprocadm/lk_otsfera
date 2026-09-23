@@ -35,8 +35,12 @@ const event: CalendarItem = {
   kind: 'event',
   id: 'ev-1',
   title: 'Планёрка отдела',
-  date: new Date(2026, 7, 10, 14, 30),
-  endsAt: new Date(2026, 7, 10, 15, 30),
+  // Так событие «14:30–15:30» кладёт в базу настоящий писатель — action
+  // календаря читает поле формы по Москве (`Р-М-4`, прогон №36). Прежде здесь
+  // стояли даты в поясе процесса теста, и проверка поля совпадала с дефектом:
+  // браузер и сервер понимали одно и то же поле по-разному.
+  date: new Date('2026-08-10T11:30:00.000Z'),
+  endsAt: new Date('2026-08-10T12:30:00.000Z'),
   allDay: false,
   location: 'Zoom',
   description: 'Обсудить план на месяц',
@@ -52,6 +56,9 @@ const event: CalendarItem = {
   priority: null,
   completedAt: null,
 };
+
+/** Клетка 15.08.2026 из сетки — московская полночь, 21:00 UTC накануне. */
+const CELL_15_AUG = new Date('2026-08-14T21:00:00.000Z');
 
 function renderDialog(props: React.ComponentProps<typeof EventDialog>) {
   return React.createElement(EventDialog, props);
@@ -82,7 +89,7 @@ describe('EventDialog', () => {
     render(
       renderDialog({
         target: null,
-        createDate: new Date(2026, 7, 15),
+        createDate: CELL_15_AUG,
         options: fullOptions,
         onClose,
         onSaved,
@@ -94,6 +101,49 @@ describe('EventDialog', () => {
     const startsInput = screen.getByLabelText('Начало') as HTMLInputElement;
     expect(startsInput.value).toBe('2026-08-15T10:00');
     expect(screen.queryByRole('button', { name: 'Удалить' })).toBeNull();
+  });
+
+  /**
+   * Прогон сопровождения №36 (спека 2026-09-23-moscow-time-in-server-code-design,
+   * группа Д): поле `datetime-local` заполняется московским временем — тем же
+   * правилом, каким action его читает. Прежде поле заполнялось по поясу
+   * браузера, а в поясе, отличном от московского, «10:00» нового события
+   * вставало во вчерашний день клетки.
+   */
+  describe('поле «Начало» — московское время', () => {
+    it('«+ Новое событие» в 01:30 по Москве предлагает 10:00 СЕГОДНЯШНЕГО московского дня', () => {
+      // Серверное «сейчас» 22:30 UTC 31 августа — в Москве уже 1 сентября.
+      render(
+        renderDialog({
+          target: null,
+          createDate: new Date('2026-08-31T22:30:00.000Z'),
+          options: fullOptions,
+          onClose,
+          onSaved,
+        })
+      );
+      expect((screen.getByLabelText('Начало') as HTMLInputElement).value).toBe('2026-09-01T10:00');
+    });
+
+    it('событие в 00:30 по Москве (21:30 UTC накануне) открывается своим днём и часом', () => {
+      render(
+        renderDialog({
+          target: {
+            ...event,
+            date: new Date('2026-08-31T21:30:00.000Z'),
+            endsAt: new Date('2026-08-31T23:59:00.000Z'),
+          },
+          createDate: null,
+          options: fullOptions,
+          onClose,
+          onSaved,
+        })
+      );
+      expect((screen.getByLabelText('Начало') as HTMLInputElement).value).toBe('2026-09-01T00:30');
+      expect((screen.getByLabelText('Окончание (необязательно)') as HTMLInputElement).value).toBe(
+        '2026-09-01T02:59'
+      );
+    });
   });
 
   it('create mode without createDate leaves the start input empty (dateTimeValue null branch)', () => {
@@ -143,7 +193,7 @@ describe('EventDialog', () => {
     render(
       renderDialog({
         target: null,
-        createDate: new Date(2026, 7, 15),
+        createDate: CELL_15_AUG,
         options: fullOptions,
         onClose,
         onSaved,
@@ -192,7 +242,7 @@ describe('EventDialog', () => {
     render(
       renderDialog({
         target: null,
-        createDate: new Date(2026, 7, 15),
+        createDate: CELL_15_AUG,
         options: fullOptions,
         onClose,
         onSaved,

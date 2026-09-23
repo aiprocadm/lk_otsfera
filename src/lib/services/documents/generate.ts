@@ -11,6 +11,8 @@ import {
   type MissingRequisite,
   type PartyRequisites,
 } from '@/lib/documents/requisites-check';
+import { startOfMoscowDay } from '@/lib/documents/proposalExpiry';
+import { fmtDate } from '@/lib/format';
 import { getObjectStorage } from '@/lib/storage';
 import { notifyOrgUsers } from '@/lib/notifications';
 import { log } from '@/lib/logging';
@@ -726,7 +728,17 @@ async function loadIssueContext(
     dealId = deal.id;
   }
 
-  const documentDate = args.extras?.documentDate ?? args.now ?? new Date();
+  /**
+   * Дата документа по умолчанию — СЕГОДНЯ ПО МОСКВЕ, в том же виде, что приходит
+   * из поля даты формы: полночь UTC календарного дня (прогон сопровождения №36,
+   * спека 2026-09-23-moscow-time-in-server-code-design, группа Е). Прежде сюда
+   * шёл сам момент выпуска: счёт, выпущенный в 01:30 по Москве 1 сентября
+   * (22:30 UTC 31 августа), печатался «от 31.08» — вчерашним числом, — и от
+   * того же момента считался срок КП. Полночь UTC московского дня печатается
+   * одним и тем же днём в любом поясе ≥ UTC и совпадает по виду со сроком
+   * предложения, который сравнивает `isProposalExpired`.
+   */
+  const documentDate = args.extras?.documentDate ?? startOfMoscowDay(args.now ?? new Date());
 
   // Табличная часть (`У-141`, `У-142`): строки из формы выпуска, иначе состав
   // заказа, иначе одна строка-заглушка на сумму заказа.
@@ -822,10 +834,14 @@ async function loadIssueContext(
   };
 }
 
-/** Дата плюс N дней — новый объект, исходный не трогаем. */
+/**
+ * Дата плюс N дней — новый объект, исходный не трогаем. Дни прибавляются в
+ * UTC: дата документа — полночь UTC календарного дня, и местные
+ * `setDate`/`getDate` сдвигали бы её по поясу процесса (прогон №36).
+ */
 function addDays(date: Date, days: number): Date {
   const out = new Date(date);
-  out.setDate(out.getDate() + days);
+  out.setUTCDate(out.getUTCDate() + days);
   return out;
 }
 
@@ -835,11 +851,14 @@ function templateValues(ctx: IssueContext, args: GenerateArgs): DocumentTemplate
     // Без заказа названия заказа нет — типовая формулировка честнее пустой
     // строки в предмете договора.
     subject: args.extras?.subject?.trim() || ctx.order?.title || 'Оказание услуг',
-    date: ctx.documentDate.toLocaleDateString('ru-RU'),
+    // Даты подстановок — по Москве (`fmtDate`), а не в поясе процесса: прежний
+    // `toLocaleDateString('ru-RU')` без пояса зависел от того, где запущен
+    // сервер (прогон №36). Полночь UTC календарного дня по Москве — тот же день.
+    date: fmtDate(ctx.documentDate),
     // Срок печатается куском фразы, а не датой: у бессрочного договора даты
     // нет вовсе, а «действует до —» читалось бы как потерянное значение.
     term: args.extras?.validUntil
-      ? `до ${new Date(args.extras.validUntil).toLocaleDateString('ru-RU')}`
+      ? `до ${fmtDate(args.extras.validUntil)}`
       : 'до полного исполнения Сторонами обязательств',
     company: ctx.company.displayName,
     organization: ctx.organization.displayName,
@@ -847,7 +866,7 @@ function templateValues(ctx: IssueContext, args: GenerateArgs): DocumentTemplate
     inWords: ctx.table.totalInWords,
     // `У-162`: у КП это ДАТА, а не кусок фразы, как `term` выше. У остальных
     // типов срока предложения нет вовсе — там прочерк, и это честно.
-    validUntil: ctx.proposalValidUntil ? ctx.proposalValidUntil.toLocaleDateString('ru-RU') : '—',
+    validUntil: ctx.proposalValidUntil ? fmtDate(ctx.proposalValidUntil) : '—',
   };
 }
 

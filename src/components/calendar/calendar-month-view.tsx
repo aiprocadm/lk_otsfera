@@ -12,6 +12,7 @@ import {
   nextMonth,
   prevMonth,
 } from '@/lib/calendar/month';
+import { toMoscowWallClockInput } from '@/lib/dates/wallClock';
 import type { CalendarItem, EventFormOptions } from '@/lib/services/calendar/items';
 import { EventDialog } from './event-dialog';
 
@@ -25,15 +26,26 @@ import { EventDialog } from './event-dialog';
 const WEEKDAYS_RU = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const UPCOMING_LIMIT = 8;
 
+/**
+ * Подписи времени — по Москве, из того же «ГГГГ-ММ-ДДTчч:мм», которым
+ * заполняется поле формы (`toMoscowWallClockInput`, прогон сопровождения №36).
+ * Прежде часы брались в поясе процесса: сервер (UTC) рисовал «07:00», браузер
+ * — «10:00», и React перерисовывал страницу с ошибкой гидратации. Клетка же
+ * выбирается по московскому дню (`dayKey`), и подпись с ней не расходится.
+ */
 function timeLabel(d: Date): string {
-  const dt = new Date(d);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+  return toMoscowWallClockInput(d).slice(11);
 }
 
-function upcomingDateLabel(d: Date): string {
-  const dt = new Date(d);
-  return `${String(dt.getDate()).padStart(2, '0')}.${String(dt.getMonth() + 1).padStart(2, '0')} ${timeLabel(dt)}`;
+/**
+ * «дд.мм чч:мм» по Москве — панель «Ближайшие». У записи «на весь день» —
+ * только «дд.мм», как и на чипе сетки: срок задачи хранится полночью UTC
+ * календарного дня, и по Москве он печатался бы выдуманным «03:00».
+ */
+function upcomingDateLabel(d: Date, allDay: boolean): string {
+  const v = toMoscowWallClockInput(d);
+  const day = `${v.slice(8, 10)}.${v.slice(5, 7)}`;
+  return allDay ? day : `${day} ${v.slice(11)}`;
 }
 
 type DialogState = { mode: 'create'; date: Date } | { mode: 'edit'; item: CalendarItem } | null;
@@ -70,10 +82,13 @@ export function CalendarMonthView({
   const days = monthGridDays(month);
   const todayKey = dayKey(new Date(today));
   const nowMs = new Date(today).getTime();
+  // Срок задачи — календарный день (полночь UTC), и он «впереди» весь свой
+  // московский день (`Р-М-3`, прогон сопровождения №36). Сравнение с моментом
+  // «сейчас» убирало сегодняшнюю задачу из «Ближайших» уже в 03:00 по Москве.
+  const isAhead = (i: CalendarItem): boolean =>
+    i.kind === 'task' ? dayKey(new Date(i.date)) >= todayKey : new Date(i.date).getTime() >= nowMs;
   const upcoming = items
-    .filter(
-      (i) => new Date(i.date).getTime() >= nowMs && (i.kind === 'event' || i.completedAt === null)
-    )
+    .filter((i) => isAhead(i) && (i.kind === 'event' || i.completedAt === null))
     .slice(0, UPCOMING_LIMIT);
 
   function closeSaved() {
@@ -137,7 +152,10 @@ export function CalendarMonthView({
                     <span
                       className={`text-xs px-1 ${key === todayKey ? 'font-bold text-white bg-orange-500 rounded-full h-5 w-5 inline-flex items-center justify-center' : ''}`}
                     >
-                      {day.getDate()}
+                      {/* Число — из московского ключа клетки, а не `getDate()` в поясе
+                          процесса: клетка — московская полночь, на сервере это
+                          21:00 вчерашних суток, и число съезжало на день назад. */}
+                      {Number(key.slice(8))}
                     </span>
                     <button
                       type="button"
@@ -191,7 +209,7 @@ export function CalendarMonthView({
             {upcoming.map((item) => (
               <li key={`${item.kind}-${item.id}`} className="text-sm flex items-baseline gap-2">
                 <span className="text-gray-500 tabular-nums shrink-0">
-                  {upcomingDateLabel(new Date(item.date))}
+                  {upcomingDateLabel(new Date(item.date), item.allDay)}
                 </span>
                 {item.kind === 'event' ? (
                   <button

@@ -27,6 +27,7 @@ vi.mock('@/lib/services/calendar/events', () => ({
 }));
 
 import { createEventAction, updateEventAction, deleteEventAction } from '@/server-actions/calendar';
+import { toMoscowWallClockInput } from '@/lib/dates/wallClock';
 
 const SESSION = { sub: 'm1', role: 'manager', companyId: 'c1' };
 const FLAG_ENV = 'FEATURE_STAFF_CALENDAR';
@@ -86,8 +87,11 @@ describe('createEventAction', () => {
       title: 'Встреча',
       description: 'Повестка',
       location: 'Zoom',
-      startsAt: new Date('2026-07-20T10:00'),
-      endsAt: new Date('2026-07-20T11:00'),
+      // «10:00» из формы — московское время (`Р-М-4`, прогон №36). Прежнее
+      // ожидание `new Date('2026-07-20T10:00')` в поясе процесса (UTC) давало
+      // 10:00Z = 13:00 по Москве — оно и закрепляло дефект.
+      startsAt: new Date('2026-07-20T07:00:00.000Z'),
+      endsAt: new Date('2026-07-20T08:00:00.000Z'),
       allDay: true,
       remindMinutes: 15,
       linkedOrderId: 'o1',
@@ -105,7 +109,7 @@ describe('createEventAction', () => {
       title: 'Встреча',
       description: null,
       location: null,
-      startsAt: new Date('2026-07-20T10:00'),
+      startsAt: new Date('2026-07-20T07:00:00.000Z'),
       endsAt: null,
       allDay: false,
       remindMinutes: null,
@@ -129,6 +133,52 @@ describe('createEventAction', () => {
     createEvent.mockResolvedValue({ ok: false, error: 'validation' });
     expect(await createEventAction(validForm())).toEqual({ ok: false, error: 'validation' });
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Прогон сопровождения №36 (спека 2026-09-23-moscow-time-in-server-code-design,
+ * группа Д): время из поля `datetime-local` — московское «настенное». Сервер
+ * живёт в UTC, и `new Date('…T10:00')` сохранял встречу на 13:00 по Москве.
+ */
+describe('время из формы — московское (Р-М-4)', () => {
+  /** Момент, который action передал сервису в `startsAt`/`endsAt`. */
+  function sent(field: 'startsAt' | 'endsAt'): Date {
+    return createEvent.mock.calls[0]![2][field] as Date;
+  }
+
+  beforeEach(() => createEvent.mockResolvedValue({ ok: true, id: 'e1' }));
+
+  it('«10:00» из формы сохраняется как 07:00Z', async () => {
+    await createEventAction(validForm({ startsAt: '2026-09-25T10:00' }));
+    expect(sent('startsAt').toISOString()).toBe('2026-09-25T07:00:00.000Z');
+  });
+
+  it('ночь с 00:00 до 03:00 по Москве — момент предыдущих суток по UTC', async () => {
+    await createEventAction(
+      validForm({ startsAt: '2026-09-01T01:30', endsAt: '2026-09-01T02:45:30' })
+    );
+    expect(sent('startsAt').toISOString()).toBe('2026-08-31T22:30:00.000Z');
+    expect(sent('endsAt').toISOString()).toBe('2026-08-31T23:45:30.000Z');
+  });
+
+  it('вечер 21:00–24:00 по UTC — это уже следующий московский день', async () => {
+    await createEventAction(validForm({ startsAt: '2026-08-31T23:30' }));
+    expect(sent('startsAt').toISOString()).toBe('2026-08-31T20:30:00.000Z');
+  });
+
+  it('что форма показала, то и сохранится: значение из диалога возвращается тем же моментом', async () => {
+    // Диалог заполняет поле `toMoscowWallClockInput` — нетронутое событие
+    // после «Сохранить» не должно сдвинуться ни на минуту.
+    const stored = new Date('2026-08-31T22:30:00.000Z');
+    await createEventAction(validForm({ startsAt: toMoscowWallClockInput(stored) }));
+    expect(sent('startsAt')).toEqual(stored);
+  });
+
+  it('пустое или несуществующее время → Invalid Date: отказ говорит сервис', async () => {
+    await createEventAction(validForm({ startsAt: '', endsAt: '2026-02-30T10:00' }));
+    expect(Number.isNaN(sent('startsAt').getTime())).toBe(true);
+    expect(Number.isNaN(sent('endsAt').getTime())).toBe(true);
   });
 });
 

@@ -952,6 +952,29 @@ describe('generateOrderDocument — коммерческое предложен�
     expect((data.validUntil as Date).toISOString().slice(0, 10)).toBe('2026-10-01');
   });
 
+  it('выпуск в 01:30 по Москве: дата «сегодня по Москве», срок считается от неё (прогон №36)', async () => {
+    // 22:30 UTC 31 августа — в Москве уже 1 сентября. Прежде и дата, и срок
+    // печатались днём по Гринвичу: КП «от 31.08.2026, действует до 30.09.2026» —
+    // вчерашним числом и на день короче 30 дней от настоящей даты выпуска.
+    const { prisma, documentCreate } = makePrisma({
+      company: { ...FULL_PARTY, proposalValidDays: 30 },
+    });
+    await generateOrderDocument(prisma, manager(), {
+      organizationId: 'org-1',
+      docType: 'commercial_proposal',
+      lines: LINES,
+      now: new Date('2026-08-31T22:30:00Z'),
+    });
+    const printed = renderProposalMock.mock.calls[0]![0] as {
+      date: Date;
+      clauses: Array<{ text: string }>;
+    };
+    expect(printed.date).toEqual(new Date('2026-09-01T00:00:00.000Z'));
+    const data = documentCreate.mock.calls[0]![0].data as Record<string, unknown>;
+    expect(data.validUntil).toEqual(new Date('2026-10-01T00:00:00.000Z'));
+    expect(printed.clauses.map((c) => c.text).join(' ')).toContain('до 01.10.2026');
+  });
+
   it('КП по ЗАКАЗУ не выпускается — предложение делают ДО заказа', async () => {
     // Иначе у предложения появился бы контрагент заказа, и оно уехало бы в
     // портфель партнёра вместе с ценами и скидками. Зеркально акту, у
@@ -1564,5 +1587,44 @@ describe('КП лида — название клиента и связь со �
         lines: LEAD_LINES,
       })
     ).toEqual({ ok: false, error: 'deal_mismatch' });
+  });
+});
+
+/**
+ * Прогон сопровождения №36 (спека 2026-09-23-moscow-time-in-server-code-design,
+ * группа Е): дата документа по умолчанию — сегодняшний МОСКОВСКИЙ день, в том
+ * же виде, что приходит из поля даты формы (полночь UTC). Прежде сюда шёл сам
+ * момент выпуска, и счёт, выпущенный ночью по Москве, печатался вчерашним
+ * числом (печать в поясе процесса — UTC).
+ */
+describe('generateOrderDocument — дата документа по умолчанию', () => {
+  async function printedDate(now: string): Promise<Date> {
+    const { prisma } = makePrisma();
+    await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+      now: new Date(now),
+    });
+    return (renderMock.mock.calls[0]![0] as { date: Date }).date;
+  }
+
+  it('01:30 по Москве (22:30 UTC накануне) — уже новый московский день', async () => {
+    expect(await printedDate('2026-08-31T22:30:00Z')).toEqual(new Date('2026-09-01T00:00:00.000Z'));
+  });
+
+  it('23:30 по Москве (20:30 UTC) — ещё тот же день', async () => {
+    expect(await printedDate('2026-08-31T20:30:00Z')).toEqual(new Date('2026-08-31T00:00:00.000Z'));
+  });
+
+  it('дата из формы важнее «сегодня» и доходит до печати как есть', async () => {
+    const { prisma } = makePrisma();
+    const fromForm = new Date('2026-08-27');
+    await generateOrderDocument(prisma, manager(), {
+      orderId: 'ord-1',
+      docType: 'invoice',
+      now: new Date('2026-08-31T22:30:00Z'),
+      extras: { documentDate: fromForm },
+    });
+    expect((renderMock.mock.calls[0]![0] as { date: Date }).date).toEqual(fromForm);
   });
 });

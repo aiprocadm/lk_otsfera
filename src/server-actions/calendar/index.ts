@@ -6,6 +6,7 @@ import { type ActionResult, str } from '@/lib/actions/form';
 import { prisma } from '@/lib/db/prisma';
 import { requireSession } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
+import { parseMoscowWallClock } from '@/lib/dates/wallClock';
 import {
   createEvent,
   updateEvent,
@@ -27,6 +28,18 @@ function revalidate(): void {
   revalidatePath('/leader/calendar');
 }
 
+/**
+ * Значение поля `datetime-local` → момент. Время в поле — московское
+ * «настенное» (`Р-М-4`, прогон сопровождения №36): прежний `new Date(v)` читал
+ * «10:00» по поясу сервера (UTC), и встреча сохранялась как 13:00 по Москве.
+ *
+ * Нераспознанное значение (пустое, «30 февраля») → Invalid Date: отказ
+ * по-прежнему говорит сервис (`z.coerce.date`), правило проверки одно.
+ */
+function wallClock(raw: string): Date {
+  return parseMoscowWallClock(raw) ?? new Date(Number.NaN);
+}
+
 function eventInput(fd: FormData): CalendarEventInput {
   const startsAt = str(fd, 'startsAt');
   const endsAt = str(fd, 'endsAt');
@@ -38,9 +51,8 @@ function eventInput(fd: FormData): CalendarEventInput {
     title: str(fd, 'title'),
     description: str(fd, 'description') || null,
     location: str(fd, 'location') || null,
-    // Пустая строка → invalid Date → сервис отбраковывает через z.coerce.date.
-    startsAt: new Date(startsAt),
-    endsAt: endsAt ? new Date(endsAt) : null,
+    startsAt: wallClock(startsAt),
+    endsAt: endsAt ? wallClock(endsAt) : null,
     allDay: fd.get('allDay') === 'on' || str(fd, 'allDay') === 'true',
     remindMinutes: remind,
     linkedOrderId: str(fd, 'linkedOrderId') || null,

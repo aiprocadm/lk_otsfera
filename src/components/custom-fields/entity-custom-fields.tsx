@@ -17,7 +17,8 @@
 import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Input, Select, Textarea, Button } from '@/components/ui';
-import { fmtDate } from '@/lib/format';
+import { fmtDate, fmtDateTime } from '@/lib/format';
+import { parseMoscowWallClock } from '@/lib/dates/wallClock';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { toast } from '@/lib/ui/toast';
 import { saveCustomFieldsAction } from '@/server-actions/customFields';
@@ -27,12 +28,19 @@ import { parseMultiselect, serializeMultiselect } from '@/lib/services/customFie
 
 // ─── Показ значения ──────────────────────────────────────────────────────────
 
+/**
+ * Значение поля «Дата и время» — текст из `datetime-local` без пояса
+ * («2026-09-25T22:30»), то есть московское «настенное» время (`Р-М-4`, прогон
+ * сопровождения №36). Прежний разбор `new Date(value)` читал его в поясе
+ * процесса: сервер (UTC) показывал «26.09.2026, 22:30» — чужой день, — а
+ * браузер «25.09.2026, 22:30», и карточка падала в ошибку гидратации.
+ * Разобранное по Москве и напечатанное по Москве, значение выходит ровно тем,
+ * что человек ввёл. Строка с явным поясом («…Z») — это момент, его печатаем по
+ * Москве как есть.
+ */
 function formatDateTime(value: string): string {
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return value;
-  return `${fmtDate(value)}, ${String(d.getHours()).padStart(2, '0')}:${String(
-    d.getMinutes()
-  ).padStart(2, '0')}`;
+  const d = parseMoscowWallClock(value) ?? new Date(value);
+  return Number.isNaN(d.getTime()) ? value : fmtDateTime(d);
 }
 
 export function formatValue(fwv: FieldWithValue): string {
