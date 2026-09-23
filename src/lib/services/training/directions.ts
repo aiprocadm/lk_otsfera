@@ -1,9 +1,19 @@
 import type { PrismaClient, TrainingDirection } from '@prisma/client';
 import { isManagerLeader } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { isUniqueViolationOn } from '@/lib/db/uniqueViolation';
 
-type DirectionsError = 'forbidden' | 'validation' | 'not_found';
+type DirectionsError = 'forbidden' | 'validation' | 'not_found' | 'slug_taken';
 type Result<T> = ({ ok: true } & T) | { ok: false; error: DirectionsError };
+
+/**
+ * Прогон сопровождения №37: запись по id, которого нет (`P2025`), — это
+ * «не найдено», а не падение сервера. Без разбора PATCH/DELETE по удалённому
+ * направлению отвечали 500 вместо 404.
+ */
+function isRecordMissing(e: unknown): boolean {
+  return !!e && typeof e === 'object' && (e as { code?: string }).code === 'P2025';
+}
 
 /** admin или руководитель (role='leader') настраивают справочники (§10/§11). */
 function canManageSettings(session: SessionPayload): boolean {
@@ -75,10 +85,17 @@ export async function createDirection(
   if (!canManageSettings(session)) return { ok: false, error: 'forbidden' };
   const name = args.name?.trim();
   if (!name) return { ok: false, error: 'validation' };
-  const direction = await prisma.trainingDirection.create({
-    data: { name, slug: args.slug?.trim() || null, sortOrder: args.sortOrder ?? 0 },
-  });
-  return { ok: true, direction };
+  try {
+    const direction = await prisma.trainingDirection.create({
+      data: { name, slug: args.slug?.trim() || null, sortOrder: args.sortOrder ?? 0 },
+    });
+    return { ok: true, direction };
+  } catch (e) {
+    // Прогон сопровождения №37: slug уникален, и занятый код раньше доходил до
+    // человека как 500. Чужое ограничение не прячем — пробрасываем.
+    if (isUniqueViolationOn(e, 'slug')) return { ok: false, error: 'slug_taken' };
+    throw e;
+  }
 }
 
 export async function updateDirection(
@@ -94,8 +111,13 @@ export async function updateDirection(
     data.name = name;
   }
   if (args.sortOrder !== undefined) data.sortOrder = args.sortOrder;
-  const direction = await prisma.trainingDirection.update({ where: { id: args.id }, data });
-  return { ok: true, direction };
+  try {
+    const direction = await prisma.trainingDirection.update({ where: { id: args.id }, data });
+    return { ok: true, direction };
+  } catch (e) {
+    if (isRecordMissing(e)) return { ok: false, error: 'not_found' };
+    throw e;
+  }
 }
 
 export async function deactivateDirection(
@@ -104,9 +126,14 @@ export async function deactivateDirection(
   args: { id: string }
 ): Promise<Result<{ direction: TrainingDirection }>> {
   if (!canManageSettings(session)) return { ok: false, error: 'forbidden' };
-  const direction = await prisma.trainingDirection.update({
-    where: { id: args.id },
-    data: { isActive: false },
-  });
-  return { ok: true, direction };
+  try {
+    const direction = await prisma.trainingDirection.update({
+      where: { id: args.id },
+      data: { isActive: false },
+    });
+    return { ok: true, direction };
+  } catch (e) {
+    if (isRecordMissing(e)) return { ok: false, error: 'not_found' };
+    throw e;
+  }
 }

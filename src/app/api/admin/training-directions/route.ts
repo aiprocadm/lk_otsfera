@@ -9,6 +9,9 @@ import { listDirections, createDirection } from '@/lib/services/training';
 function mapErr(e: string): number {
   if (e === 'forbidden') return 403;
   if (e === 'not_found') return 404;
+  // Прогон сопровождения №37: занятый код направления — конфликт с уже
+  // существующей строкой, как `email_taken` у команды партнёра.
+  if (e === 'slug_taken') return 409;
   return 400;
 }
 

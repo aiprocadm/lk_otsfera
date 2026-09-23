@@ -89,6 +89,19 @@ describe('POST /api/admin/training-directions', () => {
     expect(res.status).toBe(400);
   });
 
+  // Прогон сопровождения №37: занятый slug — конфликт (409) со стабильным кодом,
+  // а не 500 от необработанного P2002.
+  it('409 slug_taken, если код направления уже занят', async () => {
+    createDirection.mockResolvedValue({ ok: false, error: 'slug_taken' });
+    const req = new Request('http://x', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'ОТ', slug: 'ot' }),
+    });
+    const res = await POST(req as Request, routeCtx);
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe('slug_taken');
+  });
+
   it('201 при успехе', async () => {
     createDirection.mockResolvedValue({ ok: true, direction: { id: 'd1', name: 'IT' } });
     const req = new Request('http://x', { method: 'POST', body: JSON.stringify({ name: 'IT' }) });
