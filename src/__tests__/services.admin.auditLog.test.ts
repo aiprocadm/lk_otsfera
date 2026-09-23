@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PrismaClient } from '@prisma/client';
 import { listAudit, listAuditFilters } from '@/lib/services/admin/auditLog';
+import { moscowRangeFilter } from '@/lib/dates/calendar';
 
 // ---------------------------------------------------------------------------
 // Prisma mock factory
@@ -121,16 +122,37 @@ describe('listAudit() — filter translation', () => {
     expect(where.userId).toBe('user-99');
   });
 
-  it('passes from/to into where.createdAt with gte/lte', async () => {
+  // Прогон сопровождения №36: верх — `lt`, а не `lte`. Прежнее ожидание
+  // `lte` и было дефектом: страница передаёт полночь по Москве ПОСЛЕ дня «по»
+  // (`moscowRangeFilter`), и `lte` захватывал бы первый миг следующих суток.
+  it('passes from/to into where.createdAt with gte/lt (to — не включая)', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const prisma = makePrisma(findMany);
 
-    const from = new Date('2026-05-01T00:00:00Z');
-    const to = new Date('2026-05-31T23:59:59Z');
+    const from = new Date('2026-04-30T21:00:00Z');
+    const to = new Date('2026-05-31T21:00:00Z');
     await listAudit(prisma, { from, to });
 
     const { where } = findMany.mock.calls[0][0];
-    expect(where.createdAt).toMatchObject({ gte: from, lte: to });
+    expect(where.createdAt).toEqual({ gte: from, lt: to });
+  });
+
+  it('прогон №36: «по 31.08» с формы берёт весь московский день 31.08 и не берёт 01.09', async () => {
+    // Путь целиком: поле формы «ГГГГ-ММ-ДД» → moscowRangeFilter (как на
+    // странице) → where сервиса. `createdAt` журнала — `now()` сервера, то есть
+    // мгновение; опасное окно — 21:00–24:00 по Гринвичу (00:00–03:00 МСК).
+    const findMany = vi.fn().mockResolvedValue([]);
+    const prisma = makePrisma(findMany);
+    const range = moscowRangeFilter('2026-08-01', '2026-08-31');
+    await listAudit(prisma, { from: range.gte, to: range.lt });
+
+    const cond = findMany.mock.calls[0][0].where.createdAt as { gte: Date; lt: Date };
+    const inside = (d: Date) => d >= cond.gte && d < cond.lt && !('lte' in cond);
+    expect(inside(new Date('2026-08-31T20:30:00Z'))).toBe(true); // 31.08 23:30 МСК
+    expect(inside(new Date('2026-08-30T22:00:00Z'))).toBe(true); // 31.08 01:00 МСК
+    expect(inside(new Date('2026-08-31T21:30:00Z'))).toBe(false); // 01.09 00:30 МСК
+    expect(inside(new Date('2026-07-31T21:30:00Z'))).toBe(true); // 01.08 00:30 МСК
+    expect(inside(new Date('2026-07-31T20:30:00Z'))).toBe(false); // 31.07 23:30 МСК
   });
 
   it('passes from only (no lte) when to is absent', async () => {

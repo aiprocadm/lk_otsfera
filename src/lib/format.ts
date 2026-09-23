@@ -5,6 +5,8 @@
  * даты всегда рендерятся в московском времени (`Europe/Moscow`) — вывод не зависит от TZ сервера/CI;
  * `fmtMoney` намеренно без копеек (`maximumFractionDigits: 0`) — экраны, где копейки значимы (детали заказа), при sweep НЕ переводить на этот форматтер.
  */
+import { moscowYearMonth } from '@/lib/dates/calendar';
+
 const MONEY = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
 
 export function fmtMoney(value: number | string): string {
@@ -35,6 +37,65 @@ export function fmtDateTime(value: Date | string): string {
     minute: '2-digit',
     timeZone: 'Europe/Moscow',
   });
+}
+
+const MONTHS_LONG = [
+  'январь',
+  'февраль',
+  'март',
+  'апрель',
+  'май',
+  'июнь',
+  'июль',
+  'август',
+  'сентябрь',
+  'октябрь',
+  'ноябрь',
+  'декабрь',
+];
+
+const MONTHS_SHORT = [
+  'янв',
+  'фев',
+  'мар',
+  'апр',
+  'май',
+  'июн',
+  'июл',
+  'авг',
+  'сен',
+  'окт',
+  'ноя',
+  'дек',
+];
+
+/**
+ * Подпись периода ведомости комиссии: «август 2026» (`long`, PDF/XLSX) или
+ * «авг 2026» (`short`, экраны), если начало и конец лежат в одном
+ * **московском** месяце; иначе «дд.мм.гггг — дд.мм.гггг» по Москве.
+ *
+ * Прогон сопровождения №36 (спека `2026-09-23-moscow-time-in-server-code`,
+ * группа Б). Расчёт ведомости режет месяц по московским границам (`Д-22`):
+ * август — это `2026-07-31T21:00Z … 2026-08-31T20:59:59.999Z`. Пять копий
+ * подписи сравнивали месяцы по часам процесса (UTC) — и денежный документ
+ * печатал «31.07.2026 — 31.08.2026», а январская ведомость — даже прошлый год.
+ * На экране партнёра та же копия давала ошибку гидратации: сервер (UTC) и
+ * браузер (Москва) рисовали разный текст. Одна функция вместо пяти копий.
+ */
+export function fmtMonthPeriod(
+  from: Date | string,
+  to: Date | string,
+  style: 'short' | 'long'
+): string {
+  const f = typeof from === 'string' ? new Date(from) : from;
+  const t = typeof to === 'string' ? new Date(to) : to;
+  // Кривая дата не должна ронять страницу: `Intl.format` бросает на Invalid Date.
+  if (Number.isNaN(f.getTime()) || Number.isNaN(t.getTime())) return '—';
+  const month = moscowYearMonth(f);
+  if (month !== moscowYearMonth(t)) return `${fmtDate(f)} — ${fmtDate(t)}`;
+  const names = style === 'long' ? MONTHS_LONG : MONTHS_SHORT;
+  // `ГГГГ-ММ`: месяц 01…12 — индекс массива всегда существует.
+  return `${names[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
 }
 
 /** Календарная дата в московском времени как `YYYY-MM-DD` — для сравнения «тот же день». */

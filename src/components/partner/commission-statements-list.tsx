@@ -7,7 +7,7 @@ import { COMMISSION_STATUS_LABELS } from '@/lib/i18n/commissionStatus';
 import type { StatementListItem } from '@/lib/services/partner/finance';
 import { THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { CardList, Card, CardRow } from '@/components/ui/card-list';
-import { fmtMoney, fmtDate, pluralizeRu } from '@/lib/format';
+import { fmtMoney, fmtMonthPeriod, pluralizeRu } from '@/lib/format';
 import { toast } from '@/lib/ui/toast';
 import { useClientResource } from '@/hooks/useClientResource';
 
@@ -22,29 +22,6 @@ const STATUS_COLORS: Record<string, string> = {
   paid: 'bg-green-100 text-green-700',
   superseded: 'bg-gray-100 text-gray-400',
 };
-
-function fmtPeriod(from: Date, to: Date): string {
-  const months = [
-    'янв',
-    'фев',
-    'мар',
-    'апр',
-    'май',
-    'июн',
-    'июл',
-    'авг',
-    'сен',
-    'окт',
-    'ноя',
-    'дек',
-  ];
-  const f = new Date(from);
-  const t = new Date(to);
-  if (f.getMonth() === t.getMonth() && f.getFullYear() === t.getFullYear()) {
-    return `${months[f.getMonth()]} ${f.getFullYear()}`;
-  }
-  return `${fmtDate(f)} — ${fmtDate(t)}`;
-}
 
 function DownloadButton({ href, label }: { href: string; label: string }) {
   return (
@@ -115,7 +92,7 @@ function StatementRow({ stmt, canManage }: { stmt: StatementListItem; canManage:
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3">
             <span className="font-medium text-[#111111]">
-              {fmtPeriod(stmt.periodFrom, stmt.periodTo)}
+              {fmtMonthPeriod(stmt.periodFrom, stmt.periodTo, 'short')}
             </span>
             <span
               className={`px-2 py-0.5 text-xs font-medium rounded-full ${STATUS_COLORS[stmt.status] ?? 'bg-gray-100 text-gray-500'}`}

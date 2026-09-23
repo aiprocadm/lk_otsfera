@@ -173,4 +173,23 @@ describe('AdminCommissionStatementDetailPage', () => {
 
     expect(container.textContent).toMatch(/\d{2}\.\d{2}\.\d{4}\s*—\s*\d{2}\.\d{2}\.\d{4}/);
   });
+
+  it('прогон №36: период с московскими границами расчёта — «авг 2026» в заголовке и крошках', async () => {
+    // Границы — те, что пишет расчёт ведомости (`Д-22`). По часам процесса
+    // (UTC) прежняя копия подписи печатала «31.07.2026 — 31.08.2026».
+    requireAdmin.mockResolvedValue(SESSION);
+    getAdminStatement.mockResolvedValue({
+      ...BASE_STATEMENT,
+      periodFrom: new Date('2026-07-31T21:00:00.000Z'),
+      periodTo: new Date('2026-08-31T20:59:59.999Z'),
+    });
+    getStatementAuditLog.mockResolvedValue([]);
+
+    const { container } = await renderServerComponent(
+      AdminCommissionStatementDetailPage({ params: Promise.resolve({ id: 'st1' }) })
+    );
+
+    expect(container.textContent).toContain('Партнёр · авг 2026');
+    expect(container.textContent).not.toContain('31.07.2026');
+  });
 });

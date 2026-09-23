@@ -6,6 +6,7 @@ import {
   listAdminStatements,
   listPartnersForFilter,
 } from '@/lib/services/admin/commissionStatements';
+import { moscowRangeFilter } from '@/lib/dates/calendar';
 
 function makePrisma(overrides: Record<string, unknown> = {}) {
   return {
@@ -43,8 +44,10 @@ describe('listAdminStatements', () => {
   it('honours explicit status, partnerId, and date range', async () => {
     const findMany = vi.fn().mockResolvedValue([]);
     const prisma = makePrisma({ commissionStatement: { findMany } });
-    const from = new Date('2026-01-01');
-    const to = new Date('2026-04-01');
+    // Границы — то, что отдаёт страница (`moscowRangeFilter`): «с 01.01 по
+    // 31.03» — московская полночь 01.01 и московская полночь 01.04.
+    const from = new Date('2025-12-31T21:00:00.000Z');
+    const to = new Date('2026-03-31T21:00:00.000Z');
 
     await listAdminStatements(prisma, {
       status: 'draft',
@@ -57,8 +60,27 @@ describe('listAdminStatements', () => {
     const arg = findMany.mock.calls[0][0];
     expect(arg.where.status).toBe('draft');
     expect(arg.where.partnerId).toBe('p1');
-    expect(arg.where.periodFrom).toEqual({ gte: from, lte: to });
+    // Прогон сопровождения №36: верх — `lt`, а не `lte`. Прежнее ожидание `lte`
+    // и было дефектом: страница передаёт полночь по Москве ПОСЛЕ дня «по».
+    expect(arg.where.periodFrom).toEqual({ gte: from, lt: to });
     expect(arg.take).toBe(10);
+  });
+
+  it('прогон №36: «Период с 01.08 по 31.08» находит августовскую ведомость и не берёт сентябрьскую', async () => {
+    // `periodFrom` ведомости пишет расчёт (`Д-22`): московская полночь 1-го
+    // числа, то есть 21:00 по Гринвичу накануне. Путь как на странице: поля
+    // формы «ГГГГ-ММ-ДД» → moscowRangeFilter → where сервиса.
+    const findMany = vi.fn().mockResolvedValue([]);
+    const prisma = makePrisma({ commissionStatement: { findMany } });
+    const { gte, lt } = moscowRangeFilter('2026-08-01', '2026-08-31');
+    await listAdminStatements(prisma, { from: gte, to: lt });
+
+    const cond = findMany.mock.calls[0][0].where.periodFrom as { gte: Date; lt: Date };
+    expect(Object.keys(cond).sort()).toEqual(['gte', 'lt']);
+    const inside = (d: Date) => d >= cond.gte && d < cond.lt;
+    expect(inside(new Date('2026-07-31T21:00:00.000Z'))).toBe(true); // август: 01.08 00:00 МСК
+    expect(inside(new Date('2026-08-31T21:00:00.000Z'))).toBe(false); // сентябрь: 01.09 00:00 МСК
+    expect(inside(new Date('2026-06-30T21:00:00.000Z'))).toBe(false); // июль: 01.07 00:00 МСК
   });
 
   it('maps _count.items → itemCount and flattens partner', async () => {

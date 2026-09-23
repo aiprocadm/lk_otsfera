@@ -9,7 +9,13 @@ export type AdminStatementRow = CommissionStatement & {
 export type ListAdminStatementsOptions = {
   status?: 'draft' | 'approved' | 'paid' | undefined;
   partnerId?: string | undefined;
+  /** Начало периода ведомости — включительно. */
   from?: Date | undefined;
+  /**
+   * Верх **не включая** его (прогон сопровождения №36): страница передаёт
+   * полночь по Москве после дня «по» (`moscowRangeFilter`), и `lt` оставляет
+   * ведомость, начатую ровно в эту полночь, за границей.
+   */
   to?: Date | undefined;
   skip?: number | undefined;
   take?: number | undefined;
@@ -34,7 +40,7 @@ export async function listAdminStatements(
   if (from || to) {
     where.periodFrom = {};
     if (from) (where.periodFrom as Prisma.DateTimeFilter).gte = from;
-    if (to) (where.periodFrom as Prisma.DateTimeFilter).lte = to;
+    if (to) (where.periodFrom as Prisma.DateTimeFilter).lt = to;
   }
 
   const rows = await prisma.commissionStatement.findMany({

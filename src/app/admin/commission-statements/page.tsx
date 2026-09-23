@@ -8,7 +8,8 @@ import {
   type ListAdminStatementsOptions,
 } from '@/lib/services/admin/commissionStatements';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
-import { fmtDate } from '@/lib/format';
+import { fmtMonthPeriod } from '@/lib/format';
+import { moscowRangeFilter } from '@/lib/dates/calendar';
 
 import { PageHeader } from '@/components/ui/page-header';
 const STATUS_LABELS: Record<string, string> = {
@@ -30,38 +31,9 @@ function fmtMoney(val: unknown): string {
     : '—';
 }
 
-function fmtPeriod(from: Date, to: Date): string {
-  const months = [
-    'янв',
-    'фев',
-    'мар',
-    'апр',
-    'май',
-    'июн',
-    'июл',
-    'авг',
-    'сен',
-    'окт',
-    'ноя',
-    'дек',
-  ];
-  const f = new Date(from);
-  const t = new Date(to);
-  if (f.getMonth() === t.getMonth() && f.getFullYear() === t.getFullYear()) {
-    return `${months[f.getMonth()]} ${f.getFullYear()}`;
-  }
-  return `${fmtDate(f)} — ${fmtDate(t)}`;
-}
-
 function parseStatus(raw: string | undefined): ListAdminStatementsOptions['status'] {
   if (raw === 'draft' || raw === 'approved' || raw === 'paid') return raw;
   return undefined;
-}
-
-function parseDate(raw: string | undefined): Date | undefined {
-  if (!raw) return undefined;
-  const d = new Date(raw);
-  return Number.isNaN(d.getTime()) ? undefined : d;
 }
 
 type SearchParams = Promise<{ status?: string; partnerId?: string; from?: string; to?: string }>;
@@ -76,8 +48,14 @@ export default async function AdminCommissionStatementsPage({
   const sp = await searchParams;
   const status = parseStatus(sp.status);
   const partnerId = sp.partnerId || undefined;
-  const from = parseDate(sp.from);
-  const to = parseDate(sp.to);
+  // Прогон сопровождения №36: «Период с/по» — московские сутки. Раньше
+  // `new Date('2026-08-01')` давал 00:00 по Гринвичу (03:00 по Москве), и
+  // «с 01.08» не находил августовскую ведомость: её `periodFrom` — московская
+  // полночь 1-го, то есть 31.07 21:00 по Гринвичу (`Д-22`).
+  // Верх — полночь по Москве ПОСЛЕ дня «по», сервис сравнивает его через `lt`:
+  // ведомость, которая начинается ровно в эту полночь, к «по 31.08» уже не
+  // относится.
+  const { gte: from, lt: to } = moscowRangeFilter(sp.from, sp.to);
 
   const [rows, partners] = await Promise.all([
     listAdminStatements(prisma, { status, partnerId, from, to, take: 100 }),
@@ -169,7 +147,9 @@ export default async function AdminCommissionStatementsPage({
             {rows.map((r) => (
               <Tr key={r.id}>
                 <Td className="text-[#111111] font-medium">{r.partner.name}</Td>
-                <Td className="text-gray-700">{fmtPeriod(r.periodFrom, r.periodTo)}</Td>
+                <Td className="text-gray-700">
+                  {fmtMonthPeriod(r.periodFrom, r.periodTo, 'short')}
+                </Td>
                 <Td>
                   <span
                     className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[r.status] ?? 'bg-gray-100 text-gray-500'}`}

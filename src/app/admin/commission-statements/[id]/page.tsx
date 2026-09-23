@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db/prisma';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { getAdminStatement, getStatementAuditLog } from '@/lib/services/admin/commissionStatements';
 import { MarkPaidForm } from '@/components/admin/mark-paid-form';
-import { fmtMoney, fmtDate, fmtDateTime } from '@/lib/format';
+import { fmtMoney, fmtDateTime, fmtMonthPeriod } from '@/lib/format';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
 import { PageHeader } from '@/components/ui/page-header';
@@ -30,29 +30,6 @@ const ACTION_LABELS: Record<string, string> = {
   commission_statement_paid: 'Выплачен',
 };
 
-function fmtPeriod(from: Date, to: Date): string {
-  const months = [
-    'янв',
-    'фев',
-    'мар',
-    'апр',
-    'май',
-    'июн',
-    'июл',
-    'авг',
-    'сен',
-    'окт',
-    'ноя',
-    'дек',
-  ];
-  const f = new Date(from);
-  const t = new Date(to);
-  if (f.getMonth() === t.getMonth() && f.getFullYear() === t.getFullYear()) {
-    return `${months[f.getMonth()]} ${f.getFullYear()}`;
-  }
-  return `${fmtDate(f)} — ${fmtDate(t)}`;
-}
-
 export default async function AdminCommissionStatementDetailPage({
   params,
 }: {
@@ -74,7 +51,7 @@ export default async function AdminCommissionStatementDetailPage({
         <Breadcrumbs
           items={buildCabinetBreadcrumbs('admin', '/admin/commission-statements', [
             {
-              label: `${statement.partner.name} · ${fmtPeriod(statement.periodFrom, statement.periodTo)}`,
+              label: `${statement.partner.name} · ${fmtMonthPeriod(statement.periodFrom, statement.periodTo, 'short')}`,
             },
           ])}
         />
@@ -86,7 +63,8 @@ export default async function AdminCommissionStatementDetailPage({
             <PageHeader
               title={
                 <>
-                  {statement.partner.name} · {fmtPeriod(statement.periodFrom, statement.periodTo)}
+                  {statement.partner.name} ·{' '}
+                  {fmtMonthPeriod(statement.periodFrom, statement.periodTo, 'short')}
                 </>
               }
               subtitle={<>Statement #{statement.id}</>}

@@ -4,6 +4,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { listPiiAccess, listPiiAccessFilters } from '@/lib/services/admin/piiAccess';
+import { moscowRangeFilter } from '@/lib/dates/calendar';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const ADMIN: SessionPayload = { sub: 'adm', role: 'admin' };
@@ -86,18 +87,38 @@ describe('listPiiAccess', () => {
       context: 'calls_list',
       subjectType: 'caller',
       subjectId: 'c42',
-      from: new Date('2026-07-01'),
-      to: new Date('2026-07-11'),
+      from: new Date('2026-06-30T21:00:00.000Z'),
+      to: new Date('2026-07-11T21:00:00.000Z'),
     });
     const arg = (p as any).piiAccessEvent.findMany.mock.calls[0][0];
+    // Прогон сопровождения №36: верх — `lt`, а не `lte`. Прежнее ожидание `lte`
+    // и было дефектом: страница передаёт полночь по Москве ПОСЛЕ дня «по».
     expect(arg.where).toEqual({
       userId: 'u1',
       userRole: 'leader',
       context: 'calls_list',
       subjectType: 'caller',
       subjectIds: { has: 'c42' },
-      createdAt: { gte: new Date('2026-07-01'), lte: new Date('2026-07-11') },
+      createdAt: {
+        gte: new Date('2026-06-30T21:00:00.000Z'),
+        lt: new Date('2026-07-11T21:00:00.000Z'),
+      },
     });
+  });
+
+  it('прогон №36: «по 31.08» с формы берёт весь московский день 31.08 и не берёт 01.09', async () => {
+    // Путь как на странице: поле «ГГГГ-ММ-ДД» → moscowRangeFilter → where.
+    // `createdAt` журнала — `now()` сервера (мгновение), опасное окно —
+    // 21:00–24:00 по Гринвичу (00:00–03:00 по Москве).
+    const p = makePrisma();
+    const { gte, lt } = moscowRangeFilter('2026-08-01', '2026-08-31');
+    await listPiiAccess(p, ADMIN, { ...(gte ? { from: gte } : {}), ...(lt ? { to: lt } : {}) });
+    const cond = (p as any).piiAccessEvent.findMany.mock.calls[0][0].where.createdAt;
+    const inside = (d: Date) => d >= cond.gte && d < cond.lt && !('lte' in cond);
+    expect(inside(new Date('2026-08-31T20:30:00Z'))).toBe(true); // 31.08 23:30 МСК
+    expect(inside(new Date('2026-08-31T21:30:00Z'))).toBe(false); // 01.09 00:30 МСК
+    expect(inside(new Date('2026-07-31T21:30:00Z'))).toBe(true); // 01.08 00:30 МСК
+    expect(inside(new Date('2026-07-31T20:30:00Z'))).toBe(false); // 31.07 23:30 МСК
   });
 
   it('резолвит субъектов всех типов батчами; falsy-лейбл → «(удалён)»', async () => {
@@ -199,6 +220,25 @@ describe('listPiiAccess', () => {
       where: { id: { in: ['b1', 'b2'] } },
       select: { id: true, createdAt: true },
     });
+  });
+
+  it('прогон №36: пакет, заведённый в 01:30 по Москве, подписан московским числом', async () => {
+    // `createdAt` пакета — `now()` сервера. 13.09 01:30 МСК по Гринвичу ещё
+    // 12.09 22:30: по часам процесса подпись была бы «от 12.09.2026».
+    const p = makePrisma([
+      eventRow('e1', {
+        subjectType: 'bitrix_batch',
+        subjectIds: ['b1'],
+        context: 'bitrix_report',
+        action: 'export',
+      }),
+    ]);
+    (p as any).bitrixImportBatch.findMany.mockResolvedValue([
+      { id: 'b1', createdAt: new Date('2026-09-12T22:30:00Z') },
+    ]);
+    const res = await listPiiAccess(p, ADMIN, {});
+    if (!res.ok) throw new Error('expected ok');
+    expect(res.rows[0]!.subjects[0]!.label).toBe('Пакет миграции от 13.09.2026');
   });
 
   it('заявка без позиций подписывается прочерком, а не падает', async () => {

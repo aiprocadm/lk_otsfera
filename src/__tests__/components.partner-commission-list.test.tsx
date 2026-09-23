@@ -99,6 +99,23 @@ describe('CommissionStatementsList — coverage extension', () => {
     expect(htmlCross).toContain('—');
   });
 
+  it('прогон №36: август по московским границам расчёта — «авг 2026» и на сервере (UTC)', () => {
+    // Границы — ровно те, что пишет расчёт ведомости (`Д-22`): 01.08 00:00 МСК
+    // и миг до 01.09 00:00 МСК. Сервер (UTC) раньше печатал здесь
+    // «31.07.2026 — 31.08.2026», браузер (Москва) — «авг 2026», и React
+    // ругался ошибкой гидратации на /partner/finance. Тесты идут в UTC, как сервер.
+    const august: StatementListItem = {
+      ...draft,
+      periodFrom: new Date('2026-07-31T21:00:00.000Z'),
+      periodTo: new Date('2026-08-31T20:59:59.999Z'),
+    };
+    const html = renderToString(
+      <CommissionStatementsList statements={[august]} canManage={false} />
+    );
+    expect(html).toContain('авг 2026');
+    expect(html).not.toContain('31.07.2026');
+  });
+
   it('renders each status label and color, falling back to the raw string for an unknown status', () => {
     const approved: StatementListItem = { ...draft, id: 's2', status: 'approved' };
     const paid: StatementListItem = { ...draft, id: 's3', status: 'paid' };

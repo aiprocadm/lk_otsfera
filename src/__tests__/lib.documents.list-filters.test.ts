@@ -65,6 +65,15 @@ describe('documentYearOptions', () => {
     expect(years).toContain(2021);
     expect(years).toHaveLength(6);
   });
+
+  it('прогон №36: 1 января в 00:30 по Москве наступивший год уже в списке', () => {
+    // По Гринвичу это ещё 31.12.2025 21:30: `getFullYear()` на сервере (UTC)
+    // отдавал 2025, и документы, выпущенные в первые часы года, нечем было
+    // отобрать. Год выборки (`moscowYearRange`) — тоже московский.
+    const years = documentYearOptions(new Date('2025-12-31T21:30:00Z'));
+    expect(years[0]).toBe(2026);
+    expect(years.at(-1)).toBe(2021);
+  });
 });
 
 describe('списки фильтров', () => {

@@ -46,6 +46,7 @@ import {
   type BitrixBatchSettings,
 } from '@/lib/services/bitrix/preview';
 import type { BitrixStage } from '@/lib/services/bitrix/source';
+import { inCreatedRange } from '@/lib/services/bitrix/filter';
 
 const create = vi.fn();
 const findUnique = vi.fn();
@@ -649,22 +650,40 @@ describe('filterOf', () => {
     expect(filterOf(base)).toEqual({ openOnly: false });
   });
 
-  it('обе границы разбираются в даты', () => {
+  // Прогон сопровождения №36: границы — московские сутки. Прежнее ожидание
+  // `new Date('2026-01-01')` (00:00 по Гринвичу = 03:00 по Москве) и было
+  // дефектом: источник сравнивает «по» включительно, и лиды последнего дня
+  // после 03:00 МСК не переносились.
+  it('обе границы разбираются в московские сутки: «с» — полночь, «по» — последний миг дня', () => {
     expect(filterOf({ ...base, from: '2025-01-01', to: '2026-01-01', openOnly: true })).toEqual({
-      from: new Date('2025-01-01'),
-      to: new Date('2026-01-01'),
+      from: new Date('2024-12-31T21:00:00.000Z'),
+      to: new Date('2026-01-01T20:59:59.999Z'),
       openOnly: true,
     });
   });
 
-  it('кривая дата не превращается в Invalid Date, а просто исчезает', () => {
+  it('кривая или несуществующая дата не превращается в Invalid Date, а просто исчезает', () => {
     expect(filterOf({ ...base, from: 'вчера', to: '2026-01-01' })).toEqual({
-      to: new Date('2026-01-01'),
+      to: new Date('2026-01-01T20:59:59.999Z'),
       openOnly: false,
     });
-    expect(filterOf({ ...base, from: '2025-01-01', to: 'позавчера' })).toEqual({
-      from: new Date('2025-01-01'),
+    expect(filterOf({ ...base, from: '2025-01-01', to: '2026-02-30' })).toEqual({
+      from: new Date('2024-12-31T21:00:00.000Z'),
       openOnly: false,
     });
+  });
+
+  it('прогон №36: лиды последнего дня периода переносятся, лиды следующего дня — нет', () => {
+    // Дата создания — как её отдаёт портал (`DATE_CREATE` с поясом, адаптер
+    // REST разбирает её `new Date(...)`); фильтр — тот же `inCreatedRange`,
+    // что у файла и демо, и то же включительное «по», что `<=DATE_CREATE`.
+    const filter = filterOf({ ...base, from: '2026-08-01', to: '2026-08-31' });
+    const created = (portal: string) => inCreatedRange(new Date(portal), filter);
+    expect(created('2026-08-31T23:30:00+03:00')).toBe(true); // последний день, поздно вечером
+    expect(created('2026-08-31T10:00:00+03:00')).toBe(true); // последний день, после 03:00 МСК
+    expect(created('2026-08-01T00:30:00+03:00')).toBe(true); // первый день, ночью
+    expect(created('2026-09-01T00:30:00+03:00')).toBe(false); // следующий день, ночью
+    expect(created('2026-09-01T00:00:00+03:00')).toBe(false); // ровно полночь следующего
+    expect(created('2026-07-31T23:30:00+03:00')).toBe(false); // накануне периода
   });
 });
