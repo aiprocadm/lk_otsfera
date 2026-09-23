@@ -12,6 +12,8 @@ import {
 const manager = { sub: 'm1', role: 'manager', companyId: 'c1' } as never;
 const admin = { sub: 'a1', role: 'admin', companyId: null } as never;
 const partner = { sub: 'p1', role: 'partner', companyId: 'c1' } as never;
+/** Беседы в заглушках созданы раньше своего последнего сообщения. */
+const CREATED = new Date('2026-07-17T06:00:00Z');
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -80,9 +82,15 @@ it('openDm: цель с ролью leader — staff, диалог открыва
 
 it('staffUnreadCount: считает беседы с lastMessageAt > lastReadAt', async () => {
   const findMany = vi.fn().mockResolvedValue([
-    { id: 'g1', lastMessageAt: new Date('2026-07-17T10:00:00Z'), readStates: [] },
+    {
+      id: 'g1',
+      createdAt: CREATED,
+      lastMessageAt: new Date('2026-07-17T10:00:00Z'),
+      readStates: [],
+    },
     {
       id: 'd1',
+      createdAt: CREATED,
       lastMessageAt: new Date('2026-07-17T09:00:00Z'),
       readStates: [{ lastReadAt: new Date('2026-07-17T09:30:00Z') }],
     },
@@ -352,6 +360,7 @@ it('listConversations: participant DM is not dropped by company mismatch (dm bra
     {
       id: 'dmX',
       kind: 'dm',
+      createdAt: CREATED,
       lastMessageAt: new Date('2026-07-17T11:00:00Z'),
       company: { name: 'Чужая компания' },
       participants: [
@@ -387,6 +396,7 @@ it('listConversations: admin sees general (all companies) + own dm, mapped corre
     {
       id: 'g1',
       kind: 'general',
+      createdAt: CREATED,
       lastMessageAt: new Date('2026-07-17T10:00:00Z'),
       company: { name: 'ООО Ромашка' },
       participants: [],
@@ -395,6 +405,7 @@ it('listConversations: admin sees general (all companies) + own dm, mapped corre
     {
       id: 'd1',
       kind: 'dm',
+      createdAt: CREATED,
       lastMessageAt: new Date('2026-07-17T08:00:00Z'),
       company: { name: 'ООО Ромашка' },
       participants: [
@@ -406,6 +417,7 @@ it('listConversations: admin sees general (all companies) + own dm, mapped corre
     {
       id: 'd2',
       kind: 'dm',
+      createdAt: CREATED,
       lastMessageAt: new Date('2026-07-17T07:00:00Z'),
       company: { name: 'ООО Ромашка' },
       participants: [{ userId: 'a1', user: { name: 'Админ' } }],
@@ -455,7 +467,9 @@ it('listConversations: admin sees general (all companies) + own dm, mapped corre
 it('staffUnreadCount: admin where-branch counts unread across all-company generals + own dm', async () => {
   const findMany = vi
     .fn()
-    .mockResolvedValue([{ lastMessageAt: new Date('2026-07-17T10:00:00Z'), readStates: [] }]);
+    .mockResolvedValue([
+      { createdAt: CREATED, lastMessageAt: new Date('2026-07-17T10:00:00Z'), readStates: [] },
+    ]);
   const prisma = { staffConversation: { findMany } } as never;
   const res = await staffUnreadCount(prisma, admin);
   expect(res).toEqual({ ok: true, count: 1 });
@@ -482,6 +496,52 @@ it('staffUnreadCount: manager without companyId uses sentinel for general, parti
       },
     })
   );
+});
+
+// --- Пустая беседа не «непрочитана» (прогон сопровождения №36) ---
+// Лениво созданный «# Общий» и открытая без сообщения ЛС получают
+// lastMessageAt = createdAt одной вставкой. Со старой точкой отсчёта (эпоха)
+// такая беседа горела непрочитанной у всех: «Чат команды 1», а внутри пусто.
+
+const EMPTY_GENERAL = {
+  id: 'g0',
+  kind: 'general',
+  createdAt: new Date('2026-09-23T09:43:16.366Z'),
+  lastMessageAt: new Date('2026-09-23T09:43:16.366Z'),
+  company: { name: 'ООО Ромашка' },
+  participants: [],
+  readStates: [],
+};
+
+it('listConversations: пустая беседа без прочтений — не непрочитана', async () => {
+  const findFirst = vi.fn().mockResolvedValue({ id: 'g0' });
+  const findMany = vi.fn().mockResolvedValue([EMPTY_GENERAL]);
+  const prisma = { staffConversation: { findFirst, findMany, create: vi.fn() } } as never;
+  const res = await listConversations(prisma, manager);
+  expect(res.rows).toEqual([expect.objectContaining({ id: 'g0', unread: false })]);
+  expect(findMany.mock.calls[0][0].select).toMatchObject({ createdAt: true });
+});
+
+it('listConversations: первое сообщение после создания — непрочитана, пока не открыли', async () => {
+  const findFirst = vi.fn().mockResolvedValue({ id: 'g0' });
+  const findMany = vi
+    .fn()
+    .mockResolvedValue([{ ...EMPTY_GENERAL, lastMessageAt: new Date('2026-09-23T09:50:00Z') }]);
+  const prisma = { staffConversation: { findFirst, findMany, create: vi.fn() } } as never;
+  const res = await listConversations(prisma, manager);
+  expect(res.rows).toEqual([expect.objectContaining({ id: 'g0', unread: true })]);
+});
+
+it('staffUnreadCount: пустая беседа не попадает в счётчик значка', async () => {
+  const findMany = vi
+    .fn()
+    .mockResolvedValue([
+      EMPTY_GENERAL,
+      { ...EMPTY_GENERAL, id: 'd9', lastMessageAt: new Date('2026-09-23T09:50:00Z') },
+    ]);
+  const prisma = { staffConversation: { findMany } } as never;
+  expect(await staffUnreadCount(prisma, manager)).toEqual({ ok: true, count: 1 });
+  expect(findMany.mock.calls[0][0].select).toMatchObject({ createdAt: true });
 });
 
 // --- extended coverage: markStaffRead branches ---

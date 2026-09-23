@@ -118,6 +118,23 @@ export async function openDm(
   }
 }
 
+/**
+ * Непрочитана ли беседа для читателя.
+ *
+ * Точка отсчёта для того, кто беседу ещё не открывал, — её создание, а не
+ * начало эпохи. У пустой беседы `lastMessageAt` = `createdAt` (оба
+ * `@default(now())` одной вставки), поэтому с эпохой лениво созданный
+ * «# Общий» и открытая без единого сообщения ЛС горели бы непрочитанными у
+ * всех: счётчик «1», а внутри пусто (прогон сопровождения №36).
+ */
+function isUnread(c: {
+  createdAt: Date;
+  lastMessageAt: Date;
+  readStates: Array<{ lastReadAt: Date }>;
+}): boolean {
+  return c.lastMessageAt > (c.readStates[0]?.lastReadAt ?? c.createdAt);
+}
+
 type StaffConversationRow = {
   id: string;
   kind: 'dm' | 'general';
@@ -145,6 +162,7 @@ export async function listConversations(
     select: {
       id: true,
       kind: true,
+      createdAt: true,
       lastMessageAt: true,
       company: { select: { name: true } },
       participants: { select: { userId: true, user: { select: { name: true } } } },
@@ -164,7 +182,7 @@ export async function listConversations(
           : (c.participants.find((p) => p.userId !== session.sub)?.user.name ?? 'Диалог'),
       companyName: c.kind === 'general' ? c.company.name : null,
       lastMessageAt: c.lastMessageAt,
-      unread: c.lastMessageAt > (c.readStates[0]?.lastReadAt ?? new Date(0)),
+      unread: isUnread(c),
     })),
   };
 }
@@ -180,14 +198,13 @@ export async function staffUnreadCount(
   const rows = await prisma.staffConversation.findMany({
     where: conversationScopeWhere(session),
     select: {
+      createdAt: true,
       lastMessageAt: true,
       readStates: { where: { userId: session.sub }, select: { lastReadAt: true }, take: 1 },
     },
     take: 200,
   });
-  const count = rows.filter(
-    (c) => c.lastMessageAt > (c.readStates[0]?.lastReadAt ?? new Date(0))
-  ).length;
+  const count = rows.filter(isUnread).length;
   return { ok: true, count };
 }
 
