@@ -81,6 +81,9 @@ const MONTHS_SHORT = [
  * печатал «31.07.2026 — 31.08.2026», а январская ведомость — даже прошлый год.
  * На экране партнёра та же копия давала ошибку гидратации: сервер (UTC) и
  * браузер (Москва) рисовали разный текст. Одна функция вместо пяти копий.
+ *
+ * Ведомости, записанные до `Д-22` с границами месяца по Гринвичу, тоже
+ * подписываются своим месяцем — см. `legacyUtcMonth`.
  */
 export function fmtMonthPeriod(
   from: Date | string,
@@ -91,11 +94,33 @@ export function fmtMonthPeriod(
   const t = typeof to === 'string' ? new Date(to) : to;
   // Кривая дата не должна ронять страницу: `Intl.format` бросает на Invalid Date.
   if (Number.isNaN(f.getTime()) || Number.isNaN(t.getTime())) return '—';
-  const month = moscowYearMonth(f);
-  if (month !== moscowYearMonth(t)) return `${fmtDate(f)} — ${fmtDate(t)}`;
+  const moscowMonth = moscowYearMonth(f);
+  const month = moscowMonth === moscowYearMonth(t) ? moscowMonth : legacyUtcMonth(f, t);
+  if (month === null) return `${fmtDate(f)} — ${fmtDate(t)}`;
   const names = style === 'long' ? MONTHS_LONG : MONTHS_SHORT;
   // `ГГГГ-ММ`: месяц 01…12 — индекс массива всегда существует.
   return `${names[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
+}
+
+/**
+ * `ГГГГ-ММ`, если период — ровно календарный месяц **по Гринвичу**
+ * (`1-е 00:00:00.000Z … последний день 23:59:59.999Z`), иначе `null`.
+ *
+ * Прогон сопровождения №36, замечание проверки. Так границы ведомости писали
+ * воркер до `Д-22` (#603, 14.09.2026) и демо-сид до прогона №36: процесс в
+ * UTC, местные конструкторы `new Date(y, m, …)`. Хранимые значения не
+ * пересчитываются (§9 спеки): неверным было чтение, а не запись. По Москве
+ * такой период — «01.07 03:00 … 01.08 02:59», и без этой ветки июльская
+ * ведомость на стенде подписалась бы «01.07.2026 — 01.08.2026», хотя до
+ * починки сервер печатал «июл 2026». Узнаётся только точная форма — след
+ * писателя, а не «примерно месяц»: произвольный диапазон ручного расчёта
+ * по-прежнему подписывается датами.
+ */
+function legacyUtcMonth(f: Date, t: Date): string | null {
+  const start = Date.UTC(f.getUTCFullYear(), f.getUTCMonth(), 1);
+  const next = Date.UTC(f.getUTCFullYear(), f.getUTCMonth() + 1, 1);
+  if (f.getTime() !== start || t.getTime() !== next - 1) return null;
+  return f.toISOString().slice(0, 7);
 }
 
 /** Календарная дата в московском времени как `YYYY-MM-DD` — для сравнения «тот же день». */
