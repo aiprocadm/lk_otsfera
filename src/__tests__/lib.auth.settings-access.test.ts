@@ -129,7 +129,8 @@ describe('canAccessSettingsSection', () => {
   });
 
   it('раздел под выключенным флагом скрыт даже у admin', () => {
-    delete process.env.FEATURE_ROLE_CONSTRUCTOR;
+    // Прогон №37: флаг включён по умолчанию, выключаем явно.
+    process.env.FEATURE_ROLE_CONSTRUCTOR = '0';
     expect(canAccessSettingsSection(admin(), section('access.roles'))).toBe(false);
     expect(visibleSettingsSections(admin(), 'admin').map((s) => s.id)).not.toContain(
       'access.roles'

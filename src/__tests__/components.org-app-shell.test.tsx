@@ -88,11 +88,13 @@ describe('OrgAppShell', () => {
   });
 
   it.each([
-    ['выключен', undefined, false],
+    ['выключен', '0', false],
+    ['не задан', undefined, true],
     ['включён', '1', true],
   ])('кнопка «Задать вопрос»: флаг %s → показана=%s', (_label, envValue, expected) => {
-    // cabinet_questions — флаг с явным включением (по умолчанию выключен,
-    // staged rollout). Шапка обязана оставаться рабочей в обоих состояниях.
+    // cabinet_questions с прогона №37 включён по умолчанию (готовая функция,
+    // нужна одна база), `0` — аварийный тормоз. Шапка обязана оставаться
+    // рабочей в обоих состояниях.
     const prev = process.env.FEATURE_CABINET_QUESTIONS;
     if (envValue === undefined) delete process.env.FEATURE_CABINET_QUESTIONS;
     else process.env.FEATURE_CABINET_QUESTIONS = envValue as string;

@@ -3,6 +3,17 @@ import { navByRole, navItemsFor } from '@/lib/navigation/cabinet';
 
 const ORIGINAL_ENV = { ...process.env };
 
+/** Флаги пунктов меню руководителя — с прогона №37 все включены по умолчанию. */
+const LEADER_READY_FLAGS = [
+  'FEATURE_GLOBAL_SEARCH',
+  'FEATURE_SALES_FUNNEL',
+  'FEATURE_LEADER_ANALYTICS',
+  'FEATURE_INTERNAL_TASKS',
+  'FEATURE_STAFF_CALENDAR',
+  'FEATURE_CONTACTS',
+  'FEATURE_NOTIFICATION_CENTER',
+];
+
 beforeEach(() => {
   process.env = { ...ORIGINAL_ENV };
   delete process.env.FEATURE_LEADER_CABINET;
@@ -103,7 +114,10 @@ describe('канон leader', () => {
     }
   });
 
-  it('navItemsFor("leader") без opt-in флагов скрывает «Поиск», «Роли», «Воронку», «Сделки», «Аналитику», «Задачи» и «Календарь»', () => {
+  it('navItemsFor("leader") при выключенных флагах скрывает «Поиск», «Воронку», «Аналитику», «Задачи», «Календарь», «Контакты» и «Уведомления»', () => {
+    // Прогон №37: эти функции включены по умолчанию, флаг — аварийный тормоз.
+    // Поэтому «выключено» здесь задаётся явно, а не отсутствием переменной.
+    for (const flag of LEADER_READY_FLAGS) process.env[flag] = '0';
     const hrefs = navItemsFor('leader').map((i) => i.href);
     // `У-262`: «Заявки на обучение» и «Обращения» из этого списка ушли — их
     // флаги сняты, разделы есть всегда и от окружения больше не зависят.
@@ -121,6 +135,25 @@ describe('канон leader', () => {
     expect(hrefs).not.toContain('/leader/contacts');
     expect(hrefs).not.toContain('/leader/notifications');
     expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 7);
+  });
+
+  it('navItemsFor("leader") без единой переменной FEATURE_* показывает всё меню (§0.3)', () => {
+    // Приёмочный критерий «ничего не включается на сервере»: свежий прод без
+    // env обязан открывать руководителю полный набор разделов.
+    for (const flag of LEADER_READY_FLAGS) delete process.env[flag];
+    const hrefs = navItemsFor('leader').map((i) => i.href);
+    for (const href of [
+      '/leader/search',
+      '/leader/funnel',
+      '/leader/analytics',
+      '/leader/tasks',
+      '/leader/calendar',
+      '/leader/contacts',
+      '/leader/notifications',
+    ]) {
+      expect(hrefs).toContain(href);
+    }
+    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length);
   });
 
   it('navItemsFor("leader") показывает opt-in пункты при включённых флагах', () => {

@@ -50,7 +50,13 @@ describe('меню админа при включённом хабе', () => {
     const settings = items.filter((i) => i.href === '/admin/settings');
     expect(settings).toHaveLength(1);
     // `У-76` (этап 9): рядом с «Настройками» внизу закреплена «Справка».
-    expect(splitPinnedItems(items).pinned.map((i) => i.href)).toEqual(['/admin/settings', '/help']);
+    // Прогон №37: «Уведомления» (`notification_center`) включены по умолчанию
+    // и закреплены там же — это полный состав меню, а не обрезанный.
+    expect(splitPinnedItems(items).pinned.map((i) => i.href)).toEqual([
+      '/admin/notifications',
+      '/admin/settings',
+      '/help',
+    ]);
   });
 
   it('`У-113`: группы «Обмен с 1С» больше нет — её пункты живут в «Финансах»', () => {
@@ -98,8 +104,10 @@ describe('меню руководителя', () => {
     expect(hrefs).not.toContain('/leader/settings/order-statuses');
     expect(hrefs).toContain('/leader/settings');
     expect(splitPinnedItems(navItemsFor('leader')).pinned.map((i) => i.href)).toEqual([
+      // Прогон №37: «Уведомления» включены по умолчанию и закреплены внизу.
+      '/leader/notifications',
       // `У-111`: пункта-моста в кабинет менеджера здесь больше нет — кабинет
-      // переключается в шапке. Внизу остаются только «Настройки» и «Справка».
+      // переключается в шапке. Внизу остаются «Настройки» и «Справка».
       '/leader/settings',
       // `У-76` (этап 9): словарь терминов.
       '/help',

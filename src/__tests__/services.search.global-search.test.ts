@@ -95,7 +95,8 @@ afterEach(() => {
 
 describe('globalSearch — гейты', () => {
   it('флаг global_search выключен → forbidden без запросов', async () => {
-    delete process.env.FEATURE_GLOBAL_SEARCH;
+    // Прогон №37: флаг включён по умолчанию, выключаем явно — аварийный тормоз.
+    process.env.FEATURE_GLOBAL_SEARCH = '0';
     const { prisma, order } = makePrisma();
     expect(await globalSearch(prisma, manager, { q: 'тест' })).toEqual({
       ok: false,
@@ -194,9 +195,9 @@ describe('globalSearch — teamMode', () => {
 
 describe('globalSearch — модульные флаги категорий', () => {
   it('staff_chat/internal_tasks/staff_calendar off → категории не запрашиваются', async () => {
-    delete process.env.FEATURE_STAFF_CHAT;
-    delete process.env.FEATURE_INTERNAL_TASKS;
-    delete process.env.FEATURE_STAFF_CALENDAR;
+    process.env.FEATURE_STAFF_CHAT = '0';
+    process.env.FEATURE_INTERNAL_TASKS = '0';
+    process.env.FEATURE_STAFF_CALENDAR = '0';
     const { prisma, task, event, message, order } = makePrisma();
     const res = await globalSearch(prisma, manager, { q: 'тест' });
     expect(res.ok).toBe(true);
@@ -440,6 +441,7 @@ describe('globalSearch — категория «Контакты» (этап 1 �
   };
 
   it('флаг contacts выключен → в базу за контактами не ходим, группы нет, журнал — с пустыми id', async () => {
+    process.env.FEATURE_CONTACTS = '0';
     const { prisma, contact } = makePrisma();
     const res = await globalSearch(prisma, manager, { q: 'петр' });
     expect(contact).not.toHaveBeenCalled();

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 /**
  * Эталон раздела «Контакты» (этап 1 ТЗ 12.09.2026, `У-178`). Требует
- * `FEATURE_CONTACTS=1` на тестовом dev-сервере — флаг opt-in; без него страница
+ * `FEATURE_CONTACTS` не равный `0` (с прогона №37 флаг включён по умолчанию); при `0` страница
  * отвечает 404 и обход правил экранов считает её «недоступной».
  */
 test('manager contacts list renders consistently', async ({ page }, testInfo) => {
