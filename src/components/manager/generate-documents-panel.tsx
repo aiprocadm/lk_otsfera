@@ -69,7 +69,9 @@ export function GenerateDocumentsPanel({
       if (res.error === 'requested_recently') {
         // `У-157`: молчаливый отказ выглядел бы как поломка кнопки — говорим,
         // когда просили в прошлый раз.
-        const when = new Date(res.requestedAt).toLocaleString('ru-RU');
+        const when = new Date(res.requestedAt).toLocaleString('ru-RU', {
+          timeZone: 'Europe/Moscow',
+        });
         setRequestedAt(when);
         toast.error(`Реквизиты уже запрашивали ${when}. Повторить можно через сутки.`);
         return;
@@ -77,7 +79,7 @@ export function GenerateDocumentsPanel({
       toast.error('Не удалось отправить запрос.');
       return;
     }
-    setRequestedAt(new Date().toLocaleString('ru-RU'));
+    setRequestedAt(new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }));
     toast.success('Запрос реквизитов отправлен организации.');
   }
 

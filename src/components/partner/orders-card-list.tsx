@@ -14,6 +14,8 @@ function fmtDate(d: Date): string {
     day: '2-digit',
     month: '2-digit',
     year: '2-digit',
+    // Прогон №36: по Москве явно — сервер живёт в UTC.
+    timeZone: 'Europe/Moscow',
   }).format(d);
 }
 

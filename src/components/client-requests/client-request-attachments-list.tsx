@@ -1,5 +1,6 @@
 'use client';
 import React, { useState } from 'react';
+import { fmtDateTime } from '@/lib/format';
 
 export type ClientRequestAttachmentRowVM = {
   id: string;
@@ -19,16 +20,6 @@ function fmtSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} Б`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
-}
-
-function fmtDate(iso: string): string {
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(iso));
 }
 
 function mimeIcon(mime: string): string {
@@ -97,7 +88,7 @@ export function ClientRequestAttachmentsList({ requestId, rows }: Props) {
                 {busyId === r.id ? 'Готовим ссылку…' : r.name}
               </button>
               <div className="text-xs text-gray-500">
-                {fmtSize(r.size)} · {fmtDate(r.createdAt)}
+                {fmtSize(r.size)} · {fmtDateTime(r.createdAt)}
                 {r.createdByUserName && <> · {r.createdByUserName}</>}
               </div>
             </div>

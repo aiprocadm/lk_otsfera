@@ -2,6 +2,7 @@ import { renderToBuffer, Document, Page, Text, View, Image, StyleSheet } from '@
 import React from 'react';
 import { registerPdfFonts, PDF_FONT_FAMILY } from '@/lib/pdf/fonts';
 import type { ResolvedClause } from '@/lib/documents/documentTemplate';
+import { fmtDate } from '@/lib/format';
 import type { PartyBlock } from './orderDocumentPdf';
 import { formatMoney, type PrintTable } from './printTable';
 import type { DocumentBranding } from './branding';
@@ -146,13 +147,13 @@ function clauseParagraphs(clauses: ResolvedClause[], section: string) {
 }
 
 function ContractPdf({ data }: { data: ContractDocumentData }) {
-  const dateStr = new Date(data.date).toLocaleDateString('ru-RU');
+  const dateStr = fmtDate(data.date);
   const isExtra = data.docType === 'extra_agreement';
   const c = data.company;
   const o = data.organization;
 
   const preamble = isExtra
-    ? `${c.displayName}, именуемое в дальнейшем «Исполнитель», в лице ${signerPhrase(c)}, с одной стороны, и ${o.displayName}, именуемое в дальнейшем «Заказчик», в лице ${signerPhrase(o)}, с другой стороны, заключили настоящее дополнительное соглашение к договору № ${data.baseContract?.number ?? '—'} от ${data.baseContract ? new Date(data.baseContract.date).toLocaleDateString('ru-RU') : '—'} о нижеследующем.`
+    ? `${c.displayName}, именуемое в дальнейшем «Исполнитель», в лице ${signerPhrase(c)}, с одной стороны, и ${o.displayName}, именуемое в дальнейшем «Заказчик», в лице ${signerPhrase(o)}, с другой стороны, заключили настоящее дополнительное соглашение к договору № ${data.baseContract?.number ?? '—'} от ${data.baseContract ? fmtDate(data.baseContract.date) : '—'} о нижеследующем.`
     : `${c.displayName}, именуемое в дальнейшем «Исполнитель», в лице ${signerPhrase(c)}, действующего на основании ${c.signerBasis ?? 'устава'}, с одной стороны, и ${o.displayName}, именуемое в дальнейшем «Заказчик», в лице ${signerPhrase(o)}, действующего на основании ${o.signerBasis ?? 'устава'}, с другой стороны, заключили настоящий договор о нижеследующем.`;
 
   return e(

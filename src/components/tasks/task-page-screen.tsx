@@ -6,6 +6,7 @@ import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import type { TaskDetail } from '@/lib/services/tasks/detail';
 import { describeRecurrenceRu } from '@/lib/tasks/recurrence';
 import { isPastDue } from '@/lib/tasks/due';
+import { fmtDate } from '@/lib/format';
 import { TaskChecklist } from './task-checklist';
 import { TaskComments } from './task-comments';
 
@@ -45,7 +46,7 @@ type Cabinet = 'manager' | 'leader';
 
 export function TaskPageScreen({ task, cabinet }: { task: TaskDetail; cabinet: Cabinet }) {
   const crumbs = buildCabinetBreadcrumbs(cabinet, `/${cabinet}/tasks`, [{ label: task.title }]);
-  const due = task.dueDate ? new Date(task.dueDate).toLocaleDateString('ru-RU') : null;
+  const due = task.dueDate ? fmtDate(task.dueDate) : null;
   // «Просрочена» — когда закончился московский день срока (прогон №36,
   // `Р-М-3`), как у фильтра доски «Просроченные». Было «срок < сейчас»: с 03:00
   // МСК дня срока карточка уже писала «Просрочена», а доска — ещё нет.
@@ -153,7 +154,7 @@ export function TaskPageScreen({ task, cabinet }: { task: TaskDetail; cabinet: C
                   <li key={h.id} className="flex flex-col">
                     <span className="text-[#111111]">{h.action}</span>
                     <span className="text-xs text-gray-400">
-                      {new Date(h.at).toLocaleString('ru-RU')}
+                      {new Date(h.at).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}
                       {h.actorName ? ` · ${h.actorName}` : ''}
                     </span>
                   </li>

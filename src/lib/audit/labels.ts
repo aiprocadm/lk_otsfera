@@ -441,6 +441,8 @@ const DATE_TIME_FORMATTER = new Intl.DateTimeFormat('ru-RU', {
   hour: '2-digit',
   minute: '2-digit',
   second: '2-digit',
+  // Прогон №36: журнал читают по московскому времени, а сервер живёт в UTC.
+  timeZone: 'Europe/Moscow',
 });
 
 /** Единый формат по всей таблице: ДД.ММ.ГГГГ ЧЧ:ММ:СС (ТЗ §6.4.3). */

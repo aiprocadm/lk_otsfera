@@ -22,6 +22,7 @@ import type { OrgCardTabKey } from '@/lib/navigation/orgCardTabs';
 import type { OrganizationCard, OrgCardListKey } from '@/lib/services/manager/organizationCard';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { fmtDate } from '@/lib/format';
 /**
  * G4 — презентация CRM-карточки организации. Табы через query-param (?tab=) —
  * серверный рендер, без клиентского JS. manager-специфичный компонент (лидер
@@ -36,7 +37,6 @@ import { PageHeader } from '@/components/ui/page-header';
 // прямо из реестра `lib/navigation/orgCardTabs` (`npm run deadcode`).
 
 const money = (v: string) => `${v} ₽`;
-const dateRu = (d: Date) => new Date(d).toLocaleDateString('ru-RU');
 
 function Tile({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -426,7 +426,7 @@ function EnrollmentsSection({ enrollments }: { enrollments: OrganizationCard['en
             <Td>
               <Badge tone="neutral">{enrollmentStatusLabel(e.status as EnrollmentStatus)}</Badge>
             </Td>
-            <Td>{dateRu(e.createdAt)}</Td>
+            <Td>{fmtDate(e.createdAt)}</Td>
           </Tr>
         ))}
       </tbody>
@@ -486,7 +486,7 @@ function DocumentsSection({ documents }: { documents: OrganizationCard['document
             <Td className="font-medium">{d.name}</Td>
             <Td>{d.type}</Td>
             <Td>{d.direction}</Td>
-            <Td>{dateRu(d.createdAt)}</Td>
+            <Td>{fmtDate(d.createdAt)}</Td>
           </Tr>
         ))}
       </tbody>
@@ -525,7 +525,7 @@ function PaymentsSection({
           <tbody>
             {payments.map((p) => (
               <Tr key={p.id}>
-                <Td>{dateRu(p.paidAt)}</Td>
+                <Td>{fmtDate(p.paidAt)}</Td>
                 <Td>{money(p.amount)}</Td>
                 <Td>
                   {p.isRefund ? (
@@ -582,8 +582,8 @@ function CertificatesSection({
                 <Td className="font-medium">{c.number}</Td>
                 <Td>{c.studentName}</Td>
                 <Td>{c.directionName}</Td>
-                <Td>{dateRu(c.issuedAt)}</Td>
-                <Td>{c.validUntil ? dateRu(c.validUntil) : 'бессрочно'}</Td>
+                <Td>{fmtDate(c.issuedAt)}</Td>
+                <Td>{c.validUntil ? fmtDate(c.validUntil) : 'бессрочно'}</Td>
                 <Td>
                   {c.hasScan ? (
                     <Badge tone="success">есть</Badge>
@@ -608,7 +608,7 @@ function CommentsSection({ activity }: { activity: OrganizationCard['activity'] 
         <li key={c.id} className="rounded-lg border border-gray-200 p-3">
           <div className="flex items-center justify-between text-xs text-gray-500">
             <span>{c.authorName}</span>
-            <span>{dateRu(c.createdAt)}</span>
+            <span>{fmtDate(c.createdAt)}</span>
           </div>
           <p className="text-sm text-[#111111] mt-1">{c.body}</p>
         </li>
@@ -677,7 +677,7 @@ function InboundMessagesSection({
                 {INBOUND_STATUS_LABEL[m.status] ?? m.status}
               </Badge>
             </Td>
-            <Td className="whitespace-nowrap text-gray-500">{dateRu(m.createdAt)}</Td>
+            <Td className="whitespace-nowrap text-gray-500">{fmtDate(m.createdAt)}</Td>
           </Tr>
         ))}
       </tbody>
@@ -699,7 +699,7 @@ function OverviewSection({ card }: { card: OrganizationCard }) {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <MiniPanel title="Последние заявки">
         {card.orders.slice(0, 5).map((o) => (
-          <MiniRow key={o.id} left={o.title} right={dateRu(o.createdAt)} />
+          <MiniRow key={o.id} left={o.title} right={fmtDate(o.createdAt)} />
         ))}
       </MiniPanel>
       <MiniPanel title="Последние оплаты">
@@ -707,13 +707,13 @@ function OverviewSection({ card }: { card: OrganizationCard }) {
           <MiniRow
             key={p.id}
             left={`${p.isRefund ? '− ' : ''}${money(p.amount)}`}
-            right={dateRu(p.paidAt)}
+            right={fmtDate(p.paidAt)}
           />
         ))}
       </MiniPanel>
       <MiniPanel title="Последние комментарии">
         {card.activity.slice(0, 5).map((c) => (
-          <MiniRow key={c.id} left={c.body.slice(0, 40)} right={dateRu(c.createdAt)} />
+          <MiniRow key={c.id} left={c.body.slice(0, 40)} right={fmtDate(c.createdAt)} />
         ))}
       </MiniPanel>
     </div>
@@ -766,7 +766,7 @@ function ClientRequestsSection({ requests }: { requests: OrganizationCard['clien
                 <span className="ml-2 text-xs text-gray-500">{r.rejectedReason}</span>
               )}
             </Td>
-            <Td>{dateRu(r.createdAt)}</Td>
+            <Td>{fmtDate(r.createdAt)}</Td>
           </Tr>
         ))}
       </tbody>
@@ -798,7 +798,7 @@ function LeadsSection({ leads, hrefFor }: { leads: OrganizationCard['leads']; hr
             <Td>
               <LeadStatusBadge status={l.status as LeadStatus} />
             </Td>
-            <Td>{dateRu(l.createdAt)}</Td>
+            <Td>{fmtDate(l.createdAt)}</Td>
           </Tr>
         ))}
       </tbody>
@@ -837,7 +837,7 @@ function DealsSection({ deals }: { deals: OrganizationCard['deals'] }) {
               </Badge>
             </Td>
             <Td>{d.amount ? money(d.amount) : '—'}</Td>
-            <Td>{dateRu(d.createdAt)}</Td>
+            <Td>{fmtDate(d.createdAt)}</Td>
           </Tr>
         ))}
       </tbody>

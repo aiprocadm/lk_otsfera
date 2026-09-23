@@ -8,6 +8,7 @@ import { CardList, Card, CardRow } from '@/components/ui/card-list';
 import type { TaskBoard as TaskBoardData, TaskCard } from '@/lib/services/tasks/board';
 import { TaskDialog, type TaskFormOptions } from '@/components/tasks/task-dialog';
 import { isPastDue } from '@/lib/tasks/due';
+import { fmtDate } from '@/lib/format';
 
 /**
  * Этап 7 (ФТ-7.4) — вид «список»: те же данные, что и доска (плоско), сортировка
@@ -124,7 +125,7 @@ export function TaskList({
                 </CardRow>
                 <CardRow label="Срок">
                   <span className={isOverdue(row) ? 'text-red-600 font-medium' : undefined}>
-                    {row.dueDate ? new Date(row.dueDate).toLocaleDateString('ru-RU') : '—'}
+                    {row.dueDate ? fmtDate(row.dueDate) : '—'}
                     {isOverdue(row) && ' (просрочена)'}
                   </span>
                 </CardRow>
@@ -188,7 +189,7 @@ export function TaskList({
                     <td
                       className={`px-4 py-2.5 ${isOverdue(row) ? 'text-red-600 font-medium' : 'text-gray-600'}`}
                     >
-                      {row.dueDate ? new Date(row.dueDate).toLocaleDateString('ru-RU') : '—'}
+                      {row.dueDate ? fmtDate(row.dueDate) : '—'}
                       {isOverdue(row) && ' (просрочена)'}
                     </td>
                     <td className="px-4 py-2.5 text-gray-600">

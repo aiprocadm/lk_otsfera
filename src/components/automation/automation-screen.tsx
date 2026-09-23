@@ -285,7 +285,7 @@ export function AutomationScreen({
 }
 
 function fmt(at: Date | null): string {
-  return at ? new Date(at).toLocaleString('ru-RU') : '—';
+  return at ? new Date(at).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }) : '—';
 }
 
 function describeActions(rule: AutomationRuleView): string {

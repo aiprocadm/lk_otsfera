@@ -26,6 +26,7 @@ import type { DocumentDetail } from '@/lib/services/documents/detail';
 import { ONE_C_PUSH_STATUS_LABEL, ONE_C_PUSH_STATUS_TONE } from '@/lib/documents/oneCPushStatus';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { toast } from '@/lib/ui/toast';
+import { fmtDateTime } from '@/lib/format';
 import { requestDocumentPushAction } from '@/server-actions/documents/pushToOneC';
 
 /**
@@ -49,16 +50,6 @@ function buttonLabel(status: OneCPushStatus): string | null {
     default:
       return 'Выгрузить в 1С';
   }
-}
-
-function fmtDateTime(d: Date | string): string {
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(d));
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {

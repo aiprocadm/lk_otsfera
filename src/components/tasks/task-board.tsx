@@ -8,6 +8,7 @@ import { toast } from '@/lib/ui/toast';
 import { moveTaskAction } from '@/server-actions/tasks';
 import type { TaskBoard as TaskBoardData, TaskCard } from '@/lib/services/tasks/board';
 import { TaskDialog, type TaskFormOptions } from '@/components/tasks/task-dialog';
+import { fmtDate } from '@/lib/format';
 
 const MOVE_ERRORS: Record<string, string> = {
   invalid_column: 'Неизвестная колонка.',
@@ -25,11 +26,6 @@ const PRIORITY_TONE: Record<string, 'neutral' | 'warning' | 'danger'> = {
   medium: 'warning',
   high: 'danger',
 };
-
-function fmtDate(d: Date | null): string | null {
-  if (!d) return null;
-  return new Date(d).toLocaleDateString('ru-RU');
-}
 
 export function TaskBoard({
   board,
@@ -164,7 +160,7 @@ export function TaskBoard({
                         ? card.assigneeNames.join(', ')
                         : 'без исполнителя'}
                     </span>
-                    {fmtDate(card.dueDate) && <span>до {fmtDate(card.dueDate)}</span>}
+                    {card.dueDate && <span>до {fmtDate(card.dueDate)}</span>}
                   </div>
                 </article>
               ))}

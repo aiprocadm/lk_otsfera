@@ -20,3 +20,20 @@ import { stripComments } from '@/lib/acceptance/screenRules';
 export function readSource(path: string): string {
   return stripComments(readFileSync(path, 'utf8'));
 }
+
+/**
+ * То же, что `readSource`, но комментарии не вырезаются, а заменяются
+ * пробелами: позиции и номера строк совпадают с файлом.
+ *
+ * Прогон сопровождения №36, страж `dates.moscow-display`: он печатает
+ * «файл:строка» для каждого нарушения, а после вырезания многострочного
+ * комментария номера строк уезжают — человек открывал бы не то место.
+ * Шаблоны и их порядок — ровно как в `stripComments`; меняется только замена.
+ */
+export function readSourceKeepingLines(path: string): string {
+  const blank = (m: string) => m.replace(/[^\n]/g, ' ');
+  return readFileSync(path, 'utf8')
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, blank)
+    .replace(/\/\*[\s\S]*?\*\//g, blank)
+    .replace(/\/\/.*/g, blank);
+}

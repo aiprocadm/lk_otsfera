@@ -125,7 +125,10 @@ describe('GenerateDocumentsPanel', () => {
   it('`У-157`: повтор раньше суток называет, когда просили в прошлый раз', async () => {
     // Молчаливый отказ выглядел бы как поломка кнопки: и всплывающая подсказка,
     // и строка под кнопкой должны назвать дату прошлого запроса.
-    const requestedAt = new Date('2026-09-10T08:30:00.000Z');
+    // Прогон №36: 00:30 по Москве 10.09 — это ещё 09.09 по Гринвичу. Раньше
+    // ожидание считалось тем же `toLocaleString` без пояса и повторяло дефект;
+    // теперь дата названа литералом и обязана быть московской.
+    const requestedAt = new Date('2026-09-09T21:30:00.000Z');
     requestRequisitesAction.mockResolvedValueOnce({
       ok: false,
       error: 'requested_recently',
@@ -139,7 +142,7 @@ describe('GenerateDocumentsPanel', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Запросить у клиента' }));
 
-    const when = requestedAt.toLocaleString('ru-RU');
+    const when = '10.09.2026, 00:30:00';
     await waitFor(() =>
       expect(toastError).toHaveBeenCalledWith(
         `Реквизиты уже запрашивали ${when}. Повторить можно через сутки.`

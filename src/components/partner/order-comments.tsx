@@ -1,16 +1,7 @@
 import React from 'react';
 import type { PartnerOrderCommentRow } from '@/lib/services/partner/orderDetail';
+import { fmtDateTime } from '@/lib/format';
 import { AddCommentForm } from './add-comment-form';
-
-function fmtDateTime(d: Date): string {
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(d);
-}
 
 export function OrderComments({
   comments,

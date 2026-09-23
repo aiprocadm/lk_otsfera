@@ -1,4 +1,5 @@
 import type ExcelJS from 'exceljs';
+import { fmtDate } from '@/lib/format';
 
 /**
  * Общие правила выгрузок Модуля 12 (ФТ-12.1) в одном месте: лимит строк,
@@ -21,9 +22,13 @@ export function safeText(value: string): string {
   return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
 }
 
-/** Дата в русском формате; пустое значение — прочерк. */
+/**
+ * Дата в русском формате по Москве; пустое значение — прочерк. Выгрузку
+ * собирает сервер (UTC): без пояса запись с 00:00 до 03:00 по Москве попадала
+ * в файл вчерашним днём (прогон №36).
+ */
 export function formatDateRu(d: Date | null | undefined): string {
-  return d ? new Date(d).toLocaleDateString('ru-RU') : '—';
+  return d ? fmtDate(d) : '—';
 }
 
 /** Строка-значение с прочерком вместо пустоты (ФТ-12.2: пустая должность). */

@@ -200,6 +200,23 @@ describe('IssueDocumentDialog — поля предложения (`У-162`)', (
   });
 
   /**
+   * Прогон №36: «сегодня» — московское. 01:30 по Москве 1 октября — это ещё
+   * 22:30 30 сентября по Гринвичу, а тесты, как и сервер, живут в UTC. Прежние
+   * местные `getDate()`/`setDate()` подставляли 30.09 и срок на день короче.
+   */
+  it('ночью по Москве дата документа и срок считаются от московского «сегодня»', () => {
+    vi.setSystemTime(new Date('2026-09-30T22:30:00.000Z'));
+    const dialog = openDialog({
+      target: { kind: 'lead', leadId: 'lead-7' },
+      proposalValidDays: 30,
+    });
+    const date = within(dialog).getByLabelText('Дата документа') as HTMLInputElement;
+    const validUntil = within(dialog).getByLabelText('Действительно до') as HTMLInputElement;
+    expect(date.value).toBe('2026-10-01');
+    expect(validUntil.value).toBe('2026-10-31');
+  });
+
+  /**
    * Форма лида открывается с заблокированным типом (`lockedDocType`) — тип не
    * выбирают. Срок обязан подставиться и в этом случае: пустое «действительно
    * до» печатается в предложении пустой строкой, и клиент не знает, до какого

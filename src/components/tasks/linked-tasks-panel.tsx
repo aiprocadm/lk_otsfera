@@ -8,6 +8,7 @@ import { errorMessageRu } from '@/lib/errors/messages';
 import { createTaskAction } from '@/server-actions/tasks';
 import { taskLinkField, taskLinkValue, type TaskLinkRef } from '@/lib/tasks/links';
 import type { TaskCard } from '@/lib/services/tasks/board';
+import { fmtDate } from '@/lib/format';
 
 /**
  * Блок «Задачи» на карточке объекта: список привязанных задач + быстрое
@@ -83,9 +84,7 @@ export function LinkedTasksPanel({
                 {t.title}
               </span>
               {t.dueDate && (
-                <span className="text-xs text-gray-500 shrink-0">
-                  до {new Date(t.dueDate).toLocaleDateString('ru-RU')}
-                </span>
+                <span className="text-xs text-gray-500 shrink-0">до {fmtDate(t.dueDate)}</span>
               )}
               {t.assigneeNames.length > 0 && (
                 <span className="text-xs text-gray-400 truncate">{t.assigneeNames.join(', ')}</span>

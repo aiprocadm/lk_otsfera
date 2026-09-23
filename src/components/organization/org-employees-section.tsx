@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { AddStudentDialog } from '@/components/students/add-student-dialog';
 import { EmptyState, Paginator, TableShell, THead, Th, Tr, Td } from '@/components/ui';
 import type { OrgCardEmployeeRow } from '@/lib/services/organization/orgCardEmployees';
+import { fmtDate } from '@/lib/format';
 
 /**
  * Вкладка «Сотрудники» карточки организации (`У-97`).
@@ -36,7 +37,6 @@ export function OrgEmployeesSection({
   skip: number;
 }) {
   const q = typeof searchParams.q === 'string' ? searchParams.q : '';
-  const dateRu = (d: Date) => new Date(d).toLocaleDateString('ru-RU');
 
   return (
     <div className="space-y-3">
@@ -98,7 +98,7 @@ export function OrgEmployeesSection({
                   </Td>
                   <Td className="text-gray-700">{r.position ?? '—'}</Td>
                   <Td className="text-gray-700">{r.email ?? '—'}</Td>
-                  <Td className="text-gray-700">{dateRu(r.createdAt)}</Td>
+                  <Td className="text-gray-700">{fmtDate(r.createdAt)}</Td>
                 </Tr>
               ))}
             </tbody>

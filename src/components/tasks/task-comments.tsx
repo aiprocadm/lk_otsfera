@@ -59,7 +59,7 @@ export function TaskComments({
               <div className="flex items-baseline gap-2">
                 <span className="text-sm font-medium text-[#111111]">{c.authorName}</span>
                 <span className="text-xs text-gray-400">
-                  {new Date(c.createdAt).toLocaleString('ru-RU')}
+                  {new Date(c.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}
                 </span>
               </div>
               <p className="whitespace-pre-wrap text-sm text-gray-700">{c.body}</p>
