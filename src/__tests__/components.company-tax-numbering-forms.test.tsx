@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * `У-138` — блоки «Налоги» и «Нумерация документов» экрана «Реквизиты
+ * `У-138` — блоки «Налоги и КП» и «Нумерация документов» экрана «Реквизиты
  * исполнителя». Проверяем разбор формы и предзаполнение: ставка хранится
  * строкой фиксированной точности ('0.2000'), а селект знает доли ('0.2') —
  * несовпадение молча показало бы «не облагается» у компании с НДС 20%.
@@ -42,11 +42,33 @@ describe('CompanyTaxForm', () => {
         companyId: 'co-1',
         defaultVatRate: '0.2000',
         pricesIncludeVat: true,
+        proposalValidDays: 14,
       })
     );
     const select = screen.getByLabelText('Ставка НДС по умолчанию') as HTMLSelectElement;
     expect(select.value).toBe('0.2');
     expect((screen.getByLabelText('цены включают НДС') as HTMLInputElement).checked).toBe(true);
+  });
+
+  // Прогон сопровождения №37 (критерий §0.3): срок действия КП правится из
+  // интерфейса — поле есть, предзаполнено сохранённым значением, с границами.
+  it('поле «Срок действия КП» предзаполнено и ограничено 1…365', () => {
+    render(
+      React.createElement(CompanyTaxForm, {
+        cabinet: 'admin' as const,
+        companyId: 'co-1',
+        defaultVatRate: null,
+        pricesIncludeVat: false,
+        proposalValidDays: 21,
+      })
+    );
+    const days = screen.getByLabelText('Срок действия КП по умолчанию, дней') as HTMLInputElement;
+    expect(days.name).toBe('proposalValidDays');
+    expect(days.value).toBe('21');
+    expect(days.min).toBe('1');
+    expect(days.max).toBe('365');
+    expect(days.required).toBe(true);
+    expect(screen.getByText(/если дату не указать вручную/)).toBeTruthy();
   });
 
   it('null = «не облагается»; сабмит несёт кабинет, companyId и снятый чекбокс', async () => {
@@ -56,6 +78,7 @@ describe('CompanyTaxForm', () => {
         companyId: 'co-1',
         defaultVatRate: null,
         pricesIncludeVat: false,
+        proposalValidDays: 30,
       })
     );
     expect((screen.getByLabelText('Ставка НДС по умолчанию') as HTMLSelectElement).value).toBe(
@@ -70,7 +93,9 @@ describe('CompanyTaxForm', () => {
     expect(fd.get('defaultVatRate')).toBe('none');
     // Снятый чекбокс в FormData не попадает — сервис прочитает это как false.
     expect(fd.get('pricesIncludeVat')).toBeNull();
-    expect(toastSuccess).toHaveBeenCalledWith('Налоговые настройки сохранены.');
+    // Прогон сопровождения №37: срок действия КП уходит в action вместе с НДС.
+    expect(fd.get('proposalValidDays')).toBe('30');
+    expect(toastSuccess).toHaveBeenCalledWith('Настройки налогов и КП сохранены.');
     expect(refresh).toHaveBeenCalled();
   });
 
@@ -82,6 +107,7 @@ describe('CompanyTaxForm', () => {
         companyId: 'co-1',
         defaultVatRate: '0',
         pricesIncludeVat: true,
+        proposalValidDays: 14,
       })
     );
     fireEvent.submit(screen.getByRole('button', { name: 'Сохранить' }).closest('form')!);
@@ -102,6 +128,7 @@ describe('CompanyTaxForm', () => {
         companyId: 'co-1',
         defaultVatRate: null,
         pricesIncludeVat: true,
+        proposalValidDays: 14,
       })
     );
     fireEvent.submit(screen.getByRole('button', { name: 'Сохранить' }).closest('form')!);
@@ -117,6 +144,7 @@ describe('CompanyTaxForm', () => {
         companyId: 'co-1',
         defaultVatRate: null,
         pricesIncludeVat: true,
+        proposalValidDays: 14,
       })
     );
     fireEvent.submit(screen.getByRole('button', { name: 'Сохранить' }).closest('form')!);

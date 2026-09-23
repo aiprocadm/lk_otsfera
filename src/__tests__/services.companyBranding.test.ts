@@ -201,6 +201,78 @@ describe('setCompanyTaxSettings — граница и валидация', () =>
   });
 });
 
+// Прогон сопровождения №37 (`У-162`, критерий §0.3): срок действия КП по
+// умолчанию правится из интерфейса — сервис проверяет, пишет и журналирует.
+describe('setCompanyTaxSettings — срок действия КП', () => {
+  const DAYS_MSG = 'Срок действия КП: целое число дней от 1 до 365';
+
+  it.each(['', '0', '366', '7.5', '-3', '1e2', 'abc'])(
+    '«%s» — validation, до базы не доходит',
+    async (raw) => {
+      const f = fake();
+      expect(
+        await setCompanyTaxSettings(f.prisma, adminSession(), 'co-1', {
+          defaultVatRate: null,
+          pricesIncludeVat: false,
+          proposalValidDays: raw,
+        })
+      ).toEqual({ ok: false, error: 'validation', messages: [DAYS_MSG] });
+      expect(f.companyFindUnique).not.toHaveBeenCalled();
+      expect(f.companyUpdate).not.toHaveBeenCalled();
+    }
+  );
+
+  it('кривые ставка и срок сразу — обе причины одним списком', async () => {
+    const f = fake();
+    expect(
+      await setCompanyTaxSettings(f.prisma, adminSession(), 'co-1', {
+        defaultVatRate: '0.15',
+        pricesIncludeVat: false,
+        proposalValidDays: '0',
+      })
+    ).toEqual({
+      ok: false,
+      error: 'validation',
+      messages: ['Ставка НДС: 0%, 5%, 7%, 10%, 20% или «не облагается»', DAYS_MSG],
+    });
+  });
+
+  it('границы 1 и 365 допустимы; значение пишется числом и попадает в аудит', async () => {
+    const f = fake({
+      company: { defaultVatRate: null, pricesIncludeVat: false, proposalValidDays: 14 },
+    });
+    expect(
+      await setCompanyTaxSettings(f.prisma, leaderSession('co-1'), 'co-1', {
+        defaultVatRate: null,
+        pricesIncludeVat: false,
+        proposalValidDays: ' 365 ',
+      })
+    ).toEqual({ ok: true });
+    expect(f.companyUpdate).toHaveBeenCalledWith({
+      where: { id: 'co-1' },
+      data: { defaultVatRate: null, pricesIncludeVat: false, proposalValidDays: 365 },
+    });
+    expect(recordAudit).toHaveBeenCalledWith(
+      f.prisma,
+      expect.objectContaining({
+        action: 'company_tax_settings_changed',
+        before: { defaultVatRate: null, pricesIncludeVat: false, proposalValidDays: 14 },
+        after: { defaultVatRate: null, pricesIncludeVat: false, proposalValidDays: 365 },
+      })
+    );
+
+    await setCompanyTaxSettings(f.prisma, adminSession(), 'co-1', {
+      defaultVatRate: null,
+      pricesIncludeVat: false,
+      proposalValidDays: '1',
+    });
+    expect(f.companyUpdate).toHaveBeenLastCalledWith({
+      where: { id: 'co-1' },
+      data: { defaultVatRate: null, pricesIncludeVat: false, proposalValidDays: 1 },
+    });
+  });
+});
+
 describe('setCompanyDocumentNumbering', () => {
   it('кривой ввод (resetYearly не boolean) — validation, база не тронута', async () => {
     const f = fake();

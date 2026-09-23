@@ -394,6 +394,7 @@ const FIELD_LABELS: Record<string, string> = {
   vatIncluded: 'Цена включает НДС',
   defaultVatRate: 'Ставка НДС по умолчанию',
   pricesIncludeVat: 'Цены включают НДС',
+  proposalValidDays: 'Срок действия КП по умолчанию, дней',
   documentNumbering: 'Нумерация документов',
   slot: 'Слот оформления',
   unit: 'Единица измерения',

@@ -36,9 +36,14 @@ export async function setCompanyTaxSettingsAction(
   const companyId = str(fd, 'companyId');
   if (!companyId) return { ok: false, error: 'validation', messages: ['Не выбрана компания'] };
   const vatRaw = str(fd, 'defaultVatRate');
+  // Прогон сопровождения №37: срок действия КП по умолчанию. Поле есть в
+  // форме всегда; пустое значение уходит в сервис как есть и получает
+  // понятную ошибку, а не молча пропускается. Нет поля — столбец не трогаем.
+  const hasDays = fd.has('proposalValidDays');
   const res = await setCompanyTaxSettings(prisma, session, companyId, {
     defaultVatRate: vatRaw === 'none' || vatRaw === '' ? null : vatRaw,
     pricesIncludeVat: str(fd, 'pricesIncludeVat') === 'on',
+    ...(hasDays ? { proposalValidDays: str(fd, 'proposalValidDays') } : {}),
   });
   if (!res.ok) return res;
   revalidate();
