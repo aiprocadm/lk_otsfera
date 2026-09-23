@@ -103,10 +103,18 @@ describe('navItemsFor — «Сообщения» (два домена, У-234)',
 });
 
 describe('navItemsFor — chat flag (organization)', () => {
-  it('оба домена выключены — пункта нет (чат и переписка по умолчанию off)', () => {
-    // Оба флага opt-in: без явного включения раздел не показывается.
+  it('оба домена выключены — пункта нет', () => {
+    // Прогон №37: оба флага включены по умолчанию, поэтому выключаем явно.
+    process.env.FEATURE_CHAT = '0';
+    process.env.FEATURE_CABINET_QUESTIONS = '0';
     const labels = navItemsFor('organization').map((i) => i.label);
     expect(labels).not.toContain('Сообщения');
+  });
+
+  it('env не задан — пункт есть: готовые функции включены по умолчанию (§0.3)', () => {
+    delete process.env.FEATURE_CABINET_QUESTIONS;
+    const labels = navItemsFor('organization').map((i) => i.label);
+    expect(labels).toContain('Сообщения');
   });
 
   it('shows "Сообщения" (/organization/messages) when FEATURE_CHAT=1 (even if org_cabinet also on)', () => {

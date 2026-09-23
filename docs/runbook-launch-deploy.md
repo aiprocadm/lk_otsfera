@@ -52,8 +52,12 @@
 
 | Флаг | Env | Класс | Дефолт (unset) | Действие на launch |
 |---|---|---|---|---|
-| `chat` | `FEATURE_CHAT` | opt-in | **OFF** | включить, если чат в первой волне |
+| `chat` | `FEATURE_CHAT` | opt-out | **ON** | ничего не делать; `0` — только если чат НЕ идёт в первую волну |
 | `commission_pdf` / `commission_xlsx` / `pwa_installer` / `pii_access_log` / `document_generation` | соотв. | opt-out | **ON** | ничего не делать |
+| `notif_queue` / `max_channel` / `whatsapp_channel` / `inbound_messaging` / `telephony_mango` / `staff_2fa` | соотв. | opt-in | **OFF** | включать, когда подключён внешний сервис (Redis+воркер, бот, агрегатор, АТС, доставка писем) — [матрица флагов](feature-flags-matrix.md) |
+| `cabinet_questions` | `FEATURE_CABINET_QUESTIONS` | opt-in | **OFF** | включать только вместе с `inbound_messaging`: ответить на вопрос клиента менеджер может лишь из «Мессенджеров», без них «Задать вопрос» даёт переписку в одну сторону |
+
+С 23.09.2026 (прогон сопровождения №37) готовые функции, которым нужна только база, включены по умолчанию — полный список в [матрице флагов](feature-flags-matrix.md). Выставлять для них env на запуске не нужно.
 
 **Ловушка дефолтов:** «забыл выставить env» ведёт себя противоположно для двух классов — opt-in остаётся **OFF** (кабинет → 404), opt-out остаётся **ON**. Поэтому проверка «все opt-in флаги первой волны явно =1» обязательна (§3.3). Флип любого флага требует **redeploy web И worker** (env фиксируется при старте процесса) — механика и 3 точки чтения описаны в [runbook-staged-rollout-cabinets.md §0](runbook-staged-rollout-cabinets.md).
 
@@ -103,7 +107,7 @@ npx prisma migrate status          # ожидание: "Database schema is up to
 
 ### 3.3 Включить opt-in флаги первой волны (web + worker)
 ```
-FEATURE_CHAT=1            # только если чат идёт в первую волну; иначе оставить unset
+# FEATURE_CHAT — с 23.09.2026 включён по умолчанию; FEATURE_CHAT=0, только если чат НЕ идёт в первую волну
 ```
 Выставить в env **обоих** процессов (web + worker) → redeploy/restart обоих. Затем верифицировать (≤5 мин):
 - [ ] под нужной ролью `/{organization|manager|leader}/dashboard` и `/…/enrollments` отдают страницу (не 404);

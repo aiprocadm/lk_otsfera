@@ -15,6 +15,12 @@ vi.mock('@/lib/services/leader/dashboard', () => ({ leaderDashboard }));
 const { recentEvents } = vi.hoisted(() => ({ recentEvents: vi.fn() }));
 vi.mock('@/lib/services/manager/dashboard', () => ({ recentEvents }));
 
+// Прогон №37: раздел задач (`internal_tasks`) включён по умолчанию, поэтому
+// главная руководителя на пустом env сразу просит просроченные задачи.
+// Обе ветки флага проверены в pages.messages-dashboard-payments.test.tsx.
+const { listOverdueTasks } = vi.hoisted(() => ({ listOverdueTasks: vi.fn() }));
+vi.mock('@/lib/services/tasks/overdue', () => ({ listOverdueTasks }));
+
 vi.mock('@/components/leader/leader-managers-table', () => ({
   LeaderManagersTable: (props: { rows: unknown[] }) =>
     React.createElement('div', { 'data-testid': 'managers-table' }, JSON.stringify(props.rows)),
@@ -36,6 +42,7 @@ describe('LeaderDashboardPage', () => {
     requireManagerLeader.mockReset();
     leaderDashboard.mockReset();
     recentEvents.mockReset();
+    listOverdueTasks.mockReset().mockResolvedValue({ rows: [], total: 0 });
   });
 
   it('renders KPI cards, per-manager table, and events feed with commission present', async () => {

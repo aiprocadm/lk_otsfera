@@ -7,8 +7,12 @@ describe('chat feature flag', () => {
     delete process.env[KEY];
   });
 
-  it('is OFF by default (opt-in)', () => {
+  it('включён по умолчанию (прогон №37: готовая функция, нужна одна база)', () => {
     delete process.env[KEY];
+    expect(isFeatureEnabled('chat')).toBe(true);
+  });
+  it('FEATURE_CHAT=0 выключает — флаг остался аварийным тормозом', () => {
+    process.env[KEY] = '0';
     expect(isFeatureEnabled('chat')).toBe(false);
   });
   it('turns on with truthy env', () => {

@@ -114,7 +114,7 @@ function doX(
 Источник — [src/lib/featureFlags.ts](src/lib/featureFlags.ts). Семантика:
 
 - **Opt-out по умолчанию** (включено, если env не выставлен в `0/false/off`): `partner_leads`, `commission_pdf`, `commission_xlsx`, `pwa_installer`, `pii_access_log` (§25.7, поведенческий: recordPiiAccess no-op + баннер /admin/pii-access; выключать только на время инцидента). (Флаги `one_c_sync`/`document_scan` удалены 2026-06-11: не имели ни одной точки чтения; рычаги 1С — `ONE_C_ADAPTER` + admin sync control center, скан не отключаем намеренно.)
-- **Opt-in по умолчанию** (выключено, пока env не `1/true/on`): `organization_cabinet`, `manager_cabinet`, `chat`. Сделано для staged rollout.
+- **Opt-in по умолчанию** (выключено, пока env или «Функции платформы» не скажут `1/true/on`): флаги внешней неготовности — `max_channel`, `whatsapp_channel`, `telephony_mango`, `inbound_messaging` (бот/агрегатор/АТС), `notif_queue` (Redis + воркер), `staff_2fa` (доставка писем) — и `cabinet_questions`: ответить на вопрос из кабинета можно только в «Мессенджерах» под `inbound_messaging`, поэтому включаются они вместе (иначе клиент пишет, а менеджер открывает 404). С 23.09.2026 (прогон сопровождения №37) готовые функции, которым нужна одна база (`chat`, `contacts`, `automation` и др. — список в [docs/feature-flags-matrix.md](docs/feature-flags-matrix.md)), включены по умолчанию ради §0.3 «ничего не включается на сервере»; их флаг — аварийный тормоз (`=0`). Не возвращай готовую функцию в opt-in: свежий прод молча потеряет раздел (страж — `featureFlags.test.ts`).
 
 Три точки чтения флага:
 - middleware → 404 (после auth, чтобы не утекало существование префикса);

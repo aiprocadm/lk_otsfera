@@ -1,8 +1,8 @@
 /**
  * M5 — unit-тесты server-actions календаря (спека 2026-07-17-m5-calendar §4).
- * Hoisted-мок сервиса + requireSession + next/cache; флаг staff_calendar (opt-in)
- * включается через env в beforeEach — isFeatureEnabled читает process.env на
- * каждый вызов (см. featureFlags.test.ts).
+ * Hoisted-мок сервиса + requireSession + next/cache; флаг staff_calendar
+ * (с прогона №37 включён по умолчанию) задаётся через env в beforeEach —
+ * isFeatureEnabled читает process.env на каждый вызов (см. featureFlags.test.ts).
  */
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -60,7 +60,7 @@ describe('флаг staff_calendar off', () => {
     ['update', () => updateEventAction(validForm({ id: 'e1' })), updateEvent],
     ['delete', () => deleteEventAction(form({ id: 'e1' })), deleteEvent],
   ] as const)('%s → forbidden, сервис не вызван', async (_name, run, serviceMock) => {
-    delete process.env[FLAG_ENV]; // opt-in: без env флаг выключен
+    process.env[FLAG_ENV] = '0'; // аварийный тормоз: флаг включён по умолчанию
     expect(await run()).toEqual({ ok: false, error: 'forbidden' });
     expect(serviceMock).not.toHaveBeenCalled();
     expect(revalidatePath).not.toHaveBeenCalled();

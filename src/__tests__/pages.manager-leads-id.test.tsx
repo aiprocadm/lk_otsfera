@@ -332,6 +332,8 @@ describe('ManagerLeadDetailPage', () => {
   });
 
   it('этап 7: при выключенном internal_tasks блок «Задачи» скрыт и сервис не зовётся', async () => {
+    // Прогон №37: флаг включён по умолчанию, выключаем явно.
+    vi.stubEnv('FEATURE_INTERNAL_TASKS', '0');
     requireManager.mockResolvedValue(SESSION);
     getManagerLead.mockResolvedValue({ ...BASE_LEAD });
 
