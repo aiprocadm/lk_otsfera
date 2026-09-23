@@ -91,12 +91,202 @@ export function routeOf(file: string): string {
   return `/${routeSegments(file).join('/')}`;
 }
 
-/** Код без комментариев: в них `<h1>` и «кнопка» упоминаются как объяснение. */
-export function stripComments(src: string): string {
-  return src
-    .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/\/\/.*/g, '');
+/** Где кончается `/* … *\/`, начатый до `from`; незакрытый — до конца текста. */
+function blockEnd(src: string, from: number): number {
+  const close = src.indexOf('*/', from);
+  return close === -1 ? src.length : close + 2;
+}
+
+/** Где кончается `// …`: перед переводом строки (`\r\n` — перед `\r`). */
+function lineEnd(src: string, from: number): number {
+  const nl = src.indexOf('\n', from);
+  const end = nl === -1 ? src.length : nl;
+  return src.charAt(end - 1) === '\r' ? end - 1 : end;
+}
+
+/** `{/* … *\/}` — комментарий в разметке JSX: снимается вместе со скобками; `-1` — не он. */
+function jsxCommentEnd(src: string, open: number): number {
+  if (!src.startsWith('/*', open + 1)) return -1;
+  const end = blockEnd(src, open + 3);
+  return src.charAt(end) === '}' ? end + 1 : -1;
+}
+
+/**
+ * Где кончается строка `'…'` или `"…"`, открытая на `start`. Незакрытая
+ * строка обрывается на переводе строки — как у компилятора: так ошибка в
+ * разборе (апостроф в тексте разметки) портит одну строку, а не весь файл.
+ */
+function stringEnd(src: string, start: number): number {
+  const quote = src.charAt(start);
+  for (let k = start + 1; k < src.length; k += 1) {
+    const ch = src.charAt(k);
+    if (ch === '\\') k += 1;
+    else if (ch === quote) return k + 1;
+    else if (ch === '\n') return k;
+  }
+  return src.length;
+}
+
+/** Где кончается регулярное выражение `/…/флаги`: `/` внутри `[…]` его не закрывает. */
+function regexEnd(src: string, start: number): number {
+  let inClass = false;
+  for (let k = start + 1; k < src.length; k += 1) {
+    const ch = src.charAt(k);
+    if (ch === '\\') k += 1;
+    else if (ch === '\n') return k;
+    else if (ch === '[') inClass = true;
+    else if (ch === ']') inClass = false;
+    else if (ch === '/' && !inClass) {
+      let end = k + 1;
+      while (/[a-z]/i.test(src.charAt(end))) end += 1;
+      return end;
+    }
+  }
+  return src.length;
+}
+
+/** После этих знаков `/` открывает регулярное выражение, а не делит. */
+const REGEX_AFTER = '(,=:[!&|?{};>';
+const REGEX_KEYWORDS = new Set([
+  'return',
+  'typeof',
+  'case',
+  'do',
+  'else',
+  'in',
+  'of',
+  'new',
+  'delete',
+  'void',
+  'throw',
+  'yield',
+  'await',
+  'instanceof',
+]);
+
+/**
+ * `/` на этом месте — начало регулярки? Решает последний значащий символ
+ * кода перед ним (`at`, `-1` — начало файла): после имени, числа, `)` и `]`
+ * это деление, после `=`, `(`, `return` и им подобных — регулярка.
+ */
+function regexAllowedAfter(src: string, at: number): boolean {
+  if (at < 0) return true;
+  if (REGEX_AFTER.includes(src.charAt(at))) return true;
+  let from = at;
+  while (/[\w$]/.test(src.charAt(from))) from -= 1;
+  return REGEX_KEYWORDS.has(src.slice(from + 1, at + 1));
+}
+
+/** Символы, на которых разбор кода останавливается; остальное — просто код. */
+const CODE_STOP = /[/'"`{}]/g;
+
+/**
+ * Код без комментариев: в них `<h1>` и «кнопка» упоминаются как объяснение,
+ * а стражам по исходнику (`src/__tests__/helpers/source.ts`) закомментированный
+ * вызов нельзя считать живым.
+ *
+ * **Прогон сопровождения №37: разбор по символам вместо трёх регулярок.**
+ * Прежняя регулярка `//.*` не знала о строках и считала `//` внутри `'https://…'`
+ * началом комментария: всё, что стояло на строке после адреса, исчезало для
+ * каждого стража, читающего исходник через этот помощник. Дата без пояса
+ * после ссылки на той же строке проходила страж `dates.moscow-display`
+ * зелёной. Теперь строки `'…'` и `"…"`, шаблоны `` `…${…}…` `` (с любой
+ * вложенностью подстановок) и регулярки `/…/` проходятся целиком, а
+ * комментарием считается только то, что им является.
+ *
+ * Известные пределы — разбор не компилятор:
+ * — текст разметки JSX между тегами (`<p>было // стало</p>`) не отличить от
+ *   кода без разбора самой разметки, поэтому `//` в нём снимается до конца
+ *   строки, как раньше. Исключение — `://` (адрес в тексте разметки,
+ *   `<p>см. https://…</p>`): двоеточие вплотную перед `//` в коде не
+ *   встречается (форматтер ставит пробел);
+ * — регулярка отличается от деления по знаку перед `/`: после `)`, `]`, `}`
+ *   и имени это деление. `if (x) /re/.test(s)` прочитается неверно, но такой
+ *   записи в проекте нет, а ошибка ограничена одной строкой.
+ *
+ * `keepLayout` — не вырезать комментарий, а заменить пробелами (переводы
+ * строк остаются): позиции и номера строк совпадают с исходным файлом.
+ */
+export function stripComments(src: string, keepLayout = false): string {
+  const parts: string[] = [];
+  let flushed = 0;
+  let i = 0;
+  // Последний значащий символ кода: по нему `/` решает, регулярка ли он.
+  let lastSig = -1;
+
+  const cut = (end: number): void => {
+    parts.push(src.slice(flushed, i));
+    if (keepLayout) parts.push(src.slice(i, end).replace(/[^\r\n]/g, ' '));
+    i = end;
+    flushed = end;
+  };
+  const pass = (end: number): void => {
+    lastSig = end - 1;
+    i = end;
+  };
+
+  // Шаблон `…`: текст идёт как есть, а `${…}` — снова код со своими
+  // комментариями, строками и вложенными шаблонами.
+  const template = (): void => {
+    i += 1;
+    while (i < src.length) {
+      const ch = src.charAt(i);
+      if (ch === '\\') i += 2;
+      else if (ch === '`') {
+        pass(i + 1);
+        return;
+      } else if (ch === '$' && src.charAt(i + 1) === '{') {
+        pass(i + 2);
+        code(true);
+        i += 1;
+      } else i += 1;
+    }
+  };
+
+  // `inExpr` — разбор внутри `${…}`: закрывающая `}` своего уровня возвращает
+  // управление шаблону.
+  const code = (inExpr: boolean): void => {
+    let depth = 0;
+    while (i < src.length) {
+      // `lastIndex` ставится перед каждым поиском, поэтому один общий объект
+      // регулярки годится и для вложенных уровней разбора.
+      CODE_STOP.lastIndex = i;
+      const m = CODE_STOP.exec(src);
+      if (!m) {
+        i = src.length;
+        return;
+      }
+      for (let k = m.index - 1; k >= i; k -= 1) {
+        if (!/\s/.test(src.charAt(k))) {
+          lastSig = k;
+          break;
+        }
+      }
+      i = m.index;
+      const ch = m[0];
+      const next = src.charAt(i + 1);
+      if (ch === '/' && next === '/' && src.charAt(i - 1) !== ':') cut(lineEnd(src, i));
+      else if (ch === '/' && next === '*') cut(blockEnd(src, i + 2));
+      else if (ch === '/') pass(regexAllowedAfter(src, lastSig) ? regexEnd(src, i) : i + 1);
+      else if (ch === "'" || ch === '"') pass(stringEnd(src, i));
+      else if (ch === '`') template();
+      else if (ch === '{') {
+        const jsx = jsxCommentEnd(src, i);
+        if (jsx === -1) {
+          depth += 1;
+          pass(i + 1);
+        } else cut(jsx);
+      } else if (inExpr && depth === 0) return;
+      else {
+        depth -= 1;
+        pass(i + 1);
+      }
+    }
+  };
+
+  code(false);
+  parts.push(src.slice(flushed));
+  return parts.join('');
 }
 
 /**
@@ -170,7 +360,9 @@ const REDIRECT = /\b(?:redirect|permanentRedirect|redirectToSettingsHub)\(/;
  * его компоненты. Порядок важен только для заголовка: побеждает первая шапка.
  */
 export function analyzeScreen(sources: readonly string[]): ScreenSignals {
-  const clean = sources.map(stripComments);
+  // Стрелкой, а не `map(stripComments)`: иначе номер элемента ушёл бы в
+  // `keepLayout`, и комментарии компонентов заменялись бы пробелами.
+  const clean = sources.map((src) => stripComments(src));
   const joined = clean.join('\n');
   const windows = clean.flatMap(headerWindows);
   const title = classifyTitle(windows, joined);
