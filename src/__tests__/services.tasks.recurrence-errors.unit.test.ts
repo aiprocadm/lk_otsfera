@@ -120,6 +120,37 @@ describe('ночной обход: одна сломанная серия не �
   });
 });
 
+/**
+ * Прогон сопровождения №36 (`Р-М-3`): «срок прошёл» — закончился МОСКОВСКИЙ
+ * день срока, как обещает подсказка формы («когда пройдёт срок»). Обход идёт
+ * в 06:00 МСК; прежнее «срок < сейчас» рождало следующий экземпляр в сам день
+ * срока, пока текущий ещё в работе.
+ */
+describe('ночной обход: «срок прошёл» — по московскому дню (прогон №36)', () => {
+  async function pickedAt(now: Date): Promise<(due: Date) => boolean> {
+    taskFindMany.mockResolvedValue([]);
+    await sweepRecurringTasks(prisma, now);
+    const { lt } = taskFindMany.mock.calls.at(-1)![0].where.dueDate as { lt: Date };
+    return (due) => due < lt;
+  }
+
+  it('срок «сегодня» в 06:00 МСК ещё не прошёл; «вчера» — прошёл', async () => {
+    const morning = await pickedAt(new Date('2026-09-16T06:00:00+03:00'));
+    // Срок из формы задачи — `new Date(<input type="date">)`, полночь UTC.
+    expect(morning(new Date('2026-09-16'))).toBe(false);
+    expect(morning(new Date('2026-09-15'))).toBe(true);
+    // Срок из Битрикс24 «16.09 01:30 МСК» (15.09 22:30 UTC) — сегодняшний.
+    expect(morning(new Date('2026-09-16T01:30:00+03:00'))).toBe(false);
+  });
+
+  it('обход в 00:30 МСК (сервер ещё во вчера) видит закончившийся день', async () => {
+    const night = await pickedAt(new Date('2026-09-17T00:30:00+03:00'));
+    expect(night(new Date('2026-09-16'))).toBe(true);
+    expect(night(new Date('2026-09-16T23:59:00+03:00'))).toBe(true);
+    expect(night(new Date('2026-09-17T01:30:00+03:00'))).toBe(false);
+  });
+});
+
 describe('обёртка BullMQ', () => {
   it('работает на глобальном prisma и возвращает счётчики', async () => {
     expect(await tasksRecurrenceProcessor()).toEqual({ scanned: 0, created: 0 });

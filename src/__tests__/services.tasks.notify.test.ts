@@ -81,6 +81,24 @@ describe('notifyTaskAssigned', () => {
     expect(body).toContain('«Позвонить клиенту»');
   });
 
+  it('дата срока в тексте — по Москве (прогон №36)', async () => {
+    // Срок из Битрикс24 «16.08 01:30 МСК» адаптер хранит как 15.08 22:30 UTC;
+    // сервер в UTC без пояса написал бы «до 15.08» — на день раньше экрана.
+    await notifyTaskAssigned({
+      ...base,
+      dueDate: new Date('2026-08-16T01:30:00+03:00'),
+      assigneeUserIds: ['u1'],
+    });
+    // Срок из формы задачи (`new Date(<input type="date">)`) — свой же день.
+    await notifyTaskAssigned({ ...base, dueDate: new Date('2026-08-15'), assigneeUserIds: ['u2'] });
+    expect(recordNotification.mock.calls[0]![1].body).toBe(
+      '«Позвонить клиенту», срок до 16.08.2026.'
+    );
+    expect(recordNotification.mock.calls[1]![1].body).toBe(
+      '«Позвонить клиенту», срок до 15.08.2026.'
+    );
+  });
+
   it('без получателей (только самоназначение) — ни одного вызова', async () => {
     await notifyTaskAssigned({ ...base, assigneeUserIds: ['actor'] });
     await notifyTaskAssigned({ ...base, assigneeUserIds: [] });

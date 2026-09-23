@@ -7,6 +7,7 @@ import { Badge, Select } from '@/components/ui';
 import { CardList, Card, CardRow } from '@/components/ui/card-list';
 import type { TaskBoard as TaskBoardData, TaskCard } from '@/lib/services/tasks/board';
 import { TaskDialog, type TaskFormOptions } from '@/components/tasks/task-dialog';
+import { isPastDue } from '@/lib/tasks/due';
 
 /**
  * Этап 7 (ФТ-7.4) — вид «список»: те же данные, что и доска (плоско), сортировка
@@ -43,8 +44,15 @@ export function sortTaskRows(rows: Row[], sort: TaskSortKey): Row[] {
   );
 }
 
+/**
+ * Красная строка — тем же правилом, что и фильтр доски «Просроченные»
+ * (`lib/tasks/due.ts`, прогон сопровождения №36, `Р-М-3`): срок просрочен,
+ * когда закончился его МОСКОВСКИЙ день. Было «срок < сейчас»: срок из формы
+ * (полночь UTC = 03:00 МСК) краснел в сам день срока. Правило одно на двоих:
+ * иначе строка краснела бы, а фильтр «Просроченные» её не показывал.
+ */
 function isOverdue(card: TaskCard): boolean {
-  return !!card.dueDate && !card.completedAt && new Date(card.dueDate).getTime() < Date.now();
+  return !!card.dueDate && !card.completedAt && isPastDue(new Date(card.dueDate), new Date());
 }
 
 export function TaskList({

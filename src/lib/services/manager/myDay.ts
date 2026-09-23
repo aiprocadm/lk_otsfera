@@ -10,6 +10,7 @@ import {
   type OrderForReadiness,
 } from '@/lib/services/manager/orderDelivery';
 import { startOfMoscowDay } from '@/lib/dates/calendar';
+import { dueWithinDaysWhere } from '@/lib/tasks/due';
 import { DIALOG_STATUS } from '@/lib/services/messengers/dialogStatus';
 import { NO_COMPANY_SENTINEL } from '@/lib/auth/accessProfile';
 import { ONE_DAY_MS } from './dashboard/constants';
@@ -71,7 +72,10 @@ export type MyDayData = {
   eventsToday: number;
 };
 
-/** Сколько дней считаем «срок вот-вот истечёт» у коммерческого предложения. */
+/**
+ * Сколько дней считаем «срок вот-вот истечёт» у коммерческого предложения:
+ * сегодня и ещё три московских дня вперёд.
+ */
 const PROPOSAL_SOON_DAYS = 3;
 
 /**
@@ -135,8 +139,6 @@ export async function getMyDay(
   const { start, end } = dayBounds(now);
   const dayAgo = new Date(now.getTime() - ONE_DAY_MS);
 
-  const soon = new Date(now.getTime() + PROPOSAL_SOON_DAYS * ONE_DAY_MS);
-
   const [
     tasksToday,
     tasksOverdue,
@@ -186,12 +188,17 @@ export async function getMyDay(
     }),
     // КП, у которых срок кончается в ближайшие дни. Уже истёкшие сюда не
     // попадают: по ним решение принято, и напоминать о них поздно.
+    //
+    // Окно — московские дни (прогон №36, `Р-М-3`), а не «от сейчас». КП
+    // действует ВЕСЬ последний день (`У-164`, `documents/proposalExpiry.ts`),
+    // а срок «только дата» хранится полуночью UTC: условие `>= сейчас` днём
+    // выкидывало КП, которое истекает СЕГОДНЯ, — самое срочное из всех.
     prisma.document.count({
       where: {
         companyId: session.companyId ?? NO_COMPANY_SENTINEL,
         type: 'commercial_proposal',
         status: 'sent',
-        validUntil: { gte: now, lt: soon },
+        validUntil: dueWithinDaysWhere(now, PROPOSAL_SOON_DAYS),
       },
     }),
     // Невыполненные шаги в моих незавершённых задачах — «сколько мелочи

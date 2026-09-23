@@ -4,7 +4,7 @@ import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
 import type { OrgOrderScope } from '@/lib/auth/organizationPolicy';
 import { fmtMoney } from '@/lib/format';
 import { EXPIRING_WITHIN_DAYS } from '@/lib/services/training/certificates';
-import { startOfMoscowDay } from '@/lib/dates/calendar';
+import { dueWithinDaysWhere } from '@/lib/tasks/due';
 
 export type OrgDashboardKpis = {
   activeOrders: number;
@@ -347,10 +347,13 @@ export async function expiringCertificates(
   organizationId: string,
   now: Date = new Date()
 ): Promise<number> {
-  // `Д-22`: сутки по Москве — сервер живёт в UTC (хотфикс №21).
-  const startOfToday = startOfMoscowDay(now);
-  const horizon = new Date(startOfToday.getTime() + EXPIRING_WITHIN_DAYS * 24 * 3600 * 1000);
+  // `Д-22`: сутки по Москве — сервер живёт в UTC (хотфикс №21). Прогон №36
+  // (`Р-М-3`): окно берём из того же правила, что фильтр «Истекает» реестра
+  // (`lib/tasks/due.ts`), — одно выражение на двоих, счётчик и реестр, куда
+  // он ведёт, не разойдутся. Прежняя граница «00:00 МСК + 60 суток» теряла
+  // 60-й день: срок хранится полуночью UTC (03:00 МСК) и за неё не проходил,
+  // а по спеке этапа 3 §4 «действует» только то, что дальше 60 дней.
   return prisma.certificate.count({
-    where: { organizationId, validUntil: { gte: startOfToday, lte: horizon } },
+    where: { organizationId, validUntil: dueWithinDaysWhere(now, EXPIRING_WITHIN_DAYS) },
   });
 }

@@ -167,7 +167,8 @@ describe('cov certificates.listCertificates filters', () => {
     expect(res.ok).toBe(true);
     const where = prisma.certificate.findMany.mock.calls[0][0].where;
     expect(where.studentId).toBe('s1');
-    expect(where.validUntil).toEqual(expect.objectContaining({ not: null, lte: expect.any(Date) }));
+    // Прогон №36: окно — московские дни (`dueByWhere`), граница через `lt`.
+    expect(where.validUntil).toEqual(expect.objectContaining({ not: null, lt: expect.any(Date) }));
   });
 });
 

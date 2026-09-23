@@ -636,6 +636,24 @@ describe('вкладка «Задачи» карточки контакта (`У
     expect(res.items[1]?.status).toBe('done');
   });
 
+  it('срок в строке — по Москве: Битрикс24 01:30 МСК не «съезжает» на вчера (прогон №36)', async () => {
+    // Адаптер Битрикс24 хранит «21.09 01:30 МСК» как 20.09 22:30 UTC.
+    taskFindMany.mockResolvedValue([
+      {
+        id: 't1',
+        title: 'Позвонить',
+        status: 'todo',
+        dueDate: new Date('2026-09-21T01:30:00+03:00'),
+        completedAt: null,
+        createdAt: new Date('2026-09-15'),
+        assignees: [],
+      },
+    ]);
+    const res = await listContactTab(prisma, manager, true, { contactId: 'k1', tab: 'tasks' });
+    if (!res.ok) throw new Error('ожидали успех');
+    expect(res.items[0]?.subtitle).toBe('без исполнителя · до 21.09.2026');
+  });
+
   it('чужой контакт — not_found, задачи не спрашиваем', async () => {
     contactFindUnique.mockResolvedValue({ ...scopeRow, companyId: 'other' });
     const res = await listContactTab(prisma, manager, true, { contactId: 'k1', tab: 'tasks' });

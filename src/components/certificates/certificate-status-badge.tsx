@@ -1,6 +1,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui';
 import { certificateStatus } from '@/lib/services/training/certificates';
+import { moscowDaysUntil } from '@/lib/tasks/due';
 
 /**
  * Статус удостоверения в клиентских реестрах (этап 3, спека §4): считается
@@ -9,8 +10,6 @@ import { certificateStatus } from '@/lib/services/training/certificates';
  * (другая шкала формулировок). Вычисление статуса живёт в сервисе (PR-2:
  * единый источник с xlsx-экспортом); здесь — re-export для потребителей.
  */
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export { certificateStatus };
 
@@ -23,13 +22,12 @@ export function CertificateStatusBadge({
 }) {
   const status = certificateStatus(validUntil, today);
   if (status === 'expired') return <Badge tone="danger">Истекло</Badge>;
-  if (status === 'expiring') {
-    const startOfToday = new Date(today);
-    startOfToday.setHours(0, 0, 0, 0);
-    const days = Math.max(
-      0,
-      Math.ceil((validUntil!.getTime() - startOfToday.getTime()) / MS_PER_DAY)
-    );
+  // `validUntil !== null`: без срока `certificateStatus` отвечает «действует».
+  if (status === 'expiring' && validUntil) {
+    // Число дней — московских (прогон №36), тем же правилом, что и статус.
+    // Было `setHours(0, 0, 0, 0)` в поясе процесса (сервер в UTC): с 00:00 до
+    // 03:00 МСК значок показывал на день больше, чем осталось.
+    const days = moscowDaysUntil(validUntil, today);
     return <Badge tone="warning">Истекает через {days} дн.</Badge>;
   }
   return <Badge tone="success">Действует</Badge>;

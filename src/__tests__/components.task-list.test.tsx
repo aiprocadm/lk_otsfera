@@ -183,6 +183,38 @@ describe('TaskList', () => {
     expect(screen.queryByText(/просрочена/)).toBeNull();
   });
 
+  // Прогон сопровождения №36 (`Р-М-3`): красная строка — тем же правилом, что
+  // и фильтр «Просроченные»: срок просрочен, когда закончился его МОСКОВСКИЙ
+  // день. Подменяем только `Date` — таймеры React остаются настоящими.
+  it('срок «сегодня» не краснеет весь московский день, а на следующий — краснеет (прогон №36)', () => {
+    const at = (now: string, due: Date) => {
+      vi.setSystemTime(new Date(now));
+      const { unmount } = render(
+        <TaskList
+          board={makeBoard([card({ id: 't-due', title: 'Срок', dueDate: due })])}
+          options={options}
+        />
+      );
+      const red = screen.queryAllByText(/просрочена/).length > 0;
+      unmount();
+      return red;
+    };
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      // Срок из формы задачи — `new Date(<input type="date">)`, полночь UTC.
+      const FORM_DUE = new Date('2026-09-16');
+      // 16.09 15:00 МСК: прежнее «срок < сейчас» писало «просрочена» уже с 03:00.
+      expect(at('2026-09-16T15:00:00+03:00', FORM_DUE)).toBe(false);
+      // 17.09 00:30 МСК — сервер (UTC) ещё в 16.09, а московский день срока кончился.
+      expect(at('2026-09-17T00:30:00+03:00', FORM_DUE)).toBe(true);
+      // Срок из Битрикс24 «17.09 01:30 МСК» (16.09 22:30 UTC) в 02:00 МСК 17.09 —
+      // час прошёл, день ещё идёт.
+      expect(at('2026-09-17T02:00:00+03:00', new Date('2026-09-17T01:30:00+03:00'))).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('без приоритета/срока/исполнителей — прочерки и «без исполнителя»', () => {
     render(<TaskList board={makeBoard([card({ id: 't4', title: 'Пустая' })])} options={options} />);
     expect(screen.getAllByText('без исполнителя').length).toBeGreaterThan(0);

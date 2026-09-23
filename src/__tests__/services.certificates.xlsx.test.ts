@@ -83,6 +83,35 @@ describe('renderCertificatesXlsx', () => {
     expect(String(ws.getRow(2).getCell(3).value)).toBe('ООО Ромашка');
   });
 
+  it('даты и статус — по Москве, как в реестре на экране (прогон №36)', async () => {
+    // Выгрузка в 01:30 МСК 24.07 — сервер (UTC) ещё живёт 23.07.
+    const night = new Date('2026-07-24T01:30:00+03:00');
+    const ws = await parse(
+      await renderCertificatesXlsx({
+        rows: [
+          // Срок из `<input type="date">` (`POST /api/manager/certificates`):
+          // `new Date('ГГГГ-ММ-ДД')` — полночь UTC. «Вчера» — «Истекло»
+          // (прежний счёт давал `-0` и «Истекает»).
+          row({ id: 'a', validUntil: new Date('2026-07-23') }),
+          // Дата выдачи из той же формы — полночь UTC: по Москве это тот же день.
+          row({ id: 'b', issuedAt: new Date('2026-07-24') }),
+          // Но роут принимает любую строку, которую понимает `Date.parse`
+          // (`dateString` в `lib/api/http.ts`), — и момент «24.07 00:30 МСК»
+          // (23.07 21:30 UTC). Файл обязан назвать 24.07, как экран реестра
+          // (`fmtDate`), а не 23.07, как писал `toLocaleDateString` без пояса.
+          row({ id: 'c', issuedAt: new Date('2026-07-24T00:30:00+03:00') }),
+        ],
+        total: 3,
+        showOrganization: false,
+        now: night,
+      })
+    );
+    expect(String(ws.getRow(2).getCell(6).value)).toBe('23.07.2026');
+    expect(String(ws.getRow(2).getCell(7).value)).toBe('Истекло');
+    expect(String(ws.getRow(3).getCell(5).value)).toBe('24.07.2026');
+    expect(String(ws.getRow(4).getCell(5).value)).toBe('24.07.2026');
+  });
+
   it('формула-инъекция: ведущий «=» экранируется одинарной кавычкой', async () => {
     const ws = await parse(
       await renderCertificatesXlsx({

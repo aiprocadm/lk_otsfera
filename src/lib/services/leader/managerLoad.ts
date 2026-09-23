@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { pastDueWhere } from '@/lib/tasks/due';
 
 /**
  * Загрузка менеджеров (`У-244`, отчёт `manager_load`).
@@ -50,7 +51,10 @@ export async function getManagerLoad(
     prisma.taskAssignee.groupBy({
       by: ['userId'],
       where: {
-        task: { companyId: args.companyId, status: { not: 'done' }, dueDate: { lt: now } },
+        // Просрочка — по московскому дню срока (прогон №36, `Р-М-3`), тем же
+        // правилом, что у доски с фильтром «Просроченные»: иначе отчёт и доска,
+        // на которую он ведёт, называли бы разные числа.
+        task: { companyId: args.companyId, status: { not: 'done' }, dueDate: pastDueWhere(now) },
       },
       _count: { _all: true },
     }),

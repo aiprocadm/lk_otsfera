@@ -4,7 +4,13 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { managedOrgIds, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
 import { recordPiiAccess } from '@/lib/pii/record';
-import { startOfMoscowDay } from '@/lib/dates/calendar';
+import {
+  dueByWhere,
+  dueWithinDaysWhere,
+  isPastDue,
+  moscowDaysUntil,
+  pastDueWhere,
+} from '@/lib/tasks/due';
 import { isUniqueViolationOn } from '@/lib/db/uniqueViolation';
 
 type CertificatesError = 'forbidden' | 'not_found' | 'validation' | 'already_issued';
@@ -78,33 +84,37 @@ export const CERTIFICATE_STATUS_FILTERS = ['active', 'expiring', 'expired'] as c
 
 export type CertificateStatusFilter = (typeof CERTIFICATE_STATUS_FILTERS)[number];
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const LIST_MAX_TAKE = 200;
 
 /**
- * Статус одного удостоверения (спека этапа 3 §4): считается от начала дня
- * `today`. Единый источник для бейджа реестра и xlsx-экспорта (PR-2).
+ * Статус одного удостоверения (спека этапа 3 §4) по московским дням. Единый
+ * источник для бейджа реестра и xlsx-экспорта (PR-2).
+ *
+ * Прогон №36 (`Р-М-3`): считаем через общее правило сроков `lib/tasks/due.ts`
+ * — ту же границу, что и у {@link statusWhere}. Прежний `Math.ceil` от
+ * московской полуночи давал удостоверению со сроком «вчера» `-0` дней, и
+ * `-0 < 0` ложно: фильтр «Истекло» его показывал, а значок в той же строке
+ * писал «Истекает через 0 дн.». Порог «≤ 60 дней» заодно вернулся к 60-му дню
+ * включительно (с прежней формулой выходило 59).
  */
 export function certificateStatus(validUntil: Date | null, today: Date): CertificateStatusFilter {
   if (!validUntil) return 'active';
-  // `Д-22`: сутки считаем по Москве, а не по зоне процесса (сервер в UTC).
-  const startOfToday = startOfMoscowDay(today);
-  const days = Math.ceil((validUntil.getTime() - startOfToday.getTime()) / MS_PER_DAY);
-  if (days < 0) return 'expired';
-  if (days <= EXPIRING_WITHIN_DAYS) return 'expiring';
+  if (isPastDue(validUntil, today)) return 'expired';
+  if (moscowDaysUntil(validUntil, today) <= EXPIRING_WITHIN_DAYS) return 'expiring';
   return 'active';
 }
 
 /**
  * SQL-границы статуса по `validUntil` (спека этапа 3 §4): статус не хранится,
- * считается от начала текущего дня. `active` включает бессрочные (null).
+ * считается от начала текущего московского дня. `active` включает бессрочные
+ * (null). Три условия стыкуются без зазора: «истекает» начинается ровно там,
+ * где кончается «истекло», а «действует» — там, где кончается «истекает».
  */
 function statusWhere(status: CertificateStatusFilter, now: Date): Prisma.CertificateWhereInput {
-  const startOfToday = startOfMoscowDay(now);
-  const horizon = new Date(startOfToday.getTime() + EXPIRING_WITHIN_DAYS * MS_PER_DAY);
-  if (status === 'expired') return { validUntil: { not: null, lt: startOfToday } };
-  if (status === 'expiring') return { validUntil: { gte: startOfToday, lte: horizon } };
-  return { OR: [{ validUntil: null }, { validUntil: { gt: horizon } }] };
+  const expiring = dueWithinDaysWhere(now, EXPIRING_WITHIN_DAYS);
+  if (status === 'expired') return { validUntil: { not: null, ...pastDueWhere(now) } };
+  if (status === 'expiring') return { validUntil: expiring };
+  return { OR: [{ validUntil: null }, { validUntil: { gte: expiring.lt } }] };
 }
 
 // Фильтры списка: «ключа нет» и «ключ = undefined» — одно и то же (не фильтровать).
@@ -144,8 +154,13 @@ export async function listCertificates(
   if (args.studentId) where.studentId = args.studentId;
   if (args.directionId) where.directionId = args.directionId;
   if (args.expiringWithinDays != null) {
-    const until = new Date(Date.now() + args.expiringWithinDays * MS_PER_DAY);
-    where.validUntil = { not: null, lte: until };
+    // Прежний фильтр «истекает в ближайшие N дней» (вместе с истёкшими) — тоже
+    // по московским дням (прогон №36): «через N суток от этой секунды» резал
+    // последний день окна по времени запроса.
+    where.validUntil = {
+      not: null,
+      ...dueByWhere(args.now ?? new Date(), args.expiringWithinDays),
+    };
   } else if (args.status) {
     Object.assign(where, statusWhere(args.status, args.now ?? new Date()));
   }

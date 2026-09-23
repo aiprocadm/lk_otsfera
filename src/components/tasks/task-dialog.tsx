@@ -7,6 +7,7 @@ import { errorMessageRu } from '@/lib/errors/messages';
 import { createTaskAction, updateTaskAction, deleteTaskAction } from '@/server-actions/tasks';
 import type { TaskColumnView } from '@/lib/tasks/columns';
 import type { TaskCard, TaskFormOptions } from '@/lib/services/tasks/board';
+import { startOfMoscowDay as moscowDayAsUtcMidnight } from '@/lib/documents/proposalExpiry';
 
 export type { TaskFormOptions };
 
@@ -29,9 +30,21 @@ const PRIORITIES: { value: string; label: string }[] = [
   { value: 'high', label: 'Высокий' },
 ];
 
+/**
+ * Значение `<input type="date">` для сохранённого срока — **московский**
+ * календарный день (прогон сопровождения №36, `Р-М-3`).
+ *
+ * Было `toISOString().slice(0, 10)` — день по UTC. Для срока из этой же формы
+ * (полночь UTC) это совпадало, но срок из Битрикс24 «25.09 01:30 МСК»
+ * хранится как 24.09 22:30 UTC, и форма открывалась с «24.09»: просто
+ * «Сохранить» переносило задачу на день раньше. Московский день в виде
+ * полуночи UTC — ровно тот вид, в каком форма пишет срок, — даёт
+ * `startOfMoscowDay` из `documents/proposalExpiry.ts`; его и берём, а не
+ * заводим второй помощник с тем же смыслом.
+ */
 function dateValue(d: Date | null): string {
   if (!d) return '';
-  return new Date(d).toISOString().slice(0, 10);
+  return moscowDayAsUtcMidnight(new Date(d)).toISOString().slice(0, 10);
 }
 
 /**

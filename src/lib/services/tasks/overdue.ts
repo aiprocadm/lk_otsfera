@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { taskWhereForLevel } from '@/lib/auth/accessProfile';
+import { moscowDaysUntil, pastDueWhere } from '@/lib/tasks/due';
 
 /**
  * Просроченные задачи для дашборда руководителя (`У-225`).
@@ -36,7 +37,9 @@ export async function listOverdueTasks(
   const where = {
     AND: [
       taskWhereForLevel(session, session.accessProfile?.tasks ?? 'all'),
-      { status: { not: 'done' as const }, dueDate: { lt: now } },
+      // Прогон №36 (`Р-М-3`): просрочена, когда закончился московский день
+      // срока. «Срок < сейчас» записывал в просроченные задачу в сам день срока.
+      { status: { not: 'done' as const }, dueDate: pastDueWhere(now) },
     ],
   };
 
@@ -61,12 +64,13 @@ export async function listOverdueTasks(
     rows: rows.map((t) => ({
       id: t.id,
       title: t.title,
-      // `dueDate` не может быть пустым: условие выборки требует `< now`.
+      // `dueDate` не может быть пустым: условие выборки требует `lt`.
       dueDate: t.dueDate as Date,
-      overdueDays: Math.max(
-        1,
-        Math.floor((now.getTime() - (t.dueDate as Date).getTime()) / 86_400_000)
-      ),
+      // Дни просрочки — московские календарные, а не «полные сутки с момента
+      // срока»: срок «10.09» 15.09 просрочен на 5 дней в любой час, а не на 4
+      // до 03:00 и на 5 после. Выборка отдаёт только просроченные, поэтому
+      // число всегда ≥ 1.
+      overdueDays: -moscowDaysUntil(t.dueDate as Date, now),
       assigneeNames: t.assignees.map((a) => a.user.name),
     })),
   };

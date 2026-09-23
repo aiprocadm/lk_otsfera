@@ -123,6 +123,36 @@ describe('TaskPageScreen', () => {
     expect(screen.queryByText('Просрочена')).toBeNull();
   });
 
+  // Прогон сопровождения №36 (`Р-М-3`): «Просрочена» — когда закончился
+  // московский день срока, как у фильтра доски «Просроченные». Подменяем
+  // только `Date`.
+  it('«Просрочена» — по московскому дню срока, а не с 03:00 МСК того же дня (прогон №36)', () => {
+    const badgeAt = (now: string, dueDate: Date) => {
+      vi.setSystemTime(new Date(now));
+      const { unmount } = render(
+        React.createElement(TaskPageScreen, { task: detail({ dueDate }), cabinet: 'leader' })
+      );
+      const overdue = screen.queryByText('Просрочена') !== null;
+      unmount();
+      return overdue;
+    };
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      // Срок «20.09» из формы задачи (`new Date(<input type="date">)`, полночь UTC).
+      const FORM_DUE = new Date('2026-09-20');
+      expect(badgeAt('2026-09-20T12:00:00+03:00', FORM_DUE)).toBe(false);
+      expect(badgeAt('2026-09-20T23:59:00+03:00', FORM_DUE)).toBe(false);
+      // 21.09 00:30 МСК (20.09 21:30 UTC) — день срока закончился.
+      expect(badgeAt('2026-09-21T00:30:00+03:00', FORM_DUE)).toBe(true);
+      // Срок из Битрикс24 «21.09 01:30 МСК» (20.09 22:30 UTC) в 02:00 МСК 21.09.
+      expect(badgeAt('2026-09-21T02:00:00+03:00', new Date('2026-09-21T01:30:00+03:00'))).toBe(
+        false
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('задача без описания, связей и истории объясняет пустоту, а не молчит', () => {
     render(
       React.createElement(TaskPageScreen, {

@@ -236,8 +236,12 @@ describe('getMyDay', () => {
 
     // Переписка — МОЯ: без этого условия менеджер видел бы общую очередь.
     expect(dialogCount.mock.calls[0][0].where.assigneeId).toBe('m1');
-    // КП: уже истёкшие не считаем — напоминать о них поздно.
-    expect(documentCount.mock.calls[0][0].where.validUntil.gte).toEqual(NOW);
+    // КП: уже истёкшие не считаем — напоминать о них поздно. Прогон №36
+    // (`Р-М-3`): нижняя граница — начало московских суток, а не «сейчас»
+    // (прежнее ожидание `gte: NOW` закрепляло дефект, см. тест ниже).
+    expect(documentCount.mock.calls[0][0].where.validUntil.gte).toEqual(
+      new Date('2026-07-28T00:00:00+03:00')
+    );
     // Шаги чек-листов — только из незакрытых задач моего охвата.
     expect(checklistCount.mock.calls[0][0].where.isDone).toBe(false);
     expect(checklistCount.mock.calls[0][0].where.task.AND).toContainEqual({
@@ -248,6 +252,29 @@ describe('getMyDay', () => {
       { createdById: 'm1' },
       { attendees: { some: { userId: 'm1' } } },
     ]);
+  });
+
+  it('КП «истекает скоро» — сегодня и ещё три московских дня (прогон №36)', async () => {
+    // Срок КП пишет выпуск документа: `addDays(documentDate, proposalValidDays)`
+    // в `documents/generate.ts` — момент выпуска плюс N суток.
+    const issued = (iso: string, days: number) =>
+      new Date(new Date(iso).getTime() + days * 24 * 60 * 60 * 1000);
+    const { prisma, documentCount } = makePrisma();
+    await getMyDay(prisma, session, false, NOW); // 28.07 15:00 МСК
+    const { gte, lt } = documentCount.mock.calls[0][0].where.validUntil as { gte: Date; lt: Date };
+    const counted = (v: Date) => v >= gte && v < lt;
+
+    // Выпущено 18.07 в 12:00 МСК на 10 дней → действует до 28.07 12:00 МСК.
+    // КП действует ВЕСЬ последний день (`У-164`), это самое срочное; прежнее
+    // «>= сейчас» (15:00 МСК) его выбрасывало.
+    expect(counted(issued('2026-07-18T12:00:00+03:00', 10))).toBe(true);
+    // 31.07 18:00 МСК — третий день вперёд, тоже в окне (прежнее «сейчас +
+    // 3 суток» обрывалось в 15:00 МСК 31.07).
+    expect(counted(issued('2026-07-21T18:00:00+03:00', 10))).toBe(true);
+    // 01.08 01:30 МСК (= 31.07 22:30 UTC) — четвёртый день: уже вне окна.
+    expect(counted(issued('2026-07-22T01:30:00+03:00', 10))).toBe(false);
+    // Срок кончился вчера в 23:59 МСК (20:59 UTC) — истёкшее не считаем.
+    expect(counted(issued('2026-07-17T23:59:00+03:00', 10))).toBe(false);
   });
 
   it('без переданного teamMode флаг читается свежим', async () => {

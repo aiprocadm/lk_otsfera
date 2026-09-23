@@ -1,6 +1,7 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { log } from '@/lib/logging';
 import { nextOccurrence, parseRecurrence } from '@/lib/tasks/recurrence';
+import { pastDueWhere } from '@/lib/tasks/due';
 import { createTaskCore } from './create';
 
 /**
@@ -165,7 +166,11 @@ export async function sweepRecurringTasks(
     where: {
       recurrence: { not: Prisma.DbNull },
       recurrenceChild: null,
-      dueDate: { lt: now },
+      // «Срок прошёл» — закончился московский день срока (прогон №36,
+      // `Р-М-3`), как обещает подсказка формы: «когда пройдёт срок». Прежнее
+      // «срок < сейчас» в 06:00 МСК рождало следующий экземпляр в сам день
+      // срока, пока текущий ещё честно в работе.
+      dueDate: pastDueWhere(now),
     },
     select: { id: true },
     orderBy: { dueDate: 'asc' },

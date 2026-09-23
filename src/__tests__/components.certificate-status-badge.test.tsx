@@ -48,6 +48,39 @@ describe('CertificateStatusBadge', () => {
     expect(html).toContain('text-amber-700');
   });
 
+  // Прогон сопровождения №36 (`Р-М-3`). Помощник `day()` выше даёт московские
+  // полуночи — таких значений в базе не бывает, и на них старый код был прав.
+  // Настоящий писатель (`POST /api/manager/certificates`) хранит срок из
+  // `<input type="date">` как `new Date('ГГГГ-ММ-ДД')` — полночь UTC (03:00 МСК).
+  it('число дней — московское и ночью 00:00–03:00 МСК (прогон №36)', () => {
+    const night = new Date('2026-07-24T01:30:00+03:00'); // сервер (UTC) ещё в 23.07
+    // 07.08 — через 14 дней от 24.07; прежний `setHours(0, 0, 0, 0)` в поясе
+    // процесса считал от 23.07 и писал «через 15 дн.».
+    const html = renderToString(
+      <CertificateStatusBadge validUntil={new Date('2026-08-07')} today={night} />
+    );
+    expect(html).toContain('Истекает через <!-- -->14<!-- --> дн.');
+    // Срок «сегодня» — «через 0 дн.» весь московский день, до 23:59.
+    const lastMinute = new Date('2026-07-24T23:59:00+03:00'); // 20:59 UTC
+    expect(
+      renderToString(
+        <CertificateStatusBadge validUntil={new Date('2026-07-24')} today={lastMinute} />
+      )
+    ).toContain('Истекает через <!-- -->0<!-- --> дн.');
+  });
+
+  it('срок «вчера» ночью — «Истекло», а не «Истекает через 0 дн.» (прогон №36)', () => {
+    const night = new Date('2026-07-24T01:30:00+03:00');
+    expect(certificateStatus(new Date('2026-07-23'), night)).toBe('expired');
+    const html = renderToString(
+      <CertificateStatusBadge validUntil={new Date('2026-07-23')} today={night} />
+    );
+    expect(html).toContain('Истекло');
+    // 60-й день (22.09) — ещё «истекает», 61-й (23.09) — «действует».
+    expect(certificateStatus(new Date('2026-09-22'), TODAY)).toBe('expiring');
+    expect(certificateStatus(new Date('2026-09-23'), TODAY)).toBe('active');
+  });
+
   it('действует (за горизонтом и бессрочное) → зелёный бейдж', () => {
     const far = renderToString(<CertificateStatusBadge validUntil={day(200)} today={TODAY} />);
     expect(far).toContain('Действует');

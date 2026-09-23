@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import type { TaskDetail } from '@/lib/services/tasks/detail';
 import { describeRecurrenceRu } from '@/lib/tasks/recurrence';
+import { isPastDue } from '@/lib/tasks/due';
 import { TaskChecklist } from './task-checklist';
 import { TaskComments } from './task-comments';
 
@@ -45,7 +46,11 @@ type Cabinet = 'manager' | 'leader';
 export function TaskPageScreen({ task, cabinet }: { task: TaskDetail; cabinet: Cabinet }) {
   const crumbs = buildCabinetBreadcrumbs(cabinet, `/${cabinet}/tasks`, [{ label: task.title }]);
   const due = task.dueDate ? new Date(task.dueDate).toLocaleDateString('ru-RU') : null;
-  const overdue = task.dueDate !== null && !task.completedAt && new Date(task.dueDate) < new Date();
+  // «Просрочена» — когда закончился московский день срока (прогон №36,
+  // `Р-М-3`), как у фильтра доски «Просроченные». Было «срок < сейчас»: с 03:00
+  // МСК дня срока карточка уже писала «Просрочена», а доска — ещё нет.
+  const overdue =
+    task.dueDate !== null && !task.completedAt && isPastDue(new Date(task.dueDate), new Date());
 
   return (
     <div className="space-y-4">

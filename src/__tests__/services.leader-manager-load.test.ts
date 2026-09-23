@@ -95,9 +95,42 @@ describe('getManagerLoad — кто перегружен, а у кого ест�
 
     await getManagerLoad(db, { companyId: 'c1', now });
 
+    // Прогон сопровождения №36 (`Р-М-3`): граница — начало московских суток
+    // «сегодня», а не сам момент. Прежнее `dueDate: { lt: now }` закрепляло
+    // дефект: задача со сроком «20.09» из формы (полночь UTC = 03:00 МСК)
+    // считалась просроченной уже 20.09 — в сам день срока.
     const overdue = calls.find((c) => c.model === 'taskAssignee.overdue');
     expect(overdue?.where).toMatchObject({
-      task: { companyId: 'c1', status: { not: 'done' }, dueDate: { lt: now } },
+      task: {
+        companyId: 'c1',
+        status: { not: 'done' },
+        dueDate: { lt: new Date('2026-09-20T00:00:00+03:00') },
+      },
     });
+  });
+
+  it('срок просрочен, только когда закончился его московский день (прогон №36)', async () => {
+    async function overdueBoundary(now: Date): Promise<Date> {
+      const { db, calls } = makeDb({
+        managers: [{ id: 'm1', name: 'Иванов', email: 'i@x.ru', isActive: true }],
+      });
+      await getManagerLoad(db, { companyId: 'c1', now });
+      return (
+        calls.find((c) => c.model === 'taskAssignee.overdue')?.where as {
+          task: { dueDate: { lt: Date } };
+        }
+      ).task.dueDate.lt;
+    }
+    // Срок из формы задачи — `new Date(<input type="date">)`, полночь UTC.
+    // Поздно вечером 20.09 по Москве он ещё не просрочен (прежнее «< now»
+    // считало его просроченным с 03:00 МСК), а вчерашний — просрочен.
+    const evening = await overdueBoundary(new Date('2026-09-20T23:30:00+03:00'));
+    expect(new Date('2026-09-20') < evening).toBe(false);
+    expect(new Date('2026-09-19') < evening).toBe(true);
+    // Срок из Битрикс24 «21.09 01:30 МСК» (= 20.09 22:30 UTC) в 02:00 МСК 21.09
+    // (сервер ещё в 20.09) — сегодняшний, не просрочен; а срок «20.09» — уже да.
+    const night = await overdueBoundary(new Date('2026-09-21T02:00:00+03:00'));
+    expect(new Date('2026-09-21T01:30:00+03:00') < night).toBe(false);
+    expect(new Date('2026-09-20') < night).toBe(true);
   });
 });

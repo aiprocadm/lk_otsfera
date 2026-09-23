@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { expiringCertificates as orgExpiring } from '@/lib/services/organization/dashboard';
 import { expiringCertificates as partnerExpiring } from '@/lib/services/partner/dashboard';
-import { EXPIRING_WITHIN_DAYS } from '@/lib/services/training/certificates';
+import { certificateStatus, EXPIRING_WITHIN_DAYS } from '@/lib/services/training/certificates';
 
 /**
  * Этап 3 PR-1 (ФТ-6.4): счётчики «Истекают удостоверения» на дашбордах —
@@ -20,7 +20,12 @@ const countMock = (prisma as unknown as { certificate: { count: ReturnType<typeo
 // суффикса тест читал бы даты в зоне машины.
 const NOW = new Date('2026-07-24T15:30:00+03:00');
 const START = new Date('2026-07-24T00:00:00+03:00');
-const HORIZON = new Date(START.getTime() + EXPIRING_WITHIN_DAYS * 24 * 3600 * 1000);
+// Прогон сопровождения №36 (`Р-М-3`): окно — московские дни с сегодняшнего по
+// 60-й включительно (24.07 + 60 = 22.09), верх через `lt` — 00:00 МСК 23.09.
+// Прежнее ожидание `lte: START + 60 суток` закрепляло дефект: срок «22.09»
+// хранится полуночью UTC (03:00 МСК), и счётчик на главной терял 60-й день,
+// хотя по спеке этапа 3 §4 он ещё «истекает».
+const HORIZON = new Date('2026-09-23T00:00:00+03:00');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -32,7 +37,7 @@ describe('organization/dashboard.expiringCertificates', () => {
     const n = await orgExpiring(prisma, 'org-1', NOW);
     expect(n).toBe(3);
     expect(countMock).toHaveBeenCalledWith({
-      where: { organizationId: 'org-1', validUntil: { gte: START, lte: HORIZON } },
+      where: { organizationId: 'org-1', validUntil: { gte: START, lt: HORIZON } },
     });
   });
 
@@ -40,7 +45,25 @@ describe('organization/dashboard.expiringCertificates', () => {
     await orgExpiring(prisma, 'org-1');
     const where = countMock.mock.calls.at(-1)![0].where;
     expect(where.validUntil.gte).toBeInstanceOf(Date);
-    expect(where.validUntil.lte).toBeInstanceOf(Date);
+    expect(where.validUntil.lt).toBeInstanceOf(Date);
+  });
+
+  it('счётчик и значок реестра согласны на краях окна (прогон №36)', async () => {
+    // Срок пишется из `<input type="date">`: `new Date('ГГГГ-ММ-ДД')` — полночь UTC.
+    await orgExpiring(prisma, 'org-1', NOW);
+    const { gte, lt } = countMock.mock.calls.at(-1)![0].where.validUntil;
+    const inWindow = (v: Date) => v >= gte && v < lt;
+    expect(EXPIRING_WITHIN_DAYS).toBe(60);
+    for (const [ymd, status] of [
+      ['2026-07-23', 'expired'],
+      ['2026-07-24', 'expiring'],
+      ['2026-09-22', 'expiring'],
+      ['2026-09-23', 'active'],
+    ] as const) {
+      const v = new Date(ymd);
+      expect(certificateStatus(v, NOW)).toBe(status);
+      expect(inWindow(v)).toBe(status === 'expiring');
+    }
   });
 });
 
@@ -50,7 +73,7 @@ describe('partner/dashboard.expiringCertificates', () => {
     expect(countMock).toHaveBeenCalledWith({
       where: {
         organization: { partnerId: 'pt-1', id: { in: ['org-9'] } },
-        validUntil: { gte: START, lte: HORIZON },
+        validUntil: { gte: START, lt: HORIZON },
       },
     });
   });

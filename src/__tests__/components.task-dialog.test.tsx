@@ -201,6 +201,39 @@ describe('TaskDialog', () => {
     expect(select.value).toBe('');
   });
 
+  // Прогон сопровождения №36 (`Р-М-3`): поле «Срок» показывает МОСКОВСКИЙ день.
+  // Срок из Битрикс24 «16.08 01:30 МСК» адаптер хранит как 15.08 22:30 UTC;
+  // `toISOString().slice(0, 10)` давал «2026-08-15», и простое «Сохранить»
+  // переносило задачу на день раньше.
+  it('поле «Срок» — московский день и для срока Битрикс24 00:00–03:00 МСК (прогон №36)', () => {
+    render(
+      renderDialog({
+        target: { ...task, dueDate: new Date('2026-08-16T01:30:00+03:00') },
+        columns,
+        options: fullOptions,
+        onClose,
+        onSaved,
+      })
+    );
+    const dueInput = screen.getByLabelText('Срок') as HTMLInputElement;
+    expect(dueInput.value).toBe('2026-08-16');
+  });
+
+  it('поле «Срок» — поздний вечер по Москве (20:59 UTC) остаётся своим днём', () => {
+    // «15.08 23:59 МСК» — ещё 15.08, хоть до полуночи UTC три часа.
+    render(
+      renderDialog({
+        target: { ...task, dueDate: new Date('2026-08-15T23:59:00+03:00') },
+        columns,
+        options: fullOptions,
+        onClose,
+        onSaved,
+      })
+    );
+    const dueInput = screen.getByLabelText('Срок') as HTMLInputElement;
+    expect(dueInput.value).toBe('2026-08-15');
+  });
+
   it('a target with no dueDate renders an empty date input (dateValue null branch)', () => {
     render(
       renderDialog({
