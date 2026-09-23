@@ -70,7 +70,9 @@ export function ImportHistory({ batches }: { batches: ImportBatchListItem[] }) {
       <CardList>
         {batches.map((b) => (
           <Card key={b.id} title={b.fileName} actions={rollbackButton(b)}>
-            <CardRow label="Дата">{new Date(b.createdAt).toLocaleString('ru-RU')}</CardRow>
+            <CardRow label="Дата">
+              {new Date(b.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}
+            </CardRow>
             <CardRow label="Кто">{b.importedByName ?? '—'}</CardRow>
             <CardRow label="Создано/обновлено">{countsLine(b.counts)}</CardRow>
             <CardRow label="Статус">{STATUS_RU[b.status] ?? b.status}</CardRow>
@@ -106,7 +108,7 @@ export function ImportHistory({ batches }: { batches: ImportBatchListItem[] }) {
             {batches.map((b) => (
               <tr key={b.id} className="border-t border-gray-100" data-testid={`batch-${b.id}`}>
                 <td className="px-3 py-2 text-gray-700 whitespace-nowrap">
-                  {new Date(b.createdAt).toLocaleString('ru-RU')}
+                  {new Date(b.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}
                 </td>
                 <td className="px-3 py-2 text-gray-700">{b.fileName}</td>
                 <td className="px-3 py-2 text-gray-700">{b.importedByName ?? '—'}</td>

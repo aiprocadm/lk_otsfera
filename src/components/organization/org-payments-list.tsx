@@ -1,16 +1,9 @@
 import React from 'react';
 import type { OrgOrderPayment } from '@/lib/services/organization/orders';
+import { fmtDate } from '@/lib/format';
 
 function fmtMoney(s: string): string {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(Number(s)) + ' ₽';
-}
-
-function fmtDate(d: Date): string {
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(d);
 }
 
 const METHOD_LABELS: Record<string, string> = {

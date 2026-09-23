@@ -29,6 +29,7 @@ import { sendDocumentAction } from '@/server-actions/documents/send';
 import { setDocumentNumberAction } from '@/server-actions/documents/number';
 import { ReissueDocumentButton } from '@/components/documents/reissue-document-button';
 import { PAYMENT_STATE_LABELS } from '@/lib/documents/invoicePayment';
+import { fmtDate } from '@/lib/format';
 
 import { PageHeader } from '@/components/ui/page-header';
 const TYPE_LABELS: Record<string, string> = {
@@ -59,14 +60,6 @@ export function fmtSize(bytes: number | null): string {
   const kb = bytes / 1024;
   if (kb < 1024) return `${kb.toFixed(0)} КБ`;
   return `${(kb / 1024).toFixed(1)} МБ`;
-}
-
-function fmtDate(d: Date | string): string {
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(new Date(d));
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {

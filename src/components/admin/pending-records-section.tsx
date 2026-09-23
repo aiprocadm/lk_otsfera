@@ -16,6 +16,8 @@ const DATE_FMT = new Intl.DateTimeFormat('ru-RU', {
   year: 'numeric',
   hour: '2-digit',
   minute: '2-digit',
+  // Прогон №36: по Москве явно — сервер живёт в UTC.
+  timeZone: 'Europe/Moscow',
 });
 
 /**

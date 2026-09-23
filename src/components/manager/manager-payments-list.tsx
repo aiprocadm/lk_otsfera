@@ -1,16 +1,9 @@
 import React from 'react';
 import type { Payment } from '@prisma/client';
+import { fmtDate } from '@/lib/format';
 
 function fmtMoney(n: number): string {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(n) + ' ₽';
-}
-
-function fmtDate(d: Date): string {
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(d);
 }
 
 const METHOD_LABELS: Record<string, string> = {

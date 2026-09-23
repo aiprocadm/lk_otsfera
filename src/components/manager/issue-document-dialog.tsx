@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import type { CatalogUnit } from '@prisma/client';
 import { Button, Dialog, Field, Input, Select, Textarea } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
+import { fmtDate } from '@/lib/format';
+import { moscowCalendarDay } from '@/lib/dates/calendar';
 import { CATALOG_UNIT_LABELS, VAT_RATES } from '@/lib/services/admin/catalogItems';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { generateOrderDocumentAction } from '@/server-actions/documents/generate';
@@ -113,28 +115,31 @@ function emptyLine(defaultVatRate: string | null): IssueLine {
   };
 }
 
-function today(): string {
-  return ymd(new Date());
-}
+/** Московские сутки ровно 24 часа: зона без перехода на летнее время с 2014 года. */
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-function ymd(date: Date): string {
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${month}-${day}`;
+/**
+ * Сегодня по Москве, «ГГГГ-ММ-ДД» (прогон №36, правило 3 спеки). Местные
+ * `getDate()`/`getMonth()` брали день по часам того, кто рисует: сервер (UTC)
+ * при первой отрисовке с 00:00 до 03:00 по Москве подставлял вчерашнюю дату, а
+ * браузер — свою; дата документа расходилась с номером, который сервер
+ * считает по московскому году.
+ */
+function today(): string {
+  return moscowCalendarDay(new Date());
 }
 
 /**
  * «Действительно до» по умолчанию (`У-162`): сегодня плюс срок компании.
  *
- * Считаем ЗДЕСЬ, а не на сервере, и это не лень. Сервер живёт в UTC, а «до
- * какого числа» человек читает по своему календарю: готовая дата с сервера
- * разошлась бы на сутки у части страны, и предложение выглядело бы истёкшим
- * на день раньше. Поэтому сервер отдаёт число дней, а дату собирает браузер.
+ * Сервер отдаёт число дней, а дату собираем здесь — от московского «сегодня»
+ * (прогон №36). Прежде дату брали по часам браузера или сервера, и с 00:00
+ * до 03:00 по Москве сервер (UTC) предлагал срок на день короче. Срок
+ * предложения проверяется по московскому дню (`lib/documents/proposalExpiry`),
+ * поэтому и предлагается по нему же.
  */
 function defaultValidUntil(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return ymd(date);
+  return moscowCalendarDay(new Date(Date.now() + days * DAY_MS));
 }
 
 export function IssueDocumentDialog({
@@ -434,7 +439,7 @@ export function IssueDocumentDialog({
               <option value="">Последний по дате</option>
               {parentOptions.map((doc) => (
                 <option key={doc.id} value={doc.id}>
-                  {doc.number} от {new Date(doc.date).toLocaleDateString('ru-RU')}
+                  {doc.number} от {fmtDate(doc.date)}
                 </option>
               ))}
             </Select>

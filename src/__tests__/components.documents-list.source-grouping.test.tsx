@@ -65,6 +65,16 @@ describe('DocumentsList — группировка (У-253)', () => {
     expect(screen.getByText('2025 год · 2')).toBeTruthy();
   });
 
+  it('год — московский: документ 1 января в 01:30 по Москве лежит в новом году (прогон №36)', () => {
+    // 22:30 31.12 по Гринвичу — уже 01:30 1 января по Москве. Местный
+    // `getFullYear()` на сервере (UTC) относил такой документ к прошлому году.
+    const newYearNight = { ...base, id: 'n', createdAt: new Date('2025-12-31T22:30:00.000Z') };
+    render(<DocumentsList rows={[newYearNight]} grouping />);
+    fireEvent.click(screen.getByRole('button', { name: 'по году' }));
+    expect(screen.getByText('2026 год · 1')).toBeTruthy();
+    expect(screen.queryByText('2025 год · 1')).toBeNull();
+  });
+
   it('выбор запоминается в браузере и восстанавливается', () => {
     const first = render(<DocumentsList rows={ROWS} grouping />);
     fireEvent.click(screen.getByRole('button', { name: 'по типу' }));

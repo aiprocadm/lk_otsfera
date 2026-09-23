@@ -18,6 +18,7 @@ import { toast } from '@/lib/ui/toast';
 import { resolveErrorText } from '@/lib/ui/useFormAction';
 import { transitionOrderStatusAction } from '@/server-actions/orderStatuses';
 import type { CompletionCondition } from '@/lib/orders/completion';
+import { fmtDateTime } from '@/lib/format';
 
 type StatusOption = {
   id: string;
@@ -48,17 +49,6 @@ const UNMET_RU: Record<CompletionCondition, string> = {
   accounting_signed: 'Бухгалтерия не подписана',
   certificates_issued: 'Не выданы удостоверения',
 };
-
-function fmtWhen(value: Date | string): string {
-  const d = new Date(value);
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(d);
-}
 
 export type OrderStatusPanelProps = {
   orderId: string;
@@ -174,7 +164,7 @@ export function OrderStatusPanel({
           <ul className="space-y-1">
             {history.map((h) => (
               <li key={h.id} className="text-xs text-gray-600">
-                {fmtWhen(h.createdAt)} · {h.fromLabel ?? '—'} → <b>{h.toLabel}</b>
+                {fmtDateTime(h.createdAt)} · {h.fromLabel ?? '—'} → <b>{h.toLabel}</b>
                 {h.userName ? ` · ${h.userName}` : ''}
                 {h.reason ? ` · ${h.reason}` : ''}
               </li>

@@ -1,5 +1,6 @@
 import React from 'react';
 import type { PartnerOrderDetail } from '@/lib/services/partner/orderDetail';
+import { fmtDateTime } from '@/lib/format';
 
 function fmtDate(d: Date | null): string {
   if (!d) return '—';
@@ -7,6 +8,8 @@ function fmtDate(d: Date | null): string {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    // Прогон №36: по Москве явно — сервер живёт в UTC.
+    timeZone: 'Europe/Moscow',
   }).format(d);
 }
 
@@ -51,14 +54,7 @@ export function OrderTimeline({ deal }: { deal: PartnerOrderDetail }) {
       </ul>
       {deal.lastSyncedAt && (
         <div className="text-[10px] text-gray-400 pt-2 border-t border-gray-100">
-          Обновлено из 1С:{' '}
-          {new Intl.DateTimeFormat('ru-RU', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          }).format(deal.lastSyncedAt)}
+          Обновлено из 1С: {fmtDateTime(deal.lastSyncedAt)}
         </div>
       )}
     </div>

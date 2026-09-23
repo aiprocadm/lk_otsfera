@@ -5,15 +5,8 @@ import {
   deactivateManagerAssignmentFormAction,
   reactivateManagerAssignmentFormAction,
 } from '@/server-actions/admin/manager';
+import { fmtDate } from '@/lib/format';
 import { AssignOrInviteManagerForm } from './assign-or-invite-manager-form';
-
-function fmtDate(d: Date): string {
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(d);
-}
 
 export async function ManagersBlock({
   orgId,

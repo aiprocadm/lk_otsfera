@@ -4,7 +4,7 @@ import { deactivateUserFormAction, reactivateUserFormAction } from '@/server-act
 import type { UserRow } from '@/lib/services/admin/users';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { InviteResendButtons } from '@/components/team/invite-resend-buttons';
-import { fmtLastLogin } from '@/lib/format';
+import { fmtDate, fmtLastLogin } from '@/lib/format';
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Админ',
@@ -61,7 +61,7 @@ export function UsersTable({ rows, currentUserId }: { rows: UserRow[]; currentUs
                   меняются от прогона к прогону (создание = дата seed, вход
                   обновляется самим логином Playwright), иначе эталон протухает. */}
               <Td className="text-gray-500 text-xs" data-testid="user-created-at">
-                {new Intl.DateTimeFormat('ru-RU').format(u.createdAt)}
+                {fmtDate(u.createdAt)}
               </Td>
               <Td className="text-gray-500 text-xs" data-testid="user-last-login">
                 {fmtLastLogin(u.lastLoginAt)}

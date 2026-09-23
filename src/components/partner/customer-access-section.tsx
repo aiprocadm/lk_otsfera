@@ -1,6 +1,7 @@
 import React from 'react';
 import type { PrismaClient } from '@prisma/client';
 import { listMembers } from '@/lib/services/organization/team';
+import { fmtDate } from '@/lib/format';
 import { InviteCustomerAdminForm } from './invite-customer-admin-form';
 
 type Props = {
@@ -14,14 +15,6 @@ type Props = {
    */
   source?: 'partner' | 'admin';
 };
-
-function fmtDate(d: Date): string {
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(d);
-}
 
 export async function CustomerAccessSection({
   organizationId,

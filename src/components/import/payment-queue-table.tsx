@@ -17,6 +17,7 @@ import { toast } from '@/lib/ui/toast';
 import { Paginator } from '@/components/ui/paginator';
 import type { QueueRow } from '@/lib/services/import/oneCAccountCard/queue-view';
 import type { QueueOrgCandidate } from '@/lib/services/import/oneCAccountCard/queue-bulk';
+import { fmtDate } from '@/lib/format';
 import { CompanyPicker } from './company-picker';
 import { PaymentQueueToolbar } from './payment-queue-toolbar';
 
@@ -200,7 +201,7 @@ export function PaymentQueueTable({
               <ul className="px-3 pb-2 text-xs text-gray-600">
                 {g.rows.map((r) => (
                   <li key={r.id} className="flex flex-wrap items-center gap-2 border-t py-1.5">
-                    <span>{`${r.externalId} · ${new Date(r.paidAt).toLocaleDateString('ru-RU')} · ${r.amount}`}</span>
+                    <span>{`${r.externalId} · ${fmtDate(r.paidAt)} · ${r.amount}`}</span>
                     {rowActions(r)}
                   </li>
                 ))}
@@ -214,7 +215,7 @@ export function PaymentQueueTable({
         <CardList>
           {visible.map((r) => (
             <Card key={r.id} title={`${r.externalId}${r.isRefund ? ' (возврат)' : ''}`}>
-              <CardRow label="Дата">{new Date(r.paidAt).toLocaleDateString('ru-RU')}</CardRow>
+              <CardRow label="Дата">{fmtDate(r.paidAt)}</CardRow>
               <CardRow label="Сумма">{r.amount}</CardRow>
               <CardRow label="Контрагент">
                 {r.counterpartyName ?? '—'}
@@ -263,9 +264,7 @@ export function PaymentQueueTable({
                     {r.externalId}
                     {r.isRefund ? ' (возврат)' : ''}
                   </td>
-                  <td className="px-3 py-1.5 text-gray-700">
-                    {new Date(r.paidAt).toLocaleDateString('ru-RU')}
-                  </td>
+                  <td className="px-3 py-1.5 text-gray-700">{fmtDate(r.paidAt)}</td>
                   <td className="px-3 py-1.5 text-gray-700">{r.amount}</td>
                   <td className="px-3 py-1.5 text-gray-700">
                     {r.counterpartyName ?? '—'}

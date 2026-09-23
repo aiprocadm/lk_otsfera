@@ -6,6 +6,8 @@ import { ZipDownloadButton } from '@/components/documents/zip-download-button';
 import { DOCUMENT_SOURCE_LABELS } from '@/lib/documents/source';
 import type { OrgDocumentRow } from '@/lib/services/partner/orgDocuments';
 import { ONE_C_PUSH_STATUS_LABEL, ONE_C_PUSH_STATUS_TONE } from '@/lib/documents/oneCPushStatus';
+import { fmtDate } from '@/lib/format';
+import { moscowYearMonth } from '@/lib/dates/calendar';
 
 /**
  * Этап 8 (`У-169`): выбор строк для «Выгрузить выбранные в 1С». Список сам
@@ -43,14 +45,6 @@ function fmtSize(bytes: number | null): string {
   const kb = bytes / 1024;
   if (kb < 1024) return `${kb.toFixed(0)} КБ`;
   return `${(kb / 1024).toFixed(1)} МБ`;
-}
-
-function fmtDate(d: Date): string {
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(d);
 }
 
 export function DocumentsList({
@@ -524,7 +518,9 @@ function groupRowsBy(
 
   const groups = new Map<string, { key: string; title: string; rows: OrgDocumentRow[] }>();
   for (const doc of rows) {
-    const key = mode === 'type' ? doc.type : String(new Date(doc.createdAt).getFullYear());
+    // Год — московский (прогон №36): документ 1 января в 01:30 по Москве
+    // относится к новому году, а часы сервера (UTC) ещё показывают старый.
+    const key = mode === 'type' ? doc.type : moscowYearMonth(new Date(doc.createdAt)).slice(0, 4);
     const title = mode === 'type' ? (TYPE_LABELS[doc.type] ?? doc.type) : `${key} год`;
     let group = groups.get(key);
     if (!group) {

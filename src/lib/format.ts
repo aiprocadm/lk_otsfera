@@ -15,28 +15,38 @@ export function fmtMoney(value: number | string): string {
   return `${MONEY.format(n)} ₽`;
 }
 
+/**
+ * Форматтеры дат создаются один раз на модуль, как `MONEY`. `toLocaleString` с
+ * опциями строит новый `Intl.DateTimeFormat` на КАЖДЫЙ вызов: после перевода
+ * всех экранов и выгрузок на эти помощники (прогон сопровождения №36) 10 000
+ * дат в выгрузке печатались 767 мс вместо 29. Вывод тот же байт в байт.
+ */
+const DATE = new Intl.DateTimeFormat('ru-RU', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  timeZone: 'Europe/Moscow',
+});
+
+const DATE_TIME = new Intl.DateTimeFormat('ru-RU', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  timeZone: 'Europe/Moscow',
+});
+
 export function fmtDate(value: Date | string): string {
   const d = typeof value === 'string' ? new Date(value) : value;
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    timeZone: 'Europe/Moscow',
-  });
+  return DATE.format(d);
 }
 
 export function fmtDateTime(value: Date | string): string {
   const d = typeof value === 'string' ? new Date(value) : value;
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Europe/Moscow',
-  });
+  return DATE_TIME.format(d);
 }
 
 const MONTHS_LONG = [

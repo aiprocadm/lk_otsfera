@@ -6,6 +6,8 @@ import { CardList, Card, CardRow } from '@/components/ui/card-list';
 const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
   dateStyle: 'short',
   timeStyle: 'medium',
+  // Прогон №36: по Москве явно — сервер живёт в UTC.
+  timeZone: 'Europe/Moscow',
 });
 
 const SUBJECTS_PREVIEW = 5;

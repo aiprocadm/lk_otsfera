@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { fmtDate } from '@/lib/format';
 import { EmailLayout, emailStyles } from '../layout';
 
 export type ManagerOrderMarkedPaidBy1CProps = {
@@ -10,14 +11,6 @@ export type ManagerOrderMarkedPaidBy1CProps = {
 
 function fmtMoney(amount: number): string {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(amount) + ' ₽';
-}
-
-function fmtDate(d: Date): string {
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(d);
 }
 
 export function ManagerOrderMarkedPaidBy1C(props: ManagerOrderMarkedPaidBy1CProps) {

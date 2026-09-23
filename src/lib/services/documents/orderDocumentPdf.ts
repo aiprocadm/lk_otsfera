@@ -1,6 +1,7 @@
 import { renderToBuffer, Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
 import React from 'react';
 import { registerPdfFonts, PDF_FONT_FAMILY } from '@/lib/pdf/fonts';
+import { fmtDate } from '@/lib/format';
 import type { PrintTable } from './printTable';
 import type { DocumentBranding } from './branding';
 
@@ -147,7 +148,7 @@ function signatureMarks(branding: DocumentBranding) {
 }
 
 export function OrderDocumentPdf({ data }: { data: OrderDocumentData }) {
-  const dateStr = new Date(data.date).toLocaleDateString('ru-RU');
+  const dateStr = fmtDate(data.date);
   const isInvoice = data.docType === 'invoice';
   const c = data.company;
   const t = data.table;
@@ -201,9 +202,9 @@ export function OrderDocumentPdf({ data }: { data: OrderDocumentData }) {
             { style: styles.periodLine },
             // Период — в акте главное: он отвечает на вопрос «за что платим».
             'Период оказания услуг: ' +
-              new Date(data.servicePeriod.from).toLocaleDateString('ru-RU') +
+              fmtDate(data.servicePeriod.from) +
               ' — ' +
-              new Date(data.servicePeriod.to).toLocaleDateString('ru-RU')
+              fmtDate(data.servicePeriod.to)
           )
         : null,
       e(Text, { style: styles.partyLabel }, 'ИСПОЛНИТЕЛЬ'),

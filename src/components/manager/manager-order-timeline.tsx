@@ -1,25 +1,7 @@
 import React from 'react';
 import type { AuditLog } from '@prisma/client';
 import type { ManagerOrderDetail } from '@/lib/services/manager/orders';
-
-function fmtDate(d: Date | null): string {
-  if (!d) return '—';
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(d);
-}
-
-function fmtDateTime(d: Date): string {
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(d);
-}
+import { fmtDate, fmtDateTime } from '@/lib/format';
 
 const HIDDEN_ACTIONS = new Set<string>([
   // Partner-economics events: managers never see commission/rate audit rows
@@ -110,7 +92,7 @@ export function ManagerOrderTimeline({
                 {e.label}
               </span>
               <span className={`text-xs ${passed ? 'text-gray-500 font-medium' : 'text-gray-300'}`}>
-                {fmtDate(e.date)}
+                {e.date ? fmtDate(e.date) : '—'}
               </span>
             </li>
           );

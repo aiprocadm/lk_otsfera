@@ -2,6 +2,7 @@ import { renderToBuffer, Document, Page, Text, View, Image, StyleSheet } from '@
 import React from 'react';
 import { registerPdfFonts, PDF_FONT_FAMILY } from '@/lib/pdf/fonts';
 import type { ResolvedClause } from '@/lib/documents/documentTemplate';
+import { fmtDate } from '@/lib/format';
 import type { PartyBlock } from './orderDocumentPdf';
 import { formatMoney, type PrintTable } from './printTable';
 import type { DocumentBranding } from './branding';
@@ -97,10 +98,6 @@ const styles = StyleSheet.create({
   signName: { fontSize: 9, fontWeight: 'bold' },
   signContact: { fontSize: 8, color: '#444' },
 });
-
-function fmtDate(d: Date): string {
-  return new Date(d).toLocaleDateString('ru-RU');
-}
 
 /**
  * Абзацы КП печатаются ПО КЛЮЧУ, а не по номеру пункта, как в договоре.

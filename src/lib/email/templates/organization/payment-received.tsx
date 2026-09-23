@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { fmtDate } from '@/lib/format';
 import { EmailLayout, emailStyles } from '../layout';
 
 export type OrgPaymentReceivedProps = {
@@ -12,14 +13,6 @@ export type OrgPaymentReceivedProps = {
 
 function fmtMoney(s: string): string {
   return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Number(s)) + ' ₽';
-}
-
-function fmtDate(d: Date): string {
-  return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(d);
 }
 
 export function OrgPaymentReceivedTemplate(props: OrgPaymentReceivedProps) {
