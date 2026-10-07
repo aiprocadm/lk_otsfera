@@ -7,7 +7,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { toast } from '@/lib/ui/toast';
 import { setFeatureFlagAction } from '@/server-actions/feature-flags';
 import type { FeatureFlag } from '@/lib/featureFlags';
-import type { FeatureFlagRow, FlagSource } from '@/lib/services/admin/featureFlags';
+import type { FeatureFlagRow, FlagSource, SensitiveFlag } from '@/lib/services/admin/featureFlags';
 
 /**
  * Матрица feature-флагов на `/admin/settings/system/feature-flags`.
@@ -60,8 +60,19 @@ const FLAG_LABELS: Record<FeatureFlag, string> = {
 /**
  * `У-68`: текст последствия — конкретный, а не «вы уверены?». Человек должен
  * понимать, что именно сломается, до нажатия, а не после.
+ *
+ * `Record<SensitiveFlag, …>` — намеренно полный: опасный флаг без текста ломает
+ * typecheck, и диалог не может открыться пустым (прогон сопровождения №38).
  */
-const CONSEQUENCE: Partial<Record<FeatureFlag, { off: string; on: string }>> = {
+const CONSEQUENCE: Record<SensitiveFlag, { off: string; on: string }> = {
+  staff_2fa: {
+    off: 'Администраторы, руководители и менеджеры снова будут входить только по паролю, без кода из письма. Украденного пароля станет достаточно, чтобы войти, — выключайте, только если письма с кодом перестали доходить.',
+    on: 'Администраторы, руководители и менеджеры будут входить только с кодом из письма — и вы тоже, при следующем входе. Если отправка писем на сервере не настроена, не войдёт никто из сотрудников. Сначала убедитесь, что письма доходят.',
+  },
+  document_generation: {
+    off: 'Сотрудники перестанут выпускать счета, акты и коммерческие предложения: кнопки выпуска исчезнут в карточках заказов, заявок и организаций во всех кабинетах. Уже выпущенные документы останутся у клиентов.',
+    on: 'Сотрудники снова смогут выпускать счета, акты и коммерческие предложения из карточек заказов, заявок и организаций.',
+  },
   pii_access_log: {
     off: 'Журнал доступа к персональным данным перестанет вестись: кто из сотрудников открывал данные людей, останется неизвестным. Это нарушает требования по защите ПДн — выключайте только на время инцидента.',
     on: 'Журнал доступа к персональным данным снова будет вестись. Это правильное рабочее состояние.',
@@ -79,6 +90,9 @@ const CONSEQUENCE: Partial<Record<FeatureFlag, { off: string; on: string }>> = {
     on: 'Партнёры снова смогут скачивать акты комиссии в XLSX.',
   },
 };
+
+/** Тот же словарь для чтения по любому флагу строки матрицы. */
+const CONSEQUENCE_BY_FLAG: Partial<Record<FeatureFlag, { off: string; on: string }>> = CONSEQUENCE;
 
 const SOURCE_RU: Record<FlagSource, string> = {
   ui: 'задано здесь',
@@ -138,7 +152,7 @@ export function FeatureFlagsMatrix({ rows }: { rows: FeatureFlagRow[] }) {
   }
 
   const consequence = pending
-    ? CONSEQUENCE[pending.row.flag]?.[pending.next ? 'on' : 'off']
+    ? CONSEQUENCE_BY_FLAG[pending.row.flag]?.[pending.next ? 'on' : 'off']
     : undefined;
 
   return (

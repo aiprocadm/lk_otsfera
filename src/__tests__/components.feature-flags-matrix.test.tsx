@@ -141,6 +141,33 @@ describe('FeatureFlagsMatrix (У-65…У-68)', () => {
     await waitFor(() => expect(setFeatureFlagAction).toHaveBeenCalledWith('pii_access_log', true));
   });
 
+  it('У-68 (прогон №38): включение 2FA предупреждает, что без почты сотрудники не войдут', async () => {
+    setFeatureFlagAction.mockResolvedValue({ ok: true, enabled: true, source: 'ui' });
+    render(
+      <FeatureFlagsMatrix rows={[row({ flag: 'staff_2fa', enabled: false, sensitive: true })]} />
+    );
+    fireEvent.click(screen.getByTestId('flag-toggle-staff_2fa'));
+    expect(setFeatureFlagAction).not.toHaveBeenCalled();
+    const text = (await screen.findByTestId('flag-consequence')).textContent ?? '';
+    expect(text).toContain('кодом из письма');
+    expect(text).toContain('не войдёт никто из сотрудников');
+
+    fireEvent.click(screen.getByTestId('flag-confirm'));
+    await waitFor(() => expect(setFeatureFlagAction).toHaveBeenCalledWith('staff_2fa', true));
+  });
+
+  it('У-68 (прогон №38): выключение выпуска документов называет счета и акты', async () => {
+    render(
+      <FeatureFlagsMatrix
+        rows={[row({ flag: 'document_generation', enabled: true, sensitive: true })]}
+      />
+    );
+    fireEvent.click(screen.getByTestId('flag-toggle-document_generation'));
+    const text = (await screen.findByTestId('flag-consequence')).textContent ?? '';
+    expect(text).toContain('перестанут выпускать счета, акты');
+    expect(setFeatureFlagAction).not.toHaveBeenCalled();
+  });
+
   it('диалог закрывается Escape — и это тоже отказ от переключения', async () => {
     render(
       <FeatureFlagsMatrix
