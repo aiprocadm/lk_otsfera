@@ -15,6 +15,29 @@ const { getQueue, queueAdd } = vi.hoisted(() => {
 });
 vi.mock('@/lib/jobs/queues', () => ({ getQueue }));
 
+// Хранилище файлов — в памяти (прогон сопровождения №38). Файл проверяет
+// конвейер переноса, а не S3: настоящий round-trip живёт в своём наборе и сам
+// пропускается без `S3_ENDPOINT`. Без подмены применение писало бы в отчёт
+// «хранилище файлов недоступно» везде, где S3 не поднят, — в CI он не задан
+// намеренно (`ci.yml`), и тест краснел на окружении, а не на коде.
+const { stored } = vi.hoisted(() => ({ stored: new Map<string, Buffer>() }));
+vi.mock('@/lib/storage', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/storage')>()),
+  getObjectStorage: () => ({
+    upload: async (path: string, body: Buffer) => {
+      stored.set(path, body);
+    },
+    download: async (path: string) => {
+      const body = stored.get(path);
+      if (!body) throw new Error(`нет объекта ${path}`);
+      return body;
+    },
+    remove: async (paths: string[]) => {
+      for (const path of paths) stored.delete(path);
+    },
+  }),
+}));
+
 import { bitrixImportProcessor } from '@/worker/processors/bitrix-import';
 import type { BitrixImportJobPayload } from '@/lib/jobs/types';
 import { resetIntegrationSettingsCache } from '@/lib/config/integrationSettingsCache';
@@ -438,6 +461,15 @@ describe('bitrixImportProcessor — применение пакета', () => {
 
     const journal = await prisma.bitrixImportWrite.count({ where: { batchId } });
     expect(journal).toBeGreaterThan(20);
+
+    // Файлы портала перенесены целиком: документ есть, и его содержимое лежит
+    // в хранилище ровно по пути из документа (иначе скачать его было бы нельзя).
+    const files = await prisma.document.findMany({
+      where: { bitrixId: { in: FIXTURE_FILE_IDS } },
+      select: { path: true },
+    });
+    expect(files).toHaveLength(FIXTURE_FILE_IDS.length);
+    for (const file of files) expect(stored.has(file.path), file.path).toBe(true);
   });
 
   it('повторное применение не плодит дублей и не трогает правленное человеком', async () => {
