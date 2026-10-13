@@ -34,6 +34,12 @@ type Props = {
   orgOptions: ContactOrgOption[];
   /** `У-182`: из вкладки «Контакты» карточки организации — она уже выбрана. */
   defaultOrganizationId?: string | undefined;
+  /**
+   * `У-276`: что делать после создания. По умолчанию — открыть карточку нового
+   * контакта; из карточки заказа (`'stay'`) человек остаётся на месте, а
+   * страница обновляется, чтобы новый контакт появился в выборе.
+   */
+  afterCreate?: 'open' | 'stay' | undefined;
 } & ({ mode: 'create' } | { mode: 'edit'; contact: EditableContact });
 
 /**
@@ -42,7 +48,7 @@ type Props = {
  * подсказка с именем владельца и ссылкой «Открыть» (спека §3.4).
  */
 export function ContactFormDialog(props: Props) {
-  const { cabinet, orgOptions, defaultOrganizationId } = props;
+  const { cabinet, orgOptions, defaultOrganizationId, afterCreate = 'open' } = props;
   const editing = props.mode === 'edit' ? props.contact : null;
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -99,7 +105,8 @@ export function ContactFormDialog(props: Props) {
       if (result.ok) {
         toast.success('Контакт создан');
         close();
-        router.push(contactHref(cabinet, result.contactId));
+        if (afterCreate === 'stay') router.refresh();
+        else router.push(contactHref(cabinet, result.contactId));
         return;
       }
       if (result.error === 'contact_channel_taken') {

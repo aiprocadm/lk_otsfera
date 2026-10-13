@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 const { refresh, push } = vi.hoisted(() => ({ refresh: vi.fn(), push: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh, push }) }));
@@ -41,6 +41,18 @@ const CURRENT: OrderContactCurrent = {
   organizationId: 'org-1',
   isArchived: false,
 };
+
+const ORG = { id: 'org-1', name: 'ООО «Ромашка»' };
+
+beforeAll(() => {
+  // Нативный <dialog> в jsdom не умеет showModal — окно «Добавить контакт».
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+    this.removeAttribute('open');
+  };
+});
 
 function renderPanel(overrides: Partial<React.ComponentProps<typeof OrderContactPanel>> = {}) {
   return render(
@@ -106,15 +118,34 @@ describe('OrderContactPanel', () => {
       expect(screen.queryByText(/У организации заказа контактов нет/)).toBeNull();
     });
 
-    it('у организации нет контактов — ссылка «Добавить контакт» ведёт на вкладку контактов её карточки', () => {
-      // Тупик без выхода — дефект приёмки (§15): вместо пустого селекта
-      // говорим, где завести человека, и даём ссылку прямо туда.
-      renderPanel({ cabinet: 'admin', current: null, options: [] });
+    it('у организации нет контактов — «Добавить контакт» открывает окно на месте с организацией заказа (У-276)', () => {
+      // Тупик без выхода — дефект приёмки (§15). Раньше здесь была ссылка в
+      // карточку организации, и менеджера без доступа к ней уводило на главную
+      // (`Д-51`); теперь контакт создаётся прямо в заказе.
+      renderPanel({ cabinet: 'admin', current: null, options: [], organization: ORG });
       expect(screen.getByText(/У организации заказа контактов нет/)).toBeTruthy();
-      const link = screen.getByRole('link', { name: 'Добавить контакт' }) as HTMLAnchorElement;
-      expect(link.getAttribute('href')).toBe('/admin/organizations/org-1?tab=contacts');
+      expect(screen.queryByRole('link', { name: 'Добавить контакт' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Добавить контакт' }));
+      const dialog = document.querySelector('dialog[open]') as HTMLElement;
+      const org = within(dialog).getByLabelText('Организация') as HTMLSelectElement;
+      expect(org.value).toBe('org-1');
+      expect(Array.from(org.options).map((o) => o.textContent)).toEqual([
+        'Без организации',
+        'ООО «Ромашка»',
+      ]);
       expect(screen.queryByLabelText('Контакт заказа')).toBeNull();
       expect(screen.queryByRole('button', { name: 'Сохранить' })).toBeNull();
+    });
+
+    it('контакты есть — «Добавить контакт» стоит рядом с выбором (можно завести ещё одного)', () => {
+      renderPanel({ organization: ORG });
+      expect(screen.getByLabelText('Контакт заказа')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Добавить контакт' })).toBeTruthy();
+    });
+
+    it('организации у панели нет — кнопки «Добавить контакт» нет', () => {
+      renderPanel({ current: null, options: [] });
+      expect(screen.queryByRole('button', { name: 'Добавить контакт' })).toBeNull();
     });
   });
 

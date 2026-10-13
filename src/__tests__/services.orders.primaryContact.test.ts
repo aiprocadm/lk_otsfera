@@ -27,6 +27,7 @@ type Mocks = {
   contactFindMany: ReturnType<typeof vi.fn>;
   contactFindFirst: ReturnType<typeof vi.fn>;
   contactFindUnique: ReturnType<typeof vi.fn>;
+  organizationFindFirst: ReturnType<typeof vi.fn>;
 };
 
 function makePrisma(
@@ -37,7 +38,10 @@ function makePrisma(
   const contactFindMany = vi.fn().mockResolvedValue(opts.options ?? []);
   const contactFindFirst = vi.fn().mockResolvedValue(opts.current ?? null);
   const contactFindUnique = vi.fn().mockResolvedValue(opts.contact ?? null);
+  // `У-276`: организация заказа для окна «Добавить контакт».
+  const organizationFindFirst = vi.fn().mockResolvedValue(ORG);
   const prisma = {
+    organization: { findFirst: organizationFindFirst },
     order: { findUnique: orderFindUnique, update: orderUpdate },
     contact: {
       findMany: contactFindMany,
@@ -52,6 +56,7 @@ function makePrisma(
     contactFindMany,
     contactFindFirst,
     contactFindUnique,
+    organizationFindFirst,
   };
 }
 
@@ -66,6 +71,7 @@ const MANAGER = {
 } as SessionPayload;
 const PARTNER = { sub: 'p1', role: 'partner', companyId: 'c1' } as SessionPayload;
 
+const ORG = { id: 'o1', name: 'ООО «Ромашка»' };
 const OPTION = { id: 'k1', name: 'Иванов', position: 'директор', organizationId: 'o1' };
 const ORDER_SHAPE = { organizationId: 'o1', companyId: 'c1', primaryContactId: null };
 
@@ -112,7 +118,7 @@ describe('getOrderContactPanel — варианты и текущий', () => {
     const { prisma, contactFindMany, contactFindFirst } = makePrisma();
     expect(
       await getOrderContactPanel(prisma, ADMIN, true, { ...ORDER_SHAPE, organizationId: null })
-    ).toEqual({ current: null, options: [] });
+    ).toEqual({ current: null, options: [], organization: null });
     expect(contactFindMany).not.toHaveBeenCalled();
     expect(contactFindFirst).not.toHaveBeenCalled();
   });
@@ -122,6 +128,7 @@ describe('getOrderContactPanel — варианты и текущий', () => {
     expect(await getOrderContactPanel(prisma, MANAGER, false, ORDER_SHAPE)).toEqual({
       current: null,
       options: [OPTION],
+      organization: ORG,
     });
     const where = (contactFindMany.mock.calls[0]![0] as { where: { AND: unknown[] } }).where;
     expect(where.AND).toEqual([
@@ -143,7 +150,7 @@ describe('getOrderContactPanel — варианты и текущий', () => {
     const { prisma, contactFindFirst } = makePrisma({ options: [OPTION] });
     expect(
       await getOrderContactPanel(prisma, ADMIN, true, { ...ORDER_SHAPE, primaryContactId: 'k1' })
-    ).toEqual({ current: { ...OPTION, isArchived: false }, options: [OPTION] });
+    ).toEqual({ current: { ...OPTION, isArchived: false }, options: [OPTION], organization: ORG });
     expect(contactFindFirst).not.toHaveBeenCalled();
   });
 
@@ -152,7 +159,7 @@ describe('getOrderContactPanel — варианты и текущий', () => {
     const { prisma, contactFindFirst } = makePrisma({ options: [OPTION], current: archived });
     expect(
       await getOrderContactPanel(prisma, LEADER, false, { ...ORDER_SHAPE, primaryContactId: 'k9' })
-    ).toEqual({ current: archived, options: [OPTION] });
+    ).toEqual({ current: archived, options: [OPTION], organization: ORG });
     expect(contactFindFirst).toHaveBeenCalledWith({
       where: { id: 'k9', companyId: 'c1' },
       select: { id: true, name: true, position: true, organizationId: true, isArchived: true },
@@ -165,6 +172,15 @@ describe('getOrderContactPanel — варианты и текущий', () => {
     });
   });
 
+  it('У-276: организация для «Добавить контакт» ищется в границах компании (C8)', async () => {
+    const { prisma, organizationFindFirst } = makePrisma();
+    await getOrderContactPanel(prisma, MANAGER, false, ORDER_SHAPE);
+    expect(organizationFindFirst).toHaveBeenCalledWith({
+      where: { id: 'o1', companyId: 'c1' },
+      select: { id: true, name: true },
+    });
+  });
+
   it('выбранный контакт не найден в компании → current null, события ПДн нет', async () => {
     const { prisma, contactFindFirst } = makePrisma({ options: [], current: null });
     expect(
@@ -172,7 +188,7 @@ describe('getOrderContactPanel — варианты и текущий', () => {
         ...ORDER_SHAPE,
         primaryContactId: 'k-ghost',
       })
-    ).toEqual({ current: null, options: [] });
+    ).toEqual({ current: null, options: [], organization: ORG });
     expect(contactFindFirst).toHaveBeenCalledTimes(1);
     expect(recordPiiAccess).not.toHaveBeenCalled();
   });

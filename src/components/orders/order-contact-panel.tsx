@@ -6,11 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Button, Select } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
 import { resolveErrorText } from '@/lib/ui/useFormAction';
-import {
-  contactHref,
-  organizationHref,
-  type ContactsCabinet,
-} from '@/lib/navigation/contactsHrefs';
+import { contactHref, type ContactsCabinet } from '@/lib/navigation/contactsHrefs';
+import { ContactFormDialog } from '@/components/manager/contacts/contact-form-dialog';
 import type { ContactOption } from '@/lib/services/contacts/options';
 import type { OrderContactCurrent } from '@/lib/services/orders/primaryContact';
 import { setOrderPrimaryContactAction } from '@/server-actions/orders/primaryContact';
@@ -30,6 +27,12 @@ type Props = {
   organizationId: string | null;
   current: OrderContactCurrent | null;
   options: ContactOption[];
+  /**
+   * `У-276` (`Д-51`): организация заказа для окна «Добавить контакт». Раньше
+   * здесь была ссылка в карточку организации — туда сотрудника могла не пустить
+   * проверка доступа, и он оказывался на главной.
+   */
+  organization?: { id: string; name: string } | null | undefined;
 };
 
 /**
@@ -38,8 +41,26 @@ type Props = {
  * выбор из контактов организации заказа, ссылка на карточку. Данные и права
  * даёт сервис `getOrderContactPanel`; здесь — только выбор и сохранение.
  */
-export function OrderContactPanel({ orderId, cabinet, organizationId, current, options }: Props) {
+export function OrderContactPanel({
+  orderId,
+  cabinet,
+  organizationId,
+  current,
+  options,
+  organization,
+}: Props) {
   const router = useRouter();
+  // Создание на месте с уже выбранной организацией заказа; после сохранения —
+  // остаёмся в заказе, новый человек появляется в выборе.
+  const addContact = organization ? (
+    <ContactFormDialog
+      cabinet={cabinet}
+      mode="create"
+      orgOptions={[organization]}
+      defaultOrganizationId={organization.id}
+      afterCreate="stay"
+    />
+  ) : null;
   const [value, setValue] = useState(current?.id ?? '');
   const [pending, startTransition] = useTransition();
   const dirty = value !== (current?.id ?? '');
@@ -102,16 +123,13 @@ export function OrderContactPanel({ orderId, cabinet, organizationId, current, o
           появится список её людей.
         </p>
       ) : options.length === 0 ? (
-        <p className="text-xs text-gray-500">
-          У организации заказа контактов нет.{' '}
-          <Link
-            href={`${organizationHref(cabinet, organizationId)}?tab=contacts`}
-            className="text-[#F97316] hover:underline"
-          >
-            Добавить контакт
-          </Link>{' '}
-          в её карточке — и он появится здесь.
-        </p>
+        <div className="space-y-2">
+          <p className="text-xs text-gray-500">
+            У организации заказа контактов нет. Добавьте человека — он сразу появится здесь, и его
+            можно будет выбрать.
+          </p>
+          {addContact}
+        </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
           <div className="min-w-0 flex-1">
@@ -133,6 +151,7 @@ export function OrderContactPanel({ orderId, cabinet, organizationId, current, o
           <Button size="sm" onClick={save} disabled={!dirty || pending} loading={pending}>
             Сохранить
           </Button>
+          {addContact}
         </div>
       )}
     </div>

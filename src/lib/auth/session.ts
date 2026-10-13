@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/db/prisma';
 import { primeFeatureFlagCache } from '@/lib/config/featureFlagStore';
+import { loadManagedOrgIds } from './buildSessionClaims';
 import { verifyToken } from './jwt';
 
 /** Срок жизни session-cookie = сроку жизни JWT '7d' в jwt.ts (signToken). */
@@ -29,6 +30,18 @@ export async function getSession() {
     // Этап 9 (ФТ-11.2): ревокация сессий. Токены, выданные до появления клейма,
     // читаются как версия 0 — они остаются валидными, пока версию не увеличили.
     if ((payload.sessionVersion ?? 0) !== user.sessionVersion) return null;
+    // `У-275` (`Д-50`): список закреплённых организаций в токене — снимок на
+    // момент входа. Назначенная администратором организация не появлялась у
+    // менеджера до повторного входа (до 7 дней жизни токена). Поэтому для
+    // менеджерского контура список читается свежим на каждом запросе —
+    // один индексный запрос, тот же, что при входе. Снятие назначения так же
+    // действует сразу.
+    if (payload.role === 'manager' || payload.role === 'leader') {
+      return {
+        ...payload,
+        managedOrgIds: await loadManagedOrgIds(prisma, payload.sub, payload.companyId ?? null),
+      };
+    }
     return payload;
   } catch {
     return null;

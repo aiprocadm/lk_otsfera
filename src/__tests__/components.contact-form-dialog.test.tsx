@@ -215,6 +215,37 @@ describe('ContactFormDialog — создание', () => {
   });
 });
 
+describe('ContactFormDialog — создание из карточки заказа (У-276)', () => {
+  it('afterCreate="stay": организация предвыбрана, после создания — обновление на месте, без перехода', async () => {
+    actions.createContactAction.mockResolvedValue({ ok: true, contactId: 'c9' });
+    render(
+      <ContactFormDialog
+        cabinet="manager"
+        mode="create"
+        orgOptions={[ORGS[0]!]}
+        defaultOrganizationId="o1"
+        afterCreate="stay"
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить контакт' }));
+    const dialog = within(openDialog());
+    expect((dialog.getByLabelText('Организация') as HTMLSelectElement).value).toBe('o1');
+    fireEvent.change(dialog.getByLabelText('Имя'), { target: { value: 'Сидоров Семён' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Создать' }));
+
+    await waitFor(() =>
+      expect(actions.createContactAction).toHaveBeenCalledWith({
+        name: 'Сидоров Семён',
+        organizationId: 'o1',
+        channels: [],
+      })
+    );
+    await waitFor(() => expect(nav.refresh).toHaveBeenCalled());
+    expect(nav.push).not.toHaveBeenCalled();
+    await waitFor(() => expect(openDialog()).toBeNull());
+  });
+});
+
 describe('ContactFormDialog — правка', () => {
   it('поля предзаполнены, вместо канала — заметка; успех → updateContactAction, тост, refresh, закрытие', async () => {
     actions.updateContactAction.mockResolvedValue({ ok: true, contactId: 'c1' });
