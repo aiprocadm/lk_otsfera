@@ -48,16 +48,29 @@ export type FeatureFlagRow = {
  * Флаги доступа и денег (`У-68`). Переключение таких — не «галочка», а
  * решение с последствиями, поэтому UI обязан спросить подтверждение с прямым
  * текстом, а не общим «вы уверены?».
+ *
+ * Прогон сопровождения №38 (`С-2`): список в скобках требования — примеры на
+ * 08.08.2026, а не весь класс. Под класс подпадали и переключаемые здесь
+ * `staff_2fa` (включение без доставки писем запирает вход всем сотрудникам,
+ * выключение молча снимает защиту входа) и `document_generation` (выпуск счетов
+ * и актов), но они переключались одним щелчком. Каждый переключаемый флаг
+ * теперь отнесён к опасным или обычным стражем
+ * `featureFlags.route-gated.guardrail` — новый флаг без решения не пройдёт.
  */
-export const SENSITIVE_FLAGS: readonly FeatureFlag[] = [
+export const SENSITIVE_FLAGS = [
   'role_constructor',
   'pii_access_log',
   'commission_pdf',
   'commission_xlsx',
-];
+  'staff_2fa',
+  'document_generation',
+] as const satisfies readonly FeatureFlag[];
+
+/** Опасный флаг: у каждого обязан быть текст последствия в матрице. */
+export type SensitiveFlag = (typeof SENSITIVE_FLAGS)[number];
 
 function isSensitiveFlag(flag: FeatureFlag): boolean {
-  return SENSITIVE_FLAGS.includes(flag);
+  return (SENSITIVE_FLAGS as readonly FeatureFlag[]).includes(flag);
 }
 
 const TRUE_VALUE = '1';
