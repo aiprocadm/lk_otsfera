@@ -34,7 +34,11 @@ describe('ForgotPasswordForm', () => {
   });
 
   it('success (2xx): posts {email}, shows busy label, then replaces the form with a status message', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, emailDelivery: true }),
+    });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(ForgotPasswordForm, null));
 
@@ -53,7 +57,11 @@ describe('ForgotPasswordForm', () => {
   });
 
   it('success: moves focus to the status message (form unmount would drop focus to body)', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, emailDelivery: true }),
+    });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(ForgotPasswordForm, null));
 
@@ -101,7 +109,7 @@ describe('ForgotPasswordForm', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({ ok: false, status: 429 })
-      .mockResolvedValueOnce({ ok: true, status: 200 });
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ok: true }) });
     vi.stubGlobal('fetch', fetchMock);
     render(React.createElement(ForgotPasswordForm, null));
 
@@ -113,5 +121,38 @@ describe('ForgotPasswordForm', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Отправить ссылку' }));
     await waitFor(() => expect(screen.queryByText(RATE_LIMIT_ERROR)).toBeNull());
     expect(await screen.findByRole('status')).toBeTruthy();
+  });
+
+  it('У-271: почта платформы не настроена — экран не обещает письмо, а отправляет к администратору', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, emailDelivery: false }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<ForgotPasswordForm />);
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.ru' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить ссылку' }));
+    const status = await screen.findByRole('status');
+    expect(status.textContent).toBe(
+      'Письма сейчас не отправляются. Обратитесь к администратору — он выдаст ссылку для входа.'
+    );
+  });
+
+  it('тело ответа не читается — обычный текст (ничего не обещаем лишнего, но и не ломаемся)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => Promise.reject(new Error('bad')),
+      })
+    );
+    render(<ForgotPasswordForm />);
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.ru' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить ссылку' }));
+    expect((await screen.findByRole('status')).textContent).toContain(
+      'Если такой email зарегистрирован'
+    );
   });
 });

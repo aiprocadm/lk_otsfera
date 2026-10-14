@@ -71,6 +71,17 @@ export async function isEmailEnabled(): Promise<boolean> {
   return v?.trim().toLowerCase() === 'true';
 }
 
+/**
+ * `У-271`: уйдёт ли письмо вообще — отправка включена И ключ провайдера задан.
+ * Экран «Забыли пароль» не обещает письмо, которое не уйдёт. Ответ зависит
+ * только от настроек платформы, а не от адреса, — перечислить аккаунты по нему
+ * нельзя.
+ */
+export async function isEmailDeliveryConfigured(): Promise<boolean> {
+  if (!(await isEmailEnabled())) return false;
+  return Boolean((await getSettingValue(prisma, 'email.resendApiKey'))?.trim());
+}
+
 export function resetEmailTransportCache(): void {
   cachedClient = null;
   cachedForKey = null;

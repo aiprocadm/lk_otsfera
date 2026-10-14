@@ -96,6 +96,29 @@ describe('isEmailEnabled', () => {
   });
 });
 
+describe('isEmailDeliveryConfigured (У-271)', () => {
+  it('уйдёт, только если отправка включена И ключ задан', async () => {
+    vi.stubEnv('EMAIL_ENABLED', 'true');
+    vi.stubEnv('RESEND_API_KEY', 're_key');
+    const { isEmailDeliveryConfigured } = await import('@/lib/email/transport');
+    expect(await isEmailDeliveryConfigured()).toBe(true);
+  });
+
+  it('включена, но ключа нет — не уйдёт (так было на стенде)', async () => {
+    vi.stubEnv('EMAIL_ENABLED', 'true');
+    vi.stubEnv('RESEND_API_KEY', '   ');
+    const { isEmailDeliveryConfigured } = await import('@/lib/email/transport');
+    expect(await isEmailDeliveryConfigured()).toBe(false);
+  });
+
+  it('выключена — не уйдёт, ключ не важен', async () => {
+    vi.stubEnv('EMAIL_ENABLED', '');
+    vi.stubEnv('RESEND_API_KEY', 're_key');
+    const { isEmailDeliveryConfigured } = await import('@/lib/email/transport');
+    expect(await isEmailDeliveryConfigured()).toBe(false);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // defaultTransport — no API key
 // ---------------------------------------------------------------------------

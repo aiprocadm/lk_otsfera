@@ -16,6 +16,8 @@ export function ForgotPasswordForm() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [sent, setSent] = useState(false);
+  // `У-271`: почта платформы не настроена — письмо не уйдёт, обещать его нельзя.
+  const [noDelivery, setNoDelivery] = useState(false);
   const [pending, startTransition] = useTransition();
   const statusRef = useRef<HTMLParagraphElement>(null);
 
@@ -37,6 +39,8 @@ export function ForgotPasswordForm() {
           body: JSON.stringify({ email }),
         });
         if (res.ok) {
+          const body = (await res.json().catch(() => ({}))) as { emailDelivery?: boolean };
+          setNoDelivery(body.emailDelivery === false);
           setSent(true);
         } else if (res.status === 429) {
           setError('Слишком много запросов, попробуйте позже');
@@ -57,7 +61,9 @@ export function ForgotPasswordForm() {
         role="status"
         className="text-sm text-gray-600 focus:outline-none"
       >
-        Если такой email зарегистрирован, мы отправили письмо со ссылкой для сброса пароля.
+        {noDelivery
+          ? 'Письма сейчас не отправляются. Обратитесь к администратору — он выдаст ссылку для входа.'
+          : 'Если такой email зарегистрирован, мы отправили письмо со ссылкой для сброса пароля.'}
       </p>
     );
   }

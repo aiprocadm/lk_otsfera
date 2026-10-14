@@ -30,6 +30,8 @@ vi.mock('@/lib/auth/passwordReset', () => ({
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: vi.fn() }));
 vi.mock('@/lib/email/send', () => ({ send: vi.fn() }));
+// `У-271`: признак «письма уходят» — настройка платформы; здесь — включено.
+vi.mock('@/lib/email/transport', () => ({ isEmailDeliveryConfigured: async () => true }));
 vi.mock('bcryptjs', () => ({
   default: { compare: vi.fn(), hash: vi.fn().mockResolvedValue('h') },
 }));
@@ -119,7 +121,8 @@ describe('reset-password/request — лимиты per-IP и per-email', () => {
       req('https://app.local/api/auth/reset-password/request', { email: 'nobody@example.com' })
     );
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    // `У-271`: к контракту добавился признак платформы — он одинаков для любого адреса.
+    expect(await res.json()).toEqual({ ok: true, emailDelivery: true });
     expect(isRateLimited).toHaveBeenCalledTimes(2);
   });
 });

@@ -13,6 +13,12 @@ import {
   type AdminUserErrorCode,
 } from '@/lib/services/admin/users';
 import { sendAdminUserInviteEmail } from '@/lib/email/send';
+import type { EmailOutcome } from '@/lib/email/outcome';
+import {
+  issueLoginLink,
+  recordLoginEmailAttempt,
+  trySend,
+} from '@/lib/services/admin/users/loginLink';
 import { log } from '@/lib/logging';
 
 type Failure = { ok: false; error: 'validation' | AdminUserErrorCode };
@@ -55,7 +61,9 @@ function appBaseUrl(): string {
 
 export async function createUserAction(
   fd: FormData
-): Promise<ActionResult<{ user: { id: string; email: string }; inviteUrl: string }>> {
+): Promise<
+  ActionResult<{ user: { id: string; email: string }; inviteUrl: string; email: EmailOutcome }>
+> {
   const parsed = createSchema.safeParse({
     email: readField(fd, 'email'),
     name: readField(fd, 'name'),
@@ -82,20 +90,49 @@ export async function createUserAction(
   if (!result.ok) return result;
   const inviteUrl = `${appBaseUrl()}/reset-password?token=${result.inviteToken}`;
 
-  try {
-    await sendAdminUserInviteEmail({
-      to: parsed.data.email,
-      name: parsed.data.name,
-      role: parsed.data.role,
-      inviteUrl,
-      invitedByName: session.name ?? undefined,
-    });
-  } catch (e) {
-    log.warn('[admin/users] send invite email failed', e);
-  }
+  // `У-271` (`Д-54`): итог письма больше не теряется. Раньше форма говорила
+  // «Приглашение создано», даже когда почта не настроена и письмо не ушло.
+  const email = await trySend(
+    () =>
+      sendAdminUserInviteEmail({
+        to: parsed.data.email,
+        name: parsed.data.name,
+        role: parsed.data.role,
+        inviteUrl,
+        invitedByName: session.name ?? undefined,
+      }),
+    'admin/users'
+  );
+  await recordLoginEmailAttempt(prisma, {
+    actorUserId: session.sub,
+    userId: result.user.id,
+    kind: 'invite',
+    outcome: email,
+  });
 
   revalidatePath('/admin/users');
-  return { ok: true, user: { id: result.user.id, email: result.user.email }, inviteUrl };
+  return { ok: true, user: { id: result.user.id, email: result.user.email }, inviteUrl, email };
+}
+
+const loginLinkSchema = z.object({ userId: z.string().min(1) });
+
+/**
+ * «Создать ссылку входа» (`У-272`): одноразовая ссылка на установку пароля для
+ * существующего пользователя. Права и запись — в сервисе `issueLoginLink`.
+ */
+export async function issueLoginLinkAction(input: {
+  userId: string;
+}): Promise<
+  | { ok: true; url: string; expiresAt: string; email: EmailOutcome }
+  | { ok: false; error: 'validation' | 'forbidden' | 'not_found' | 'inactive' }
+> {
+  const parsed = loginLinkSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+  const session = await requireAdmin();
+  const res = await issueLoginLink(prisma, session, parsed.data.userId, appBaseUrl());
+  if (!res.ok) return res;
+  revalidatePath(`/admin/users/${parsed.data.userId}`);
+  return { ok: true, url: res.url, expiresAt: res.expiresAt.toISOString(), email: res.email };
 }
 
 export async function updateUserAction(fd: FormData): Promise<ActionResult> {

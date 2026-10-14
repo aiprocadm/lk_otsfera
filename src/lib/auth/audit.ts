@@ -263,6 +263,9 @@ export const AUDIT_ACTIONS = [
   'partner_reactivated',
   'partner_updated',
   'password_reset',
+  // `У-271`/`У-272` (ТЗ 13.10.2026): итог письма со ссылкой входа (приглашение
+  // или ссылка от администратора) — «отправлено» или «не отправлено: причина».
+  'login_email_attempt',
   'payment_import.commit',
   'payment_import.rollback',
   'requisites_changed',

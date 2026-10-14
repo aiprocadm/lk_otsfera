@@ -186,6 +186,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   partner_material_unpublished: 'Материал для партнёров снят с публикации',
   partner_material_downloaded: 'Материал для партнёров скачан',
   password_reset: 'Сброс пароля',
+  login_email_attempt: 'Письмо со ссылкой входа',
   'payment_import.commit': 'Загрузка выписки по счёту',
   'payment_import.rollback': 'Откат импорта выписки',
   requisites_changed: 'Изменение реквизитов',

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db/prisma';
 import { sendPasswordResetLink } from '@/lib/services/auth/passwordResetRequest';
 import { isRateLimited } from '@/lib/rateLimit';
+import { isEmailDeliveryConfigured } from '@/lib/email/transport';
 
 import { clientIpFromHeaders } from '@/lib/api/clientIp';
 // R0.6: до лимитера маршрут был вектором email-бомбинга жертвы (каждый запрос
@@ -41,5 +42,8 @@ export async function POST(req: NextRequest) {
   // того, нашёлся ли активный аккаунт (guard от перечисления e-mail).
   await sendPasswordResetLink(prisma, email);
 
-  return NextResponse.json({ ok: true });
+  // `У-271` (`Д-54`): уйдёт ли письмо вообще — признак настроек ПЛАТФОРМЫ, а
+  // не адреса: одинаков для любого email, перечислить аккаунты по нему нельзя.
+  // Без него экран обещал письмо, которое при выключенной почте не уходит.
+  return NextResponse.json({ ok: true, emailDelivery: await isEmailDeliveryConfigured() });
 }
