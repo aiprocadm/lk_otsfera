@@ -58,8 +58,8 @@ export const ENV_ONLY: Record<string, string> = {
   STUDENT_BRIDGE_CODE_TTL_SEC: 'инфраструктура: TTL одноразового кода, сек',
   STUDENT_BRIDGE_RATE_LIMIT_MAX: 'инфраструктура: rate-limit обмена кода',
   STUDENT_BRIDGE_RATE_LIMIT_WINDOW_MS: 'инфраструктура: окно rate-limit, мс',
-  STUDENT_REDIRECT_URL: 'инфраструктура: адрес СДО для кнопки «Кабинет слушателя»',
-  STUDENT_REDIRECT_ALLOWED_DOMAINS: 'инфраструктура: allow-list доменов редиректа',
+  // STUDENT_REDIRECT_URL / STUDENT_REDIRECT_ALLOWED_DOMAINS — с `У-274` (ТЗ
+  // 13.10.2026) запасные значения настроек «Учебная площадка» (SETTING_SPECS).
   STUDENT_PORTAL_URL: 'инфраструктура: легаси-алиас STUDENT_REDIRECT_URL (deprecated)',
   STUDENT_PORTAL_ALLOWED_HOSTS:
     'инфраструктура: легаси-алиас STUDENT_REDIRECT_ALLOWED_DOMAINS (deprecated)',

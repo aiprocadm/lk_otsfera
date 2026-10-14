@@ -25,6 +25,18 @@ const { txMock, prismaTransaction, studentBridgeGrantCreate } = vi.hoisted(() =>
 });
 vi.mock('@/lib/db/prisma', () => ({ prisma: { $transaction: prismaTransaction } }));
 
+// `У-274`: адрес читается через реестр настроек; здесь — «в базе пусто →
+// запасное из env», как на сервере без заданной настройки.
+vi.mock('@/lib/config/integrationSettings', () => ({
+  getSettingValue: async (_prisma: unknown, key: string) => {
+    const map: Record<string, string | undefined> = {
+      'student.redirectUrl': process.env.STUDENT_REDIRECT_URL,
+      'student.allowedDomains': process.env.STUDENT_REDIRECT_ALLOWED_DOMAINS,
+    };
+    return map[key]?.trim() || null;
+  },
+}));
+
 const nav = vi.hoisted(() => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`);
@@ -87,13 +99,30 @@ describe('StudentRedirectPage', () => {
     expect(nav.redirect).not.toHaveBeenCalled();
   });
 
-  it('shows a config-missing message when STUDENT_REDIRECT_URL is unset', async () => {
+  it('У-274: адрес не задан — «Учебная площадка ещё не подключена — обратитесь к менеджеру», без перехода', async () => {
     getSession.mockResolvedValue({ sub: 'u1', role: 'student' });
 
     const { container } = await renderServerComponent(StudentRedirectPage());
 
-    expect(container.textContent).toContain('STUDENT_REDIRECT_URL не настроен');
+    expect(container.textContent).toContain(
+      'Учебная площадка ещё не подключена — обратитесь к менеджеру.'
+    );
+    expect(container.querySelector('a[href="/student"]')).not.toBeNull();
     expect(nav.redirect).not.toHaveBeenCalled();
+    expect(signStudentBridgeToken).not.toHaveBeenCalled();
+  });
+
+  it('У-274 (Д-53): адрес-заглушка из примера (lms.example.com) — тоже «не подключена», мост не выпускается', async () => {
+    getSession.mockResolvedValue({ sub: 'u1', role: 'student' });
+    process.env.STUDENT_REDIRECT_URL = 'https://lms.example.com/auth/bridge';
+    process.env.STUDENT_REDIRECT_ALLOWED_DOMAINS = 'lms.example.com';
+
+    const { container } = await renderServerComponent(StudentRedirectPage());
+
+    expect(container.textContent).toContain('Учебная площадка ещё не подключена');
+    expect(nav.redirect).not.toHaveBeenCalled();
+    expect(signStudentBridgeToken).not.toHaveBeenCalled();
+    expect(assertAllowedStudentPortalUrl).not.toHaveBeenCalled();
   });
 
   it('falls back to the legacy STUDENT_PORTAL_URL env var and warns about deprecation', async () => {
@@ -113,7 +142,7 @@ describe('StudentRedirectPage', () => {
 
   it('shows a blocked-URL error message when the URL fails allowlist/protocol validation (parseable URL)', async () => {
     getSession.mockResolvedValue({ sub: 'u1', role: 'student' });
-    process.env.STUDENT_REDIRECT_URL = 'https://evil.example.com/portal';
+    process.env.STUDENT_REDIRECT_URL = 'https://evil-portal.ru/portal';
     assertAllowedStudentPortalUrl.mockImplementation(() => {
       throw new Error('Student portal URL hostname is not allowlisted.');
     });
@@ -123,7 +152,7 @@ describe('StudentRedirectPage', () => {
     expect(container.textContent).toContain('Не удалось выполнить безопасный переход');
     expect(console.error).toHaveBeenCalledWith(
       'Blocked student portal redirect URL',
-      expect.objectContaining({ hostname: 'evil.example.com', protocol: 'https:' })
+      expect.objectContaining({ hostname: 'evil-portal.ru', protocol: 'https:' })
     );
     expect(nav.redirect).not.toHaveBeenCalled();
   });

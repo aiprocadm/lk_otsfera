@@ -93,6 +93,7 @@ vi.mock('@/server-actions/admin/integrationSettings', () => ({
   saveImapSettingsAction: vi.fn(),
   saveOnecSettingsAction: vi.fn(),
   saveDadataSettingsAction: vi.fn(),
+  saveStudentPortalSettingsAction: vi.fn(),
   testIntegrationAction: vi.fn(),
 }));
 
@@ -174,6 +175,8 @@ describe('AdminIntegrationsPage', () => {
     // все группы настроек смонтированы; мессенджеры (спека 2026-09-12, Р-М-6)
     // уехали в свой раздел — здесь вместо трёх форм ссылка на него.
     expect(formTitles).toEqual([
+      // `У-274`: адрес учебной площадки слушателя — из интерфейса.
+      'Учебная площадка',
       'Телефония Mango Office',
       'Входящая почта (IMAP)',
       'Обмен с 1С',
