@@ -39,6 +39,7 @@ function doc(over: Partial<DocumentDetail> = {}): DocumentDetail {
     signedAt: null,
     createdAt: new Date('2026-07-01T00:00:00Z'),
     uploadedByName: 'Иванов',
+    source: 'generated',
     status: 'issued',
     amountGross: '12000.00',
     sentAt: null,

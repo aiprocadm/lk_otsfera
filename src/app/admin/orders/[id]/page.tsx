@@ -186,6 +186,7 @@ export default async function AdminOrderDetailPage({
           organizationId={order.organizationId}
           current={contactPanel.current}
           options={contactPanel.options}
+          organization={contactPanel.organization}
         />
       )}
 

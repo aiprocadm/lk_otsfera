@@ -181,6 +181,7 @@ export default async function LeaderOrderDetailPage({
               organizationId={data.order.organizationId}
               current={contactPanel.current}
               options={contactPanel.options}
+              organization={contactPanel.organization}
             />
           ) : null
         }

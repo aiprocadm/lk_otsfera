@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { findUnique, verifyToken, cookiesGet } = vi.hoisted(() => ({
+const { findUnique, findManyAssignments, verifyToken, cookiesGet } = vi.hoisted(() => ({
   findUnique: vi.fn(),
+  findManyAssignments: vi.fn(),
   verifyToken: vi.fn(),
   cookiesGet: vi.fn(),
 }));
@@ -9,6 +10,7 @@ const { findUnique, verifyToken, cookiesGet } = vi.hoisted(() => ({
 vi.mock('@/lib/db/prisma', () => ({
   prisma: {
     user: { findUnique },
+    organizationManager: { findMany: findManyAssignments },
   },
 }));
 
@@ -165,5 +167,82 @@ describe('getSession — сверка sessionVersion', () => {
     findUnique.mockResolvedValue({ isActive: false, sessionVersion: 7 });
 
     await expect(getSession()).resolves.toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// `У-275` (`Д-50`, ТЗ 13.10.2026): закреплённые организации читаются свежими.
+// ---------------------------------------------------------------------------
+
+describe('getSession — организации менеджера без повторного входа (У-275)', () => {
+  // Токен выдан ДО назначения: список организаций в нём пуст.
+  const MANAGER = {
+    sub: 'mgr-1',
+    role: 'manager' as const,
+    companyId: 'co-1',
+    sessionVersion: 0,
+    managedOrgIds: [] as string[],
+  };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(cookies).mockResolvedValue({ get: cookiesGet } as any);
+    cookiesGet.mockReturnValue({ value: 'valid-token' });
+    findUnique.mockResolvedValue({ isActive: true, sessionVersion: 0 });
+  });
+
+  it('организация, назначенная после входа, видна сразу', async () => {
+    verifyToken.mockResolvedValue(MANAGER);
+    findManyAssignments.mockResolvedValue([{ organizationId: 'org-new' }]);
+
+    const session = await getSession();
+
+    expect(session?.managedOrgIds).toEqual(['org-new']);
+    // Тот же запрос, что при входе: только активные и только своей компании (C8).
+    expect(findManyAssignments).toHaveBeenCalledWith({
+      where: { userId: 'mgr-1', isActive: true, organization: { companyId: 'co-1' } },
+      select: { organizationId: true },
+    });
+  });
+
+  it('снятие назначения действует сразу — снимок в токене не спасает', async () => {
+    verifyToken.mockResolvedValue({ ...MANAGER, managedOrgIds: ['org-old'] });
+    findManyAssignments.mockResolvedValue([]);
+
+    await expect(getSession()).resolves.toMatchObject({ managedOrgIds: [] });
+  });
+
+  it('руководитель — тот же контур: список тоже свежий', async () => {
+    verifyToken.mockResolvedValue({ ...MANAGER, role: 'leader' as const });
+    findManyAssignments.mockResolvedValue([{ organizationId: 'org-1' }]);
+
+    await expect(getSession()).resolves.toMatchObject({ managedOrgIds: ['org-1'] });
+  });
+
+  it('менеджер без компании — пустой список, в базу не ходим (C8 deny-null)', async () => {
+    verifyToken.mockResolvedValue({ ...MANAGER, companyId: null, managedOrgIds: ['org-x'] });
+
+    await expect(getSession()).resolves.toMatchObject({ managedOrgIds: [] });
+    expect(findManyAssignments).not.toHaveBeenCalled();
+  });
+
+  it('токен без companyId читается как «без компании»', async () => {
+    const noCompany: Record<string, unknown> = { ...MANAGER };
+    delete noCompany.companyId;
+    verifyToken.mockResolvedValue(noCompany);
+
+    await expect(getSession()).resolves.toMatchObject({ managedOrgIds: [] });
+    expect(findManyAssignments).not.toHaveBeenCalled();
+  });
+
+  it('не менеджерские роли лишнего запроса не делают и токен не меняют', async () => {
+    verifyToken.mockResolvedValue({ sub: 'p-1', role: 'partner' as const, sessionVersion: 0 });
+
+    await expect(getSession()).resolves.toEqual({
+      sub: 'p-1',
+      role: 'partner',
+      sessionVersion: 0,
+    });
+    expect(findManyAssignments).not.toHaveBeenCalled();
   });
 });

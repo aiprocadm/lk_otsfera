@@ -2,6 +2,32 @@ import type { PrismaClient, User } from '@prisma/client';
 import type { OrganizationMembership, SessionPayload } from '@/lib/auth/jwt';
 import { toSessionAccessProfile, type SessionAccessProfile } from '@/lib/auth/accessProfile';
 
+/**
+ * Организации, закреплённые за менеджером или руководителем.
+ *
+ * C8 company floor: a manager's scope is bounded by their own company.
+ * Without the `organization.companyId === companyId` filter, a stale or
+ * legacy cross-company OrganizationManager row would widen managedOrgIds
+ * beyond the isolation boundary (see CLAUDE.md §4). A manager with no
+ * companyId is the deny-null sentinel — resolve zero orgs and skip the query.
+ *
+ * Зовут его и вход (`buildSessionClaims`), и каждое чтение сессии
+ * (`getSession`, `У-275`): назначение организации из кабинета администратора
+ * обязано действовать сразу, а не после повторного входа (`Д-50`).
+ */
+export async function loadManagedOrgIds(
+  prisma: PrismaClient,
+  userId: string,
+  companyId: string | null
+): Promise<string[]> {
+  if (!companyId) return [];
+  const assigned = await prisma.organizationManager.findMany({
+    where: { userId, isActive: true, organization: { companyId } },
+    select: { organizationId: true },
+  });
+  return assigned.map((a) => a.organizationId);
+}
+
 export type BuildClaimsResult =
   { ok: true; claims: SessionPayload } | { ok: false; error: 'account_deactivated' };
 
@@ -58,18 +84,7 @@ export async function buildSessionClaims(
   // на /login (managedOrgIds === undefined = «loader не отработал»). До
   // миграции данных (PR-3) эта ветка исполняется только для 'manager'.
   if (user.role === 'manager' || user.role === 'leader') {
-    // C8 company floor: a manager's scope is bounded by their own company.
-    // Without the `organization.companyId === user.companyId` filter, a stale or
-    // legacy cross-company OrganizationManager row would widen managedOrgIds
-    // beyond the isolation boundary (see CLAUDE.md §4). A manager with no
-    // companyId is the deny-null sentinel — resolve zero orgs and skip the query.
-    const assigned = user.companyId
-      ? await prisma.organizationManager.findMany({
-          where: { userId: user.id, isActive: true, organization: { companyId: user.companyId } },
-          select: { organizationId: true },
-        })
-      : [];
-    managedOrgIds = assigned.map((a) => a.organizationId);
+    managedOrgIds = await loadManagedOrgIds(prisma, user.id, user.companyId);
     // G1: денормализуем кастомный профиль доступа в токен (single indexed lookup,
     // как managedOrgIds). null accessProfileId → профиля нет → legacy-поведение.
     if (user.accessProfileId) {

@@ -75,6 +75,33 @@ describe('getDocumentDetail', () => {
     expect(res).toEqual({ ok: false, error: 'not_found' });
   });
 
+  it('У-280: источник считается общим определением — загрузка сотрудником, из 1С, из Битрикса', async () => {
+    canReadDocument.mockResolvedValue(true);
+    const staff = await getDocumentDetail(
+      makePrisma({
+        ...BASE_DOC,
+        generatedBy: 'user',
+        bitrixId: null,
+        uploadedBy: { name: 'Иванов', email: 'i@t.local', role: 'manager' },
+      }),
+      session,
+      'doc1'
+    );
+    const oneC = await getDocumentDetail(
+      makePrisma({ ...BASE_DOC, generatedBy: 'user', bitrixId: null, externalId: '1c-77' }),
+      session,
+      'doc1'
+    );
+    const bitrix = await getDocumentDetail(
+      makePrisma({ ...BASE_DOC, generatedBy: 'user', bitrixId: 'b-5', externalId: '1c-77' }),
+      session,
+      'doc1'
+    );
+    expect(staff.ok && staff.document.source).toBe('staff');
+    expect(oneC.ok && oneC.document.source).toBe('one_c');
+    expect(bitrix.ok && bitrix.document.source).toBe('bitrix');
+  });
+
   it('доступный документ заказа отдаётся с контрагентом и заказом', async () => {
     canReadDocument.mockResolvedValue(true);
     const prisma = makePrisma(BASE_DOC);

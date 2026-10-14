@@ -18,6 +18,12 @@ export type OrderContactCurrent = ContactOption & { isArchived: boolean };
 export type OrderContactPanelData = {
   current: OrderContactCurrent | null;
   options: ContactOption[];
+  /**
+   * `У-276` (`Д-51`): организация заказа для окна «Добавить контакт» на месте —
+   * контакт создаётся прямо из карточки заказа с уже выбранной организацией.
+   * `null` — у заказа нет организации (или она чужой компании).
+   */
+  organization: { id: string; name: string } | null;
 };
 
 type OrderContactShape = {
@@ -51,6 +57,13 @@ export async function getOrderContactPanel(
   const options = order.organizationId
     ? await listContactOptions(prisma, session, teamMode, { organizationId: order.organizationId })
     : [];
+  // Компания — та же граница C8, что у вариантов: чужая организация окну не нужна.
+  const organization = order.organizationId
+    ? await prisma.organization.findFirst({
+        where: { id: order.organizationId, companyId },
+        select: { id: true, name: true },
+      })
+    : null;
 
   let current: OrderContactCurrent | null = null;
   if (order.primaryContactId) {
@@ -73,7 +86,7 @@ export async function getOrderContactPanel(
       }
     }
   }
-  return { current, options };
+  return { current, options, organization };
 }
 
 export type SetOrderPrimaryContactResult =
