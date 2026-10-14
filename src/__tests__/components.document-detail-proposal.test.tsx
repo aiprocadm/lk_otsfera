@@ -49,6 +49,7 @@ function proposal(over: Partial<DocumentDetail> = {}): DocumentDetail {
     signedAt: null,
     createdAt: new Date('2026-07-01T00:00:00Z'),
     uploadedByName: 'Иванов',
+    source: 'generated',
     status: 'sent',
     amountGross: '12000.00',
     sentAt: new Date('2026-07-02T00:00:00Z'),

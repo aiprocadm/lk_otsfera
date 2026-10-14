@@ -473,8 +473,11 @@ export function DocumentDetailView({
         {showSetNumber && !numberSet && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
             <p className="text-sm text-gray-800">
-              У документа нет номера — он пришёл из 1С. Впишите номер с бумаги, и по нему можно
-              будет выпустить акт.
+              {/* `У-280` (`Д-56`): «пришёл из 1С» — только у документов из 1С.
+                  Загруженному вручную — текст ПМ дословно (`Р-ПМ-2`). */}
+              {doc.source === 'one_c'
+                ? 'У документа нет номера — он пришёл из 1С. Впишите номер с бумаги, и по нему можно будет выпустить акт.'
+                : 'Сейчас документ не пронумерован. Впишите номер, по которому впоследствии будет выпущен акт.'}
             </p>
             <div className="mt-2 flex flex-wrap items-end gap-2">
               <Field htmlFor="doc-number" label="Номер документа">

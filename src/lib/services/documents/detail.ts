@@ -17,6 +17,7 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { canReadDocument } from '@/lib/auth/policy';
 import { invoicePaymentState, type InvoicePaymentResult } from '@/lib/documents/invoicePayment';
 import { proposalDisplayStatus } from '@/lib/documents/proposalExpiry';
+import { documentSource, type DocumentSource } from '@/lib/documents/source';
 import { oneCPushBlockReason, type OneCPushBlockReason } from './pushToOneC';
 import { canReplaceUploader } from './versions';
 
@@ -36,6 +37,12 @@ export type DocumentDetail = {
   signedAt: Date | null;
   createdAt: Date;
   uploadedByName: string | null;
+  /**
+   * `У-280` (`Д-56`): откуда документ — тем же определением, что колонка
+   * «Источник» списка (`У-258`). Подсказка «пришёл из 1С» у документа без
+   * номера верна только для `one_c`; загруженному вручную она врала.
+   */
+  source: DocumentSource;
   /**
    * `У-251`: показывать ли кнопку «Загрузить новую версию».
    *
@@ -145,6 +152,8 @@ export async function getDocumentDetail(
       order: {
         select: { id: true, title: true, orderNumber: true, companyId: true },
       },
+      // `У-280`: источник документа (вместе с externalId/generatedBy/uploadedBy).
+      bitrixId: true,
       // `У-169`: выгрузка в 1С — состояние и всё, от чего зависит кнопка.
       externalId: true,
       supersededAt: true,
@@ -214,6 +223,7 @@ export async function getDocumentDetail(
       acceptedAt: doc.acceptedAt ?? null,
       payment,
       uploadedByName: doc.uploadedBy?.name ?? doc.uploadedBy?.email ?? null,
+      source: documentSource(doc),
       canUploadVersion:
         doc.generatedBy === 'user' &&
         doc.supersededAt === null &&

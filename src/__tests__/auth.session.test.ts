@@ -227,7 +227,8 @@ describe('getSession — организации менеджера без пов
   });
 
   it('токен без companyId читается как «без компании»', async () => {
-    const { companyId: _drop, ...noCompany } = MANAGER;
+    const noCompany: Record<string, unknown> = { ...MANAGER };
+    delete noCompany.companyId;
     verifyToken.mockResolvedValue(noCompany);
 
     await expect(getSession()).resolves.toMatchObject({ managedOrgIds: [] });

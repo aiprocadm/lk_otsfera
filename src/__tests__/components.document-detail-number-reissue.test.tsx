@@ -76,6 +76,7 @@ function doc(over: Partial<DocumentDetail> = {}): DocumentDetail {
     signedAt: null,
     createdAt: new Date('2026-07-01T00:00:00Z'),
     uploadedByName: 'Иванов',
+    source: 'one_c',
     status: 'issued',
     amountGross: '12000.00',
     sentAt: null,
@@ -119,6 +120,29 @@ describe('Блок «нет номера» в карточке (`У-151`, `Д-5`
     render(<DocumentDetailView document={doc({ number: null })} backHref="/x" canSetNumber />);
     expect(screen.getByText(NO_NUMBER_TEXT)).toBeTruthy();
     expect(screen.getByLabelText('Номер документа')).toBeTruthy();
+  });
+
+  it('У-280 (Д-56): загруженный вручную не называется «пришедшим из 1С» — текст ПМ дословно', () => {
+    for (const source of [
+      'staff',
+      'client',
+      'partner',
+      'generated',
+      'bitrix',
+      'unknown',
+    ] as const) {
+      const { unmount } = render(
+        <DocumentDetailView document={doc({ number: null, source })} backHref="/x" canSetNumber />
+      );
+      expect(screen.queryByText(NO_NUMBER_TEXT), source).toBeNull();
+      expect(
+        screen.getByText(
+          'Сейчас документ не пронумерован. Впишите номер, по которому впоследствии будет выпущен акт.'
+        )
+      ).toBeTruthy();
+      expect(screen.getByLabelText('Номер документа')).toBeTruthy();
+      unmount();
+    }
   });
 
   it('у документа с номером блока нет: номер напечатан в файле, править его нельзя', () => {
