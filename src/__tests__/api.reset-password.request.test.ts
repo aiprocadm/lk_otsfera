@@ -17,6 +17,12 @@ vi.mock('@/lib/email/send', () => ({
 
 // Лимитер здесь всегда пропускает: 429-контракт покрыт отдельным
 // api.auth.ratelimit.test.ts; этот файл тестирует доменную логику маршрута.
+// `У-271`: признак «письма уходят» — настройка платформы, подменяется здесь.
+const { isEmailDeliveryConfigured } = vi.hoisted(() => ({
+  isEmailDeliveryConfigured: vi.fn(async () => true),
+}));
+vi.mock('@/lib/email/transport', () => ({ isEmailDeliveryConfigured }));
+
 vi.mock('@/lib/rateLimit', () => ({
   isRateLimited: vi.fn().mockResolvedValue(false),
 }));
@@ -65,6 +71,7 @@ const inactiveUser = {
 describe('POST /api/auth/reset-password/request', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    isEmailDeliveryConfigured.mockResolvedValue(true);
     process.env.APP_URL = 'https://example.com';
     vi.mocked(createInviteToken).mockResolvedValue({
       token: 'test-token-abc',
@@ -80,7 +87,7 @@ describe('POST /api/auth/reset-password/request', () => {
 
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toEqual({ ok: true });
+    expect(body).toEqual({ ok: true, emailDelivery: true });
 
     expect(createInviteToken).toHaveBeenCalledWith(prisma, 'user-1', undefined, 'reset');
     expect(send).toHaveBeenCalledOnce();
@@ -96,7 +103,7 @@ describe('POST /api/auth/reset-password/request', () => {
     const res = await POST(jsonReq({ email: 'nobody@example.com' }));
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    expect(await res.json()).toEqual({ ok: true, emailDelivery: true });
     expect(send).not.toHaveBeenCalled();
     expect(createInviteToken).not.toHaveBeenCalled();
   });
@@ -107,7 +114,7 @@ describe('POST /api/auth/reset-password/request', () => {
     const res = await POST(jsonReq({ email: 'inactive@example.com' }));
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    expect(await res.json()).toEqual({ ok: true, emailDelivery: true });
     expect(send).not.toHaveBeenCalled();
     expect(createInviteToken).not.toHaveBeenCalled();
   });
@@ -142,7 +149,7 @@ describe('POST /api/auth/reset-password/request', () => {
     const res = await POST(jsonReq({ email: 'user@example.com' }));
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    expect(await res.json()).toEqual({ ok: true, emailDelivery: true });
     // send was called but failed; token was still created
     expect(createInviteToken).toHaveBeenCalled();
   });
@@ -154,7 +161,7 @@ describe('POST /api/auth/reset-password/request', () => {
     const res = await POST(jsonReq({ email: 'user@example.com' }));
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    expect(await res.json()).toEqual({ ok: true, emailDelivery: true });
     expect(createInviteToken).toHaveBeenCalled();
   });
 
@@ -169,5 +176,12 @@ describe('POST /api/auth/reset-password/request', () => {
     process.env.APP_URL = 'https://example.com';
     // send was still called (with the fallback lk.otsfera.ru URL in the email)
     expect(send).toHaveBeenCalled();
+  });
+
+  it('У-271: почта платформы не настроена — ответ говорит об этом; признак одинаков для любого адреса', async () => {
+    isEmailDeliveryConfigured.mockResolvedValue(false);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+    const res = await POST(jsonReq({ email: 'nobody@t.local' }));
+    expect(await res.json()).toEqual({ ok: true, emailDelivery: false });
   });
 });

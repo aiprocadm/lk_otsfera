@@ -48,6 +48,11 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin, requireSession }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/email/send', () => ({ sendAdminUserInviteEmail }));
+// `У-271`: итог письма пишется в журнал — здесь журнал не нужен.
+vi.mock('@/lib/services/admin/users/loginLink', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/services/admin/users/loginLink')>()),
+  recordLoginEmailAttempt: vi.fn(),
+}));
 vi.mock('@/lib/services/commission/corrections', () => ({ resolveCorrection }));
 
 vi.mock('@/lib/services/admin/users', async () => {

@@ -8,6 +8,8 @@ import { getUser } from '@/lib/services/admin/users';
 import { listActivePartnerOptions } from '@/lib/services/admin/partners';
 import { UserEditForm } from '@/components/admin/user-edit-form';
 import { AdminBackupCodesControl } from '@/components/admin/admin-backup-codes-control';
+import { AdminLoginLinkPanel } from '@/components/admin/admin-login-link-panel';
+import { lastLoginEmailAttempt } from '@/lib/services/admin/users/loginLink';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 
 import { PageHeader } from '@/components/ui/page-header';
@@ -19,7 +21,11 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
   const user = await getUser(prisma, session, id);
   if (!user) notFound();
 
-  const partners = await listActivePartnerOptions(prisma);
+  const [partners, lastAttempt] = await Promise.all([
+    listActivePartnerOptions(prisma),
+    // `У-271`: последний итог письма со ссылкой входа — «не отправлено: причина».
+    lastLoginEmailAttempt(prisma, user.id),
+  ]);
 
   return (
     <div className="space-y-4 max-w-3xl">
@@ -33,6 +39,19 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
         <PageHeader title={user.name} subtitle={user.email} />
       </div>
       <UserEditForm user={user} partners={partners} isSelf={session.sub === user.id} />
+      <AdminLoginLinkPanel
+        userId={user.id}
+        isActive={user.isActive}
+        lastAttempt={
+          lastAttempt
+            ? {
+                at: lastAttempt.at.toISOString(),
+                kind: lastAttempt.kind,
+                outcome: lastAttempt.outcome,
+              }
+            : null
+        }
+      />
       {isFeatureEnabled('staff_2fa') &&
         (user.role === 'admin' || user.role === 'manager' || user.role === 'leader') && (
           <AdminBackupCodesControl userId={user.id} />

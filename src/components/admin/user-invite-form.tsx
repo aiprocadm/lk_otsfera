@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createUserAction } from '@/server-actions/admin/users';
 import { useFormAction } from '@/lib/ui/useFormAction';
+import type { EmailOutcome } from '@/lib/email/outcome';
 
 type Partner = { id: string; name: string };
 type Company = { id: string; name: string };
@@ -22,8 +23,10 @@ export function UserInviteForm({
   const { formAction, pending, errorText, data } = useFormAction<{
     user: { id: string; email: string };
     inviteUrl: string;
+    email: EmailOutcome;
   }>({ action: createUserAction });
   const inviteUrl = data?.inviteUrl ?? null;
+  const email = data?.email ?? null;
   // `У-119`: руководителя заводят приглашением, а не только «пригласить
   // менеджером → повысить». Прежний путь остаётся рабочим.
   const [role, setRole] = useState<'organization' | 'partner' | 'manager' | 'leader' | 'student'>(
@@ -114,8 +117,19 @@ export function UserInviteForm({
         </div>
       )}
       {inviteUrl && (
-        <div role="status" className="text-sm bg-green-50 text-green-700 rounded px-3 py-2">
-          Приглашение создано. Если email не дошёл, скопируйте ссылку:
+        <div
+          role="status"
+          className={
+            email?.status === 'not_sent'
+              ? 'text-sm bg-amber-50 text-amber-800 rounded px-3 py-2'
+              : 'text-sm bg-green-50 text-green-700 rounded px-3 py-2'
+          }
+        >
+          {/* `У-271` (`Д-54`): итог письма честный — раньше «создано» звучало и тогда,
+              когда почта не настроена и письмо не ушло. */}
+          {email?.status === 'not_sent'
+            ? `Пользователь создан, но письмо не отправлено: ${email.reason}. Передайте ссылку для входа сами:`
+            : 'Приглашение создано, письмо отправлено. Если оно не дошло, скопируйте ссылку:'}
           <input
             type="text"
             readOnly

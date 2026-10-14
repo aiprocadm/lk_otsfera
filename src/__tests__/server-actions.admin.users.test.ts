@@ -24,6 +24,16 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireAdmin }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/email/send', () => ({ sendAdminUserInviteEmail }));
+// `У-271`: итог письма пишется в журнал; trySend — настоящий (перевод итога в фразу).
+const { recordLoginEmailAttempt, issueLoginLink } = vi.hoisted(() => ({
+  recordLoginEmailAttempt: vi.fn(),
+  issueLoginLink: vi.fn(),
+}));
+vi.mock('@/lib/services/admin/users/loginLink', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/services/admin/users/loginLink')>()),
+  recordLoginEmailAttempt,
+  issueLoginLink,
+}));
 
 vi.mock('@/lib/services/admin/users', async () => {
   const actual = await vi.importActual<typeof import('@/lib/services/admin/users')>(
@@ -48,6 +58,7 @@ import {
   updateUserFormAction,
   deactivateUserFormAction,
   reactivateUserFormAction,
+  issueLoginLinkAction,
 } from '@/server-actions/admin/users';
 
 function fd(data: Record<string, string>): FormData {
@@ -120,6 +131,33 @@ describe('createUserAction', () => {
 
     expect(res).toMatchObject({ ok: true });
     expect(revalidatePath).toHaveBeenCalledWith('/admin/users');
+    // `У-271`: сбой — не «приглашение отправлено», а «не отправлено» с причиной, и в журнал.
+    expect(res).toMatchObject({
+      email: { status: 'not_sent', reason: 'сбой при отправке письма' },
+    });
+    expect(recordLoginEmailAttempt).toHaveBeenCalledWith(expect.anything(), {
+      actorUserId: 'admin-1',
+      userId: 'u-2',
+      kind: 'invite',
+      outcome: { status: 'not_sent', reason: 'сбой при отправке письма' },
+    });
+  });
+
+  it('У-271: почта не настроена — форма получает «не отправлено» с причиной', async () => {
+    createUser.mockResolvedValue({
+      ok: true,
+      user: { id: 'u-3', email: 's@t.local', name: 'S', role: 'student' },
+      inviteToken: 'tok-s',
+    });
+    sendAdminUserInviteEmail.mockResolvedValue({ status: 'skipped', reason: 'disabled' });
+    const res = await createUserAction(fd({ email: 's@t.local', name: 'S', role: 'student' }));
+    expect(res).toMatchObject({
+      ok: true,
+      email: {
+        status: 'not_sent',
+        reason: 'отправка писем выключена в «Настройки → Интеграции → Почта»',
+      },
+    });
   });
 
   it('uses undefined as invitedByName when session.name is absent', async () => {
@@ -320,5 +358,34 @@ describe('form-action wrappers (discard result, log on failure)', () => {
     expect(result).toBeUndefined();
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+});
+
+describe('issueLoginLinkAction (У-272)', () => {
+  it('без userId — validation, сервис не зовётся', async () => {
+    expect(await issueLoginLinkAction({ userId: '' })).toEqual({ ok: false, error: 'validation' });
+    expect(issueLoginLink).not.toHaveBeenCalled();
+  });
+
+  it('отказ сервиса уходит как есть, без ревалидации', async () => {
+    issueLoginLink.mockResolvedValue({ ok: false, error: 'inactive' });
+    expect(await issueLoginLinkAction({ userId: 'u1' })).toEqual({ ok: false, error: 'inactive' });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('успех: ссылка, срок строкой, итог письма; карточка пользователя обновлена', async () => {
+    issueLoginLink.mockResolvedValue({
+      ok: true,
+      url: 'https://app.test/reset-password?token=t',
+      expiresAt: new Date('2026-10-14T12:00:00Z'),
+      email: { status: 'sent' },
+    });
+    expect(await issueLoginLinkAction({ userId: 'u1' })).toEqual({
+      ok: true,
+      url: 'https://app.test/reset-password?token=t',
+      expiresAt: '2026-10-14T12:00:00.000Z',
+      email: { status: 'sent' },
+    });
+    expect(revalidatePath).toHaveBeenCalledWith('/admin/users/u1');
   });
 });

@@ -15,6 +15,18 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
 const { getUser } = vi.hoisted(() => ({ getUser: vi.fn() }));
 vi.mock('@/lib/services/admin/users', () => ({ getUser }));
+// `У-271`/`У-272`: блок «Вход в кабинет» — последний итог письма из журнала.
+const { lastLoginEmailAttempt } = vi.hoisted(() => ({ lastLoginEmailAttempt: vi.fn() }));
+vi.mock('@/lib/services/admin/users/loginLink', () => ({ lastLoginEmailAttempt }));
+vi.mock('@/components/admin/admin-login-link-panel', () => ({
+  AdminLoginLinkPanel: (p: { userId: string; isActive: boolean; lastAttempt: unknown }) =>
+    React.createElement('div', {
+      'data-testid': 'login-link-panel',
+      'data-user': p.userId,
+      'data-active': String(p.isActive),
+      'data-last': JSON.stringify(p.lastAttempt),
+    }),
+}));
 
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
@@ -100,6 +112,36 @@ describe('EditUserPage', () => {
 
     const editForm = container.querySelector('[data-testid="user-edit-form"]');
     expect(editForm?.textContent).toContain('true');
+  });
+
+  it('У-271/У-272: блок «Вход в кабинет» получает последний итог письма (дата строкой) и активность', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getUser.mockResolvedValue({ ...USER, isActive: false });
+    listActivePartnerOptions.mockResolvedValue([]);
+    lastLoginEmailAttempt.mockResolvedValue({
+      at: new Date('2026-10-07T20:00:00Z'),
+      kind: 'invite',
+      outcome: { status: 'not_sent', reason: 'нет ключа' },
+    });
+    const { container } = await renderServerComponent(
+      EditUserPage({ params: Promise.resolve({ id: 'u1' }) })
+    );
+    const panel = container.querySelector('[data-testid="login-link-panel"]')!;
+    expect(lastLoginEmailAttempt).toHaveBeenCalledWith(expect.anything(), USER.id);
+    expect(JSON.parse(panel.getAttribute('data-last')!)).toEqual({
+      at: '2026-10-07T20:00:00.000Z',
+      kind: 'invite',
+      outcome: { status: 'not_sent', reason: 'нет ключа' },
+    });
+    expect(panel.getAttribute('data-active')).toBe('false');
+
+    lastLoginEmailAttempt.mockResolvedValue(null);
+    const again = await renderServerComponent(
+      EditUserPage({ params: Promise.resolve({ id: 'u1' }) })
+    );
+    expect(
+      again.container.querySelector('[data-testid="login-link-panel"]')!.getAttribute('data-last')
+    ).toBe('null');
   });
 
   it('shows the admin backup-codes control for a staff user when staff_2fa is enabled', async () => {
