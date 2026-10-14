@@ -29,6 +29,8 @@ import { listOrderDialogs } from '@/lib/services/messengers/forOrder';
 import { OrderDialogsPanel } from '@/components/orders/order-dialogs-panel';
 import { getOrderContactPanel } from '@/lib/services/orders/primaryContact';
 import { OrderContactPanel } from '@/components/orders/order-contact-panel';
+import { ManagerTransferOrderForm } from '@/components/manager/manager-transfer-order-form';
+import { listCompanyManagers } from '@/lib/services/manager/team';
 
 export default async function ManagerOrderDetailPage({
   params,
@@ -43,12 +45,21 @@ export default async function ManagerOrderDetailPage({
   // чтобы существование чужого заказа не утекало по разнице ответов (§4).
   if (!data) redirect(missingObjectHref('/manager/orders'));
 
-  const [directionsResult, students, customFieldsResult, activity] = await Promise.all([
-    listDirections(prisma, session),
-    listOrderStudentOptions(prisma, data.order.organizationId),
-    getValuesForEntity(prisma, session, 'order', id),
-    getDealActivity(prisma, session, id, { view: 'all' }),
-  ]);
+  // `У-283`: «Передать заказ» — только ответственному за этот заказ.
+  const ownOrder = data.order.managerId === session.sub && session.companyId !== null;
+  const [directionsResult, students, customFieldsResult, activity, companyManagers] =
+    await Promise.all([
+      listDirections(prisma, session),
+      listOrderStudentOptions(prisma, data.order.organizationId),
+      getValuesForEntity(prisma, session, 'order', id),
+      getDealActivity(prisma, session, id, { view: 'all' }),
+      ownOrder && session.companyId
+        ? listCompanyManagers(prisma, session.companyId)
+        : Promise.resolve([]),
+    ]);
+  const transferCandidates = companyManagers
+    .filter((m) => m.isActive && m.id !== session.sub)
+    .map((m) => ({ id: m.id, name: m.name, email: m.email }));
   const directions = directionsResult.ok ? directionsResult.directions : [];
   const customFields = customFieldsResult.ok ? customFieldsResult.fields : [];
   const activityItems = activity.ok ? activity.items : [];
@@ -205,6 +216,9 @@ export default async function ManagerOrderDetailPage({
             hasContact={data.order.primaryContactId !== null}
           />
         ) : null
+      }
+      transferPanel={
+        ownOrder ? <ManagerTransferOrderForm orderId={id} candidates={transferCandidates} /> : null
       }
       contactPanel={
         contactPanel ? (

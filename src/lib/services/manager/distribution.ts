@@ -1,6 +1,8 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
+import { log } from '@/lib/logging';
+import { notifyOrderAssigned } from '@/lib/notifications/manager';
 import {
   canSeeOrder,
   getCompanyTeamVisibility,
@@ -82,7 +84,7 @@ export async function assignOrderManager(
 
   const order = await prisma.order.findUnique({
     where: { id: args.orderId },
-    select: { managerId: true },
+    select: { managerId: true, title: true },
   });
   if (!order) return { ok: false, error: 'order_not_found' };
   if (order.managerId === args.managerUserId) return { ok: true, changed: false };
@@ -99,7 +101,64 @@ export async function assignOrderManager(
     before: { managerId: order.managerId },
     after: { managerId: args.managerUserId },
   });
+  // `У-283`: новый ответственный узнаёт о заказе сразу, а не случайно в списке.
+  // Fan-out деградирует gracefully (§3): сбой доставки не отменяет передачу.
+  if (args.managerUserId !== null) {
+    try {
+      await notifyOrderAssigned(prisma, {
+        assigneeId: args.managerUserId,
+        orderId: args.orderId,
+        orderTitle: order.title,
+        actorUserId: session.sub,
+      });
+    } catch (e) {
+      log.error('[orders/assign] order_assigned fan-out failed', {
+        orderId: args.orderId,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
   return { ok: true, changed: true };
+}
+
+export type TransferOwnOrderResult =
+  | { ok: true; changed: boolean }
+  | { ok: false; error: 'order_not_found' | 'forbidden' | 'invalid_manager' };
+
+/**
+ * «Передать заказ» (`У-283`, ТЗ 13.10.2026): менеджер отдаёт СВОЙ заказ коллеге
+ * своей компании. Руководитель и администратор и раньше назначали любого —
+ * через `assignOrderManagerAsLeader` и админский экшен; у менеджера выхода не
+ * было, и заказ, взятый в работу, застревал на нём.
+ *
+ * Гард на сервере, а не только скрытая кнопка (§4): заказ обязан быть его и
+ * его компании; кандидат — активный менеджер или руководитель той же компании
+ * (`restrictToCompanyId`, C8). «Снять с себя» без нового ответственного нельзя —
+ * заказ не должен остаться ничьим.
+ */
+export async function transferOwnOrder(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  args: { orderId: string; toUserId: string }
+): Promise<TransferOwnOrderResult> {
+  const order = await prisma.order.findUnique({
+    where: { id: args.orderId },
+    select: { managerId: true, companyId: true },
+  });
+  if (!order) return { ok: false, error: 'order_not_found' };
+  if (
+    !session.companyId ||
+    order.companyId !== session.companyId ||
+    order.managerId !== session.sub
+  ) {
+    return { ok: false, error: 'forbidden' };
+  }
+  if (args.toUserId === session.sub) return { ok: true, changed: false };
+  return assignOrderManager(prisma, session, {
+    orderId: args.orderId,
+    managerUserId: args.toUserId,
+    restrictToCompanyId: session.companyId,
+  });
 }
 
 export type ClaimOrderResult =

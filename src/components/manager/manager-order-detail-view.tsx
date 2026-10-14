@@ -40,6 +40,7 @@ export function ManagerOrderDetailView({
   dealPanel = null,
   contactPanel = null,
   dialogsPanel = null,
+  transferPanel = null,
   breadcrumbs = [],
 }: {
   data: ManagerOrderDetailData;
@@ -70,6 +71,8 @@ export function ManagerOrderDetailView({
   contactPanel?: React.ReactNode;
   /** `У-210`: блок «Переписка с клиентом» — сразу под контактом заказа. */
   dialogsPanel?: React.ReactNode;
+  /** `У-283`: «Передать заказ» — только на своём заказе (решает страница, проверяет сервис). */
+  transferPanel?: React.ReactNode;
   /** Этап 11 PR-2 (ФТ-15.6): цепочка обращение → лид → сделка → заказ. */
   breadcrumbs?: Crumb[];
 }) {
@@ -143,7 +146,12 @@ export function ManagerOrderDetailView({
           {contactPanel}
           {dialogsPanel}
           {dealPanel}
-          <ManagerOrderTimeline order={order} auditEntries={auditEntries} />
+          {transferPanel}
+          <ManagerOrderTimeline
+            order={order}
+            auditEntries={auditEntries}
+            userNames={data.userNames}
+          />
           {/* §10 ТЗ v0.5, решение заказчика Q3: операционный статус
               (`executionStatus`) убран из интерфейса — у заявки один видимый
               статус, из справочника. Само поле осталось в базе ради

@@ -4,6 +4,7 @@ import { canSeeTask } from '@/lib/auth/accessProfile';
 import { auditActionLabel } from '@/lib/audit/labels';
 import { resolveTaskColumns, columnForTask } from '@/lib/tasks/columns';
 import { parseRecurrence, type RecurrenceRule } from '@/lib/tasks/recurrence';
+import { listColleagues, type StaffColleague } from '@/lib/services/staffChat/mentions';
 import { listTaskComments, type TaskCommentView } from './comments';
 import { listChecklist, type ChecklistItemView } from './checklist';
 
@@ -47,6 +48,12 @@ export type TaskDetail = {
   links: { kind: 'order' | 'organization' | 'lead' | 'deal'; id: string; title: string }[];
   checklist: ChecklistItemView[];
   comments: TaskCommentView[];
+  /**
+   * `У-282` (`Д-57`): кого можно позвать «@» в обсуждении — тот же список,
+   * по которому сервер распознаёт упоминание (`listColleagues`). Подсказка при
+   * вводе и разбор на сервере не могут разойтись.
+   */
+  colleagues: StaffColleague[];
   history: TaskHistoryEntry[];
 };
 
@@ -101,9 +108,10 @@ export async function getTaskDetail(
   const columns = await resolveTaskColumns(prisma, row.companyId);
   const column = columnForTask(columns, row);
 
-  const [checklist, comments, historyRows] = await Promise.all([
+  const [checklist, comments, colleagues, historyRows] = await Promise.all([
     listChecklist(prisma, row.id),
     listTaskComments(prisma, row.id),
+    listColleagues(prisma, session),
     prisma.auditLog.findMany({
       where: { entity: 'task', entityId: row.id },
       select: { id: true, action: true, createdAt: true, user: { select: { name: true } } },
@@ -153,6 +161,8 @@ export async function getTaskDetail(
       links,
       checklist,
       comments,
+      // Себя не зовут: упоминание самого себя сервер и так отбрасывает.
+      colleagues: colleagues.rows.filter((c) => c.id !== session.sub),
       history: historyRows.map((h) => ({
         id: h.id,
         at: h.createdAt,

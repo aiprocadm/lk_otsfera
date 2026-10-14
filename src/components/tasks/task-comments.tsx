@@ -2,7 +2,9 @@
 
 import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button, Textarea } from '@/components/ui';
+import { Button } from '@/components/ui';
+import { MentionTextarea, type MentionOption } from '@/components/ui/mention-textarea';
+import { MentionText } from '@/components/ui/mention-text';
 import { toast } from '@/lib/ui/toast';
 import { errorMessageRu } from '@/lib/errors/messages';
 import { addTaskCommentAction } from '@/server-actions/tasks';
@@ -15,24 +17,31 @@ import type { TaskCommentView } from '@/lib/services/tasks/comments';
  * не то же самое, что комментарии к заказу (`Comment`) — те клиент читает.
  *
  * `@Имя Фамилия` зовёт коллегу: ему придёт уведомление со ссылкой на эту
- * страницу. Разбор имён — на сервере по списку сотрудников, здесь подсказка.
+ * страницу. Разбор имён — на сервере по списку сотрудников. `У-282` (`Д-57`):
+ * раньше поле было обычным — имя приходилось набирать точь-в-точь вслепую, и
+ * упоминание «не работало»; теперь после «@» поле подсказывает коллег (тот же
+ * список, что у сервера), а в ленте упоминание выделено.
  */
 export function TaskComments({
   taskId,
   comments,
+  colleagues,
 }: {
   taskId: string;
   comments: TaskCommentView[];
+  colleagues: MentionOption[];
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
+  const [body, setBody] = useState('');
+  const names = colleagues.map((c) => c.name);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const form = e.currentTarget;
-    const fd = new FormData(form);
+    const fd = new FormData();
     fd.set('taskId', taskId);
+    fd.set('body', body);
     setBusy(true);
     const res = await addTaskCommentAction(fd);
     setBusy(false);
@@ -40,7 +49,7 @@ export function TaskComments({
       toast.error(errorMessageRu(res.error, 'Не удалось отправить комментарий.'));
       return;
     }
-    form.reset();
+    setBody('');
     startTransition(() => router.refresh());
   }
 
@@ -62,23 +71,28 @@ export function TaskComments({
                   {new Date(c.createdAt).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}
                 </span>
               </div>
-              <p className="whitespace-pre-wrap text-sm text-gray-700">{c.body}</p>
+              <p className="whitespace-pre-wrap text-sm text-gray-700">
+                <MentionText text={c.body} names={names} />
+              </p>
             </li>
           ))}
         </ul>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-2">
-        <Textarea
-          name="body"
+        <MentionTextarea
+          value={body}
+          onChange={setBody}
+          colleagues={colleagues}
           required
           rows={3}
           maxLength={4000}
-          placeholder="Комментарий для коллег. «@Имя Фамилия» — позвать человека."
+          placeholder="Комментарий для коллег. Наберите «@» — появится список, кого позвать."
           aria-label="Текст комментария"
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-[#111111] outline-none focus:border-orange-400"
         />
         <div className="flex justify-end">
-          <Button type="submit" size="sm" disabled={busy}>
+          <Button type="submit" size="sm" disabled={busy || !body.trim()}>
             {busy ? 'Отправляю…' : 'Отправить'}
           </Button>
         </div>

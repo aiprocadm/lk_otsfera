@@ -17,6 +17,8 @@ const columnFindMany = vi.fn();
 const commentFindMany = vi.fn();
 const itemFindMany = vi.fn();
 const auditFindMany = vi.fn();
+// `У-282`: коллеги для подсказки «@» — тот же `listColleagues`, что у сервера.
+const userFindMany = vi.fn();
 
 const prisma = {
   task: { findUnique: taskFindUnique },
@@ -24,6 +26,7 @@ const prisma = {
   taskComment: { findMany: commentFindMany },
   taskChecklistItem: { findMany: itemFindMany },
   auditLog: { findMany: auditFindMany },
+  user: { findMany: userFindMany },
 } as unknown as PrismaClient;
 
 const manager = { sub: 'u1', role: 'manager', companyId: 'co-1' } as SessionPayload;
@@ -60,6 +63,10 @@ beforeEach(() => {
   commentFindMany.mockResolvedValue([]);
   itemFindMany.mockResolvedValue([]);
   auditFindMany.mockResolvedValue([]);
+  userFindMany.mockResolvedValue([
+    { id: 'u1', name: 'Иван' },
+    { id: 'u2', name: 'Анна Петрова' },
+  ]);
 });
 
 describe('getTaskDetail — доступ', () => {
@@ -101,6 +108,13 @@ describe('getTaskDetail — доступ', () => {
     const admin = { sub: 'a1', role: 'admin', companyId: 'co-1' } as SessionPayload;
     const res = await getTaskDetail(prisma, admin, 't1');
     expect(res.ok).toBe(true);
+  });
+});
+
+describe('getTaskDetail — коллеги для «@» (У-282)', () => {
+  it('отдаёт коллег из того же списка, что разбирает сервер, без самого себя', async () => {
+    const res = await getTaskDetail(prisma, manager, 't1');
+    expect(res.ok && res.task.colleagues).toEqual([{ id: 'u2', name: 'Анна Петрова' }]);
   });
 });
 

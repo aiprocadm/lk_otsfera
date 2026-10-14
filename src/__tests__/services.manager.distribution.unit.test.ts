@@ -11,6 +11,9 @@ const { getCompanyTeamVisibility, canSeeOrder } = vi.hoisted(() => ({
   canSeeOrder: vi.fn(),
 }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
+// `У-283`: уведомление нового ответственного — отдельный модуль, здесь только факт вызова.
+const { notifyOrderAssigned } = vi.hoisted(() => ({ notifyOrderAssigned: vi.fn() }));
+vi.mock('@/lib/notifications/manager', () => ({ notifyOrderAssigned }));
 // isLeaderSameCompany остаётся РЕАЛЬНЫМ (чистая функция): leader-bypass в claimOrder
 // тестируется против настоящей границы «лидер + та же компания», а не мока.
 vi.mock('@/lib/auth/managerPolicy', async (importOriginal) => ({
@@ -23,6 +26,7 @@ import {
   resolveAutoManager,
   assignOrderManager,
   claimOrder,
+  transferOwnOrder,
 } from '@/lib/services/manager/distribution';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
@@ -44,6 +48,7 @@ beforeEach(() => {
   recordAudit.mockResolvedValue(undefined);
   getCompanyTeamVisibility.mockResolvedValue(false);
   canSeeOrder.mockReturnValue(true);
+  notifyOrderAssigned.mockResolvedValue({ recipientsNotified: 1, emailsSent: 0, emailsSkipped: 1 });
 });
 
 describe('resolveAutoManager', () => {
@@ -370,5 +375,140 @@ describe('claimOrder', () => {
       expect.anything(),
       expect.objectContaining({ action: 'order_self_assigned', after: { managerId: 'mgr-1' } })
     );
+  });
+});
+
+// ─── `У-283` (ТЗ 13.10.2026): передача заказа и уведомление ────────────────────
+
+function transferPrisma(
+  order: unknown,
+  candidate: unknown = { role: 'manager', isActive: true, companyId: 'co-1' }
+) {
+  const update = vi.fn().mockResolvedValue({});
+  const prisma = {
+    user: { findUnique: vi.fn().mockResolvedValue(candidate) },
+    order: { findUnique: vi.fn().mockResolvedValue(order), update },
+  } as never;
+  return { prisma, update };
+}
+
+describe('assignOrderManager — уведомление нового ответственного (У-283)', () => {
+  it('новый ответственный получает «Вам передан заказ»; актор передаётся, чтобы себе не слать', async () => {
+    const { prisma } = transferPrisma({ managerId: 'mgr-1', title: 'Обучение по ОТ' });
+    await assignOrderManager(prisma, LEADER, { orderId: 'o1', managerUserId: 'u2' });
+    expect(notifyOrderAssigned).toHaveBeenCalledWith(prisma, {
+      assigneeId: 'u2',
+      orderId: 'o1',
+      orderTitle: 'Обучение по ОТ',
+      actorUserId: 'lead-1',
+    });
+  });
+
+  it('снятие ответственного (null) никого не уведомляет', async () => {
+    const { prisma } = transferPrisma({ managerId: 'mgr-1', title: 'Т' });
+    await assignOrderManager(prisma, LEADER, { orderId: 'o1', managerUserId: null });
+    expect(notifyOrderAssigned).not.toHaveBeenCalled();
+  });
+
+  it('без изменения — без уведомления', async () => {
+    const { prisma } = transferPrisma({ managerId: 'u2', title: 'Т' });
+    expect(
+      await assignOrderManager(prisma, LEADER, { orderId: 'o1', managerUserId: 'u2' })
+    ).toEqual({
+      ok: true,
+      changed: false,
+    });
+    expect(notifyOrderAssigned).not.toHaveBeenCalled();
+  });
+
+  it('сбой доставки не отменяет передачу (§3: fan-out деградирует молча, но с логом)', async () => {
+    notifyOrderAssigned.mockRejectedValue(new Error('smtp down'));
+    const { prisma, update } = transferPrisma({ managerId: 'mgr-1', title: 'Т' });
+    expect(
+      await assignOrderManager(prisma, LEADER, { orderId: 'o1', managerUserId: 'u2' })
+    ).toEqual({
+      ok: true,
+      changed: true,
+    });
+    expect(update).toHaveBeenCalled();
+  });
+
+  it('сбой доставки не-Error значением тоже не роняет передачу', async () => {
+    notifyOrderAssigned.mockRejectedValue('boom');
+    const { prisma } = transferPrisma({ managerId: 'mgr-1', title: 'Т' });
+    expect(
+      (await assignOrderManager(prisma, LEADER, { orderId: 'o1', managerUserId: 'u2' })).ok
+    ).toBe(true);
+  });
+});
+
+describe('transferOwnOrder — менеджер передаёт свой заказ (У-283)', () => {
+  it('свой заказ своей компании → передан коллеге, кандидат сужен компанией (C8)', async () => {
+    const { prisma, update } = transferPrisma({
+      managerId: 'mgr-1',
+      companyId: 'co-1',
+      title: 'Т',
+    });
+    expect(await transferOwnOrder(prisma, SESSION, { orderId: 'o1', toUserId: 'u2' })).toEqual({
+      ok: true,
+      changed: true,
+    });
+    expect(update).toHaveBeenCalledWith({ where: { id: 'o1' }, data: { managerId: 'u2' } });
+  });
+
+  it('чужой заказ (ответственный — другой) → forbidden, ничего не пишем', async () => {
+    const { prisma, update } = transferPrisma({ managerId: 'mgr-OTHER', companyId: 'co-1' });
+    expect(await transferOwnOrder(prisma, SESSION, { orderId: 'o1', toUserId: 'u2' })).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('заказ другой компании → forbidden', async () => {
+    const { prisma } = transferPrisma({ managerId: 'mgr-1', companyId: 'co-OTHER' });
+    expect((await transferOwnOrder(prisma, SESSION, { orderId: 'o1', toUserId: 'u2' })).ok).toBe(
+      false
+    );
+  });
+
+  it('сессия без компании → forbidden (deny-null)', async () => {
+    const { prisma } = transferPrisma({ managerId: 'mgr-1', companyId: 'co-1' });
+    expect(
+      await transferOwnOrder(
+        prisma,
+        { ...SESSION, companyId: null },
+        { orderId: 'o1', toUserId: 'u2' }
+      )
+    ).toEqual({ ok: false, error: 'forbidden' });
+  });
+
+  it('кандидат другой компании → invalid_manager', async () => {
+    const { prisma, update } = transferPrisma(
+      { managerId: 'mgr-1', companyId: 'co-1' },
+      { role: 'manager', isActive: true, companyId: 'co-OTHER' }
+    );
+    expect(await transferOwnOrder(prisma, SESSION, { orderId: 'o1', toUserId: 'u2' })).toEqual({
+      ok: false,
+      error: 'invalid_manager',
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('заказа нет → order_not_found', async () => {
+    const { prisma } = transferPrisma(null);
+    expect(await transferOwnOrder(prisma, SESSION, { orderId: 'o1', toUserId: 'u2' })).toEqual({
+      ok: false,
+      error: 'order_not_found',
+    });
+  });
+
+  it('передать самому себе — ничего не меняется', async () => {
+    const { prisma, update } = transferPrisma({ managerId: 'mgr-1', companyId: 'co-1' });
+    expect(await transferOwnOrder(prisma, SESSION, { orderId: 'o1', toUserId: 'mgr-1' })).toEqual({
+      ok: true,
+      changed: false,
+    });
+    expect(update).not.toHaveBeenCalled();
   });
 });
