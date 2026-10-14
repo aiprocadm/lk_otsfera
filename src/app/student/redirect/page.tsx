@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { randomUUID } from 'crypto';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth/session';
@@ -7,43 +8,9 @@ import { prisma } from '@/lib/db/prisma';
 import { assertAllowedStudentPortalUrl } from '@/lib/security/redirect';
 import { recordAudit } from '@/lib/auth/audit';
 import { log } from '@/lib/logging';
+import { getStudentPortalConfig } from '@/lib/student/portal';
 
 const bridgeCodeTtlSec = Number(process.env.STUDENT_BRIDGE_CODE_TTL_SEC ?? 60);
-
-function parseCsvHosts(value: string | undefined): string[] {
-  return (value ?? '')
-    .split(',')
-    .map((host) => host.trim())
-    .filter(Boolean)
-    .filter((host) => !host.includes('*'));
-}
-
-function getStudentRedirectConfig() {
-  const newRedirectUrl = process.env.STUDENT_REDIRECT_URL?.trim();
-  const legacyRedirectUrl = process.env.STUDENT_PORTAL_URL?.trim();
-  const redirectUrl = newRedirectUrl || legacyRedirectUrl;
-
-  if (!newRedirectUrl && legacyRedirectUrl) {
-    log.warn(
-      '[student-redirect] STUDENT_PORTAL_URL is deprecated. Please migrate to STUDENT_REDIRECT_URL.'
-    );
-  }
-
-  const newAllowlist = process.env.STUDENT_REDIRECT_ALLOWED_DOMAINS;
-  const legacyAllowlist = process.env.STUDENT_PORTAL_ALLOWED_HOSTS;
-  const allowlistRaw = (newAllowlist && newAllowlist.trim()) || legacyAllowlist;
-
-  if ((!newAllowlist || !newAllowlist.trim()) && legacyAllowlist) {
-    log.warn(
-      '[student-redirect] STUDENT_PORTAL_ALLOWED_HOSTS is deprecated. Please migrate to STUDENT_REDIRECT_ALLOWED_DOMAINS.'
-    );
-  }
-
-  return {
-    redirectUrl,
-    allowlist: ['otsfera.cdoprof.com', ...parseCsvHosts(allowlistRaw)],
-  };
-}
 
 export default async function StudentRedirectPage() {
   const session = await getSession();
@@ -56,9 +23,24 @@ export default async function StudentRedirectPage() {
     return <div className="p-6">Переход в кабинет слушателя доступен только обучающимся.</div>;
   }
 
-  const { redirectUrl: externalUrl, allowlist: studentPortalAllowlist } =
-    getStudentRedirectConfig();
-  if (!externalUrl) return <div className="p-6">STUDENT_REDIRECT_URL не настроен</div>;
+  // `У-274` (`Д-53`): адрес — из «Настройки → Интеграции → Учебная площадка»
+  // (переменная сервера — запасное). Пусто или заглушка из примера — не уводим
+  // на несуществующий сайт, а честно говорим, что площадка не подключена.
+  const portal = await getStudentPortalConfig(prisma);
+  if (portal.status === 'not_connected') {
+    return (
+      <div className="mx-auto max-w-lg space-y-3 p-6">
+        <h1 className="text-lg font-semibold text-[#111111]">Учебная площадка ещё не подключена</h1>
+        <p className="text-sm text-gray-600">
+          Учебная площадка ещё не подключена — обратитесь к менеджеру.
+        </p>
+        <Link href="/student" className="text-sm text-[#F97316] hover:underline">
+          ← В кабинет слушателя
+        </Link>
+      </div>
+    );
+  }
+  const { redirectUrl: externalUrl, allowlist: studentPortalAllowlist } = portal;
 
   let url: URL;
   try {

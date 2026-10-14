@@ -39,6 +39,7 @@ import {
   saveImapSettingsAction,
   saveOnecSettingsAction,
   saveDadataSettingsAction,
+  saveStudentPortalSettingsAction,
   testIntegrationAction,
 } from '@/server-actions/admin/integrationSettings';
 
@@ -281,5 +282,40 @@ describe('testIntegrationAction', () => {
     const res = await testIntegrationAction('nope', new FormData());
     expect(res).toEqual({ ok: false, error: 'unknown_key' });
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe('saveStudentPortalSettingsAction (У-274)', () => {
+  it('адрес и домены сохраняются в реестр настроек', async () => {
+    const res = await saveStudentPortalSettingsAction(
+      fd({
+        student_redirectUrl: ' https://lms.otsfera.ru/sso ',
+        student_allowedDomains: 'lms.otsfera.ru',
+      })
+    );
+    expect(res).toEqual({ ok: true });
+    expect(saveSettings).toHaveBeenCalledWith(expect.anything(), 'admin-1', [
+      { key: 'student.redirectUrl', value: 'https://lms.otsfera.ru/sso' },
+      { key: 'student.allowedDomains', value: 'lms.otsfera.ru' },
+    ]);
+  });
+
+  it('кривой адрес или чужой домен — понятный отказ, без записи', async () => {
+    expect(await saveStudentPortalSettingsAction(fd({ student_redirectUrl: 'lms' }))).toEqual({
+      ok: false,
+      error: 'student_portal_url_invalid',
+    });
+    expect(
+      await saveStudentPortalSettingsAction(fd({ student_redirectUrl: 'https://other.ru/' }))
+    ).toEqual({ ok: false, error: 'student_portal_host_not_allowed' });
+    expect(saveSettings).not.toHaveBeenCalled();
+  });
+
+  it('пустой адрес — «не подключено»: значение снимается', async () => {
+    await saveStudentPortalSettingsAction(fd({}));
+    expect(saveSettings).toHaveBeenCalledWith(expect.anything(), 'admin-1', [
+      { key: 'student.redirectUrl', value: '' },
+      { key: 'student.allowedDomains', value: '' },
+    ]);
   });
 });

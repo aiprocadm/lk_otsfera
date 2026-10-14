@@ -229,6 +229,18 @@ export const SETTING_SPECS = {
   },
   'dadata.enabled': { key: 'dadata.enabled', envVar: 'DADATA_ENABLED', isSecret: false },
   'dadata.apiKey': { key: 'dadata.apiKey', envVar: 'DADATA_API_KEY', isSecret: true },
+  // `У-274` (ТЗ 13.10.2026): адрес учебной площадки слушателя — из интерфейса,
+  // переменная сервера — запасное значение (критерий §0.3).
+  'student.redirectUrl': {
+    key: 'student.redirectUrl',
+    envVar: 'STUDENT_REDIRECT_URL',
+    isSecret: false,
+  },
+  'student.allowedDomains': {
+    key: 'student.allowedDomains',
+    envVar: 'STUDENT_REDIRECT_ALLOWED_DOMAINS',
+    isSecret: false,
+  },
   // Этап 2 ТЗ 12.09.2026 «Миграция из Битрикс24» (`У-188`, `У-199`): подключение
   // задаётся только из интерфейса (§0 ТЗ «ничего не включается на сервере») —
   // переменных окружения у ключей нет. Вебхук содержит токен в URL — секрет;

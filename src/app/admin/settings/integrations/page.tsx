@@ -21,6 +21,7 @@ import {
   saveImapSettingsAction,
   saveOnecSettingsAction,
   saveDadataSettingsAction,
+  saveStudentPortalSettingsAction,
   testIntegrationAction,
 } from '@/server-actions/admin/integrationSettings';
 import type { IntegrationTestKey } from '@/lib/services/admin/testIntegration';
@@ -53,6 +54,9 @@ const VIEW_KEYS: SettingKey[] = [
   'onec.healthPath',
   'dadata.enabled',
   'dadata.apiKey',
+  // `У-274`: учебная площадка слушателя.
+  'student.redirectUrl',
+  'student.allowedDomains',
 ];
 
 export default async function AdminIntegrationsPage() {
@@ -143,6 +147,34 @@ export default async function AdminIntegrationsPage() {
             </p>
           </Link>
         )}
+
+        {/* `У-274` (ТЗ 13.10.2026, `Д-53`): куда ведёт «Перейти к обучению». */}
+        <IntegrationSettingsForm
+          title="Учебная площадка"
+          description="Куда ведёт кнопка «Перейти к обучению» в кабинете слушателя (адрес входа на учебную платформу)."
+          note="Пока адрес не задан или указывает на пример (example.com), слушатель видит «Учебная площадка ещё не подключена — обратитесь к менеджеру»."
+          action={saveStudentPortalSettingsAction}
+          fields={[
+            {
+              name: 'student_redirectUrl',
+              label: 'Адрес входа на учебную площадку',
+              kind: 'text',
+              initialValue: byKey('student.redirectUrl').value ?? '',
+              settingKey: 'student.redirectUrl',
+              source: byKey('student.redirectUrl').source,
+              placeholder: 'https://otsfera.cdoprof.com/',
+            },
+            {
+              name: 'student_allowedDomains',
+              label: 'Разрешённые домены (через запятую, кроме otsfera.cdoprof.com)',
+              kind: 'text',
+              initialValue: byKey('student.allowedDomains').value ?? '',
+              settingKey: 'student.allowedDomains',
+              source: byKey('student.allowedDomains').source,
+              placeholder: 'lms.example.ru',
+            },
+          ]}
+        />
 
         <EmailSettingsForm
           initialEnabled={emailEnabled}

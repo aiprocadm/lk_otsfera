@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { validatePortalSettings, type PortalSettingsError } from '@/lib/student/portal';
 import { MESSENGER_CHANNELS } from '@/lib/services/messengers/channels';
 import {
   checkWebhook,
@@ -29,7 +30,7 @@ import {
 } from '@/lib/services/admin/webhookSecrets';
 
 export type IntegrationSaveResult =
-  { ok: true } | { ok: false; error: 'secrets_key_missing' | 'validation' };
+  { ok: true } | { ok: false; error: 'secrets_key_missing' | 'validation' | PortalSettingsError };
 
 function readField(fd: FormData, key: string): string {
   const v = fd.get(key);
@@ -299,6 +300,25 @@ export async function checkWebhookAction(channel: string, _fd: FormData): Promis
 }
 
 /** Настройки DaData: включение + ключ (секрет). */
+/**
+ * «Учебная площадка» (`У-274`): адрес перехода слушателя и разрешённые домены.
+ * Пустой адрес — «не подключено»: значение из базы снимается, работает запасное
+ * из конфига сервера (если оно не заглушка).
+ */
+export async function saveStudentPortalSettingsAction(
+  fd: FormData
+): Promise<IntegrationSaveResult> {
+  const session = await requireAdmin();
+  const redirectUrl = readField(fd, 'student_redirectUrl').trim();
+  const allowedDomains = readField(fd, 'student_allowedDomains').trim();
+  const checked = validatePortalSettings({ redirectUrl, allowedDomains });
+  if (!checked.ok) return checked;
+  return saveGroup(session.sub, [
+    { key: 'student.redirectUrl', value: redirectUrl },
+    { key: 'student.allowedDomains', value: allowedDomains },
+  ]);
+}
+
 export async function saveDadataSettingsAction(fd: FormData): Promise<IntegrationSaveResult> {
   const session = await requireAdmin();
   const enabled = fd.get('dadata_enabled') === 'on' || fd.get('dadata_enabled') === 'true';
