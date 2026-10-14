@@ -4,6 +4,9 @@ import { AppShell } from '@/components/dashboard/app-shell';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { getSession } from '@/lib/auth/session';
 import { getOrgPageContext } from '@/lib/auth/orgPageContext';
+import { prisma } from '@/lib/db/prisma';
+import { getStudentCabinet } from '@/lib/services/students/cabinet';
+import { StudentTrainingsList } from '@/components/student/student-trainings';
 
 import { PageHeader } from '@/components/ui/page-header';
 const CONTENT = (
@@ -44,5 +47,20 @@ export default async function StudentPage({
     );
   }
 
-  return <AppShell>{CONTENT}</AppShell>;
+  // Этап 2 ТЗ 13.10.2026 (`У-285`): у слушателя главная — не одна кнопка, а
+  // «Мои обучения». Скоуп режет сервис (свои карточки), чужого здесь нет.
+  const cabinet = session ? await getStudentCabinet(prisma, session) : null;
+  return (
+    <AppShell>
+      {CONTENT}
+      {cabinet?.ok && (
+        <section className="mt-6 space-y-3" aria-labelledby="my-trainings">
+          <h2 id="my-trainings" className="text-base font-semibold text-[#111111]">
+            Мои обучения
+          </h2>
+          <StudentTrainingsList trainings={cabinet.cabinet.trainings} />
+        </section>
+      )}
+    </AppShell>
+  );
 }

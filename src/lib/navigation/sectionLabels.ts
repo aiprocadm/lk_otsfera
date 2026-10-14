@@ -58,6 +58,7 @@ export type SectionKey =
   | 'notifications'
   | 'studentCabinet'
   | 'learning'
+  | 'myProfile'
   | 'help';
 
 export type SectionMeta = { label: string; iconKey: IconKey };
@@ -142,6 +143,9 @@ export const SECTIONS: Record<SectionKey, SectionMeta> = {
   // Пункт-мост из кабинета менеджера. Снимается в PR-3 этапа 3 (`У-111`).
   studentCabinet: { label: 'Кабинет слушателя', iconKey: 'studentCabinet' },
   learning: { label: 'Обучение', iconKey: 'learning' },
+  // Этап 2 ТЗ 13.10.2026 (`У-284`): профиль слушателя — ФИО, организация,
+  // обучения со сроками и удостоверения.
+  myProfile: { label: 'Мой профиль', iconKey: 'myProfile' },
   help: { label: 'Справка', iconKey: 'help' },
 };
 

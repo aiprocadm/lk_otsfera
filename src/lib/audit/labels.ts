@@ -89,6 +89,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   enrollment_legacy_direction_assigned: 'Направление проставлено старой заявке',
   enrollment_approved: 'Одобрение заявки на обучение',
   enrollment_items_advanced: 'Продвижение позиций обучения',
+  enrollment_item_dates_set: 'Сроки обучения',
   enrollment_provisioned: 'Зачисление на обучение',
   enrollment_rejected: 'Отклонение заявки на обучение',
   enrollment_submitted: 'Подача заявки на обучение',

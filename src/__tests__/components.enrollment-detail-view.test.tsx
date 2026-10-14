@@ -21,6 +21,8 @@ function item(overrides: Partial<EnrollmentDetailItem> = {}): EnrollmentDetailIt
     externalStudentId: null,
     directionName: 'Охрана труда',
     certificateDocumentId: null,
+    startsOn: null,
+    endsOn: null,
     ...overrides,
   };
 }

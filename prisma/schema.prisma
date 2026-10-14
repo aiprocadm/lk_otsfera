@@ -327,6 +327,9 @@ model User {
   piiAccessEvents              PiiAccessEvent[]
   notifications                Notification[]
   studentBridgeGrants          StudentBridgeGrant[]
+  /// Этап 2 ТЗ 13.10.2026 (`У-284`, `Р-2-1`): карточки справочника, к которым
+  /// привязана учётка слушателя (одна на каждую организацию, где он работает).
+  studentCards                 Student[]                    @relation("StudentAccount")
   partnerMemberships           PartnerUser[]                @relation("PartnerMembership")
   leadsAuthored                Lead[]                       @relation("LeadAuthor")
   leadsManaged                 Lead[]                       @relation("LeadManager")
@@ -926,11 +929,18 @@ model Student {
   organizationId    String
   organization      Organization            @relation(fields: [organizationId], references: [id])
   externalStudentId String?
+  /// Этап 2 ТЗ 13.10.2026 (`У-284`, `Р-2-1`, `Р-2-2`): учётка слушателя, которой
+  /// принадлежит карточка. Ставится автоматически по e-mail (без учёта регистра);
+  /// пока пусто — человек ещё не входил или учётки нет. Удаление учётки не
+  /// удаляет карточку (SET NULL).
+  userId            String?
+  user              User?                   @relation("StudentAccount", fields: [userId], references: [id], onDelete: SetNull)
   orderItems        OrderItem[]
   certificates      Certificate[]
   enrollmentItems   EnrollmentRequestItem[]
 
   @@unique([organizationId, email])
+  @@index([userId])
 }
 
 model Company {
@@ -2136,6 +2146,12 @@ model EnrollmentRequestItem {
   extra             String?
   status            EnrollmentStatus  @default(pending)
   externalStudentId String?
+  /// Этап 2 ТЗ 13.10.2026 (`У-284`, `Р-2-3`): сроки обучения — у позиции, а не
+  /// у шапки (у разных людей и направлений они разные). Дата без времени; задаёт
+  /// сотрудник в карточке заявки. По `endsOn` слушателю приходит «скоро
+  /// заканчивается срок обучения» (`У-286`).
+  startsOn          DateTime?         @db.Date
+  endsOn            DateTime?         @db.Date
 
   /// У-35: один сотрудник может быть в заявке несколько раз с РАЗНЫМИ
   /// направлениями, но не дважды с одним и тем же. Дословный образец —

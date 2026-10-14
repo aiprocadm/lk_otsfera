@@ -161,6 +161,8 @@ export const AUDIT_ACTIONS = [
   // У-34а (этап 6): администратор проставил направление старой заявке.
   'enrollment_legacy_direction_assigned',
   'enrollment_items_advanced',
+  // Этап 2 ТЗ 13.10.2026 (`У-284`, `Р-2-3`): сроки обучения по позиции заявки.
+  'enrollment_item_dates_set',
   'enrollment_provisioned',
   'enrollment_rejected',
   'enrollment_submitted',

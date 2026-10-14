@@ -36,6 +36,8 @@ export function StaffEnrollmentDetail({
     <EnrollmentDetailView
       detail={detail}
       backHref={listHref}
+      // Этап 2 ТЗ 13.10.2026 (`У-284`): сроки обучения задаёт сотрудник.
+      editDates
       breadcrumbs={buildCabinetBreadcrumbs(cabinet, listHref, [{ label: enrollmentTitle(detail) }])}
       actions={
         <EnrollmentStaffActions

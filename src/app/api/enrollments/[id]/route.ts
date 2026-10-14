@@ -9,6 +9,7 @@ import {
   approveEnrollment,
   rejectEnrollment,
   markProvisioned,
+  setEnrollmentItemDates,
 } from '@/lib/services/enrollments/lifecycle';
 
 type Params = { params: Promise<{ id: string }> };
@@ -71,10 +72,27 @@ export async function PATCH(req: Request, { params }: Params) {
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
     return NextResponse.json({ request: r.request, movedCount: r.movedCount });
   }
+  // Этап 2 ТЗ 13.10.2026 (`У-284`, `Р-2-3`): сроки обучения по позиции.
+  if (action === 'setItemDates') {
+    const day = (v: unknown): string | null =>
+      v === null || v === undefined || v === '' ? null : String(v);
+    if (typeof body.itemId !== 'string' || !body.itemId) {
+      return NextResponse.json({ error: 'validation' }, { status: 400 });
+    }
+    const r = await setEnrollmentItemDates(prisma, {
+      id,
+      itemId: body.itemId,
+      reviewerId,
+      startsOn: day(body.startsOn),
+      endsOn: day(body.endsOn),
+    });
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: statusFor(r.error) });
+    return NextResponse.json({ ok: true });
+  }
   return NextResponse.json(
     {
       error:
-        'Invalid action. Use approve|reject|markProvisioned|markInTraining|markCertificatesReady',
+        'Invalid action. Use approve|reject|markProvisioned|markInTraining|markCertificatesReady|setItemDates',
     },
     { status: 400 }
   );

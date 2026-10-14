@@ -1,6 +1,7 @@
 import type { PrismaClient, EnrollmentRequest, EnrollmentStatus } from '@prisma/client';
 import { attachStudentsToApprovedItems } from '@/lib/services/students/fromEnrollment';
 import { recordAudit } from '@/lib/auth/audit';
+import { linkCardsToStudentAccounts } from '@/lib/services/students/account';
 import { notifySubmitterEnrollmentStatus } from './notify';
 
 /**
@@ -81,6 +82,18 @@ export async function approveEnrollment(
     }
     return request;
   });
+  // Этап 2 ТЗ 13.10.2026 (`У-273`, `Р-2-2`): карточки слушателей позиций
+  // связываются с их учётками по e-mail — подтверждённое обучение появляется у
+  // человека в кабинете (а в PR-3 — и уведомлением).
+  const items = await prisma.enrollmentRequestItem.findMany({
+    where: { requestId: r.id, status: 'approved', studentId: { not: null } },
+    select: { studentId: true },
+  });
+  await linkCardsToStudentAccounts(
+    prisma,
+    // Позиции без карточки отсечены выборкой (`studentId: { not: null }`).
+    items.map((i) => i.studentId as string)
+  );
   await recordAudit(prisma, {
     userId: args.reviewerId,
     action: 'enrollment_approved',
@@ -244,4 +257,60 @@ export async function advanceEnrollmentItems(
   });
   if (headerChanged) await notifySubmitterEnrollmentStatus(prisma, updated);
   return { ok: true, request: updated, movedCount: targetIds.length, headerChanged };
+}
+
+/** `YYYY-MM-DD` → полночь UTC (`@db.Date`); пустое — null; кривое — undefined. */
+function parseDay(value: string | null): Date | null | undefined {
+  if (value === null || value.trim() === '') return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value.trim())) return undefined;
+  const d = new Date(`${value.trim()}T00:00:00.000Z`);
+  return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== value.trim() ? undefined : d;
+}
+
+/**
+ * Сроки обучения по позиции заявки (`У-284`, `Р-2-3`, этап 2 ТЗ 13.10.2026):
+ * сотрудник задаёт дату начала и окончания — слушатель видит их в «Мой
+ * профиль», а за три дня до окончания получает напоминание (`У-286`).
+ * Даты необязательные; окончание раньше начала — `validation`.
+ */
+export async function setEnrollmentItemDates(
+  prisma: PrismaClient,
+  args: {
+    id: string;
+    itemId: string;
+    reviewerId: string;
+    startsOn: string | null;
+    endsOn: string | null;
+  }
+): Promise<{ ok: true } | { ok: false; error: 'not_found' | 'validation' }> {
+  const startsOn = parseDay(args.startsOn);
+  const endsOn = parseDay(args.endsOn);
+  if (startsOn === undefined || endsOn === undefined) return { ok: false, error: 'validation' };
+  if (startsOn && endsOn && endsOn < startsOn) return { ok: false, error: 'validation' };
+  const item = await prisma.enrollmentRequestItem.findFirst({
+    where: { id: args.itemId, requestId: args.id },
+    select: { id: true, startsOn: true, endsOn: true },
+  });
+  if (!item) return { ok: false, error: 'not_found' };
+  await prisma.enrollmentRequestItem.update({
+    where: { id: item.id },
+    data: { startsOn, endsOn },
+  });
+  await recordAudit(prisma, {
+    userId: args.reviewerId,
+    action: 'enrollment_item_dates_set',
+    entity: 'enrollment_request',
+    entityId: args.id,
+    before: {
+      itemId: item.id,
+      startsOn: item.startsOn?.toISOString().slice(0, 10) ?? null,
+      endsOn: item.endsOn?.toISOString().slice(0, 10) ?? null,
+    },
+    after: {
+      itemId: item.id,
+      startsOn: startsOn?.toISOString().slice(0, 10) ?? null,
+      endsOn: endsOn?.toISOString().slice(0, 10) ?? null,
+    },
+  });
+  return { ok: true };
 }

@@ -37,12 +37,90 @@ vi.mock('@/components/organization/org-app-shell', () => ({
     ),
 }));
 
+vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
+const { getStudentCabinet } = vi.hoisted(() => ({ getStudentCabinet: vi.fn() }));
+vi.mock('@/lib/services/students/cabinet', () => ({ getStudentCabinet }));
+
 import StudentPage from '@/app/student/page';
 
 describe('StudentPage', () => {
   beforeEach(() => {
     getSession.mockReset();
     getOrgPageContext.mockReset();
+    getStudentCabinet.mockReset();
+    getStudentCabinet.mockResolvedValue({ ok: false, error: 'forbidden' });
+  });
+
+  it('этап 2 ТЗ 13.10.2026 (`У-285`): у слушателя на главной — «Мои обучения» с кнопкой площадки у каждого', async () => {
+    getSession.mockResolvedValue({ sub: 'u1', role: 'student' });
+    getStudentCabinet.mockResolvedValue({
+      ok: true,
+      cabinet: {
+        name: 'Анна',
+        organizations: ['ООО Ромашка'],
+        certificates: [],
+        trainings: [
+          {
+            id: 't1',
+            directionName: 'Охрана труда',
+            organizationName: 'ООО Ромашка',
+            status: 'approved',
+            statusLabel: 'Обучение назначено',
+            startsOn: '2026-11-01',
+            endsOn: '2026-11-15',
+          },
+          {
+            id: 't2',
+            directionName: 'Пожарная безопасность',
+            organizationName: 'ООО Ромашка',
+            status: 'in_training',
+            statusLabel: 'Идёт обучение',
+            startsOn: null,
+            endsOn: null,
+          },
+        ],
+      },
+    });
+
+    const { container } = await renderServerComponent(
+      StudentPage({ searchParams: Promise.resolve({}) })
+    );
+
+    expect(getStudentCabinet).toHaveBeenCalledWith({}, { sub: 'u1', role: 'student' });
+    expect(container.textContent).toContain('Мои обучения');
+    expect(container.textContent).toContain('Обучение назначено · с 01.11.2026 по 15.11.2026');
+    expect(container.textContent).toContain('Идёт обучение · сроки ещё не назначены');
+    const portal = [...container.querySelectorAll('a')].filter(
+      (a) => a.textContent === 'Перейти на учебную площадку'
+    );
+    expect(portal.map((a) => a.getAttribute('href'))).toEqual([
+      '/student/redirect',
+      '/student/redirect',
+    ]);
+    // Прежняя кнопка остаётся.
+    expect(container.textContent).toContain('Перейти к обучению');
+  });
+
+  it('без обучений — объяснение и ссылка в справку, а не пустота', async () => {
+    getSession.mockResolvedValue({ sub: 'u1', role: 'student' });
+    getStudentCabinet.mockResolvedValue({
+      ok: true,
+      cabinet: { name: '', organizations: [], trainings: [], certificates: [] },
+    });
+    const { container } = await renderServerComponent(
+      StudentPage({ searchParams: Promise.resolve({}) })
+    );
+    expect(container.textContent).toContain('Обучений пока нет');
+    expect(container.querySelector('a[href="/help"]')).toBeTruthy();
+  });
+
+  it('без сессии кабинет не запрашивается', async () => {
+    getSession.mockResolvedValue(null);
+    const { container } = await renderServerComponent(
+      StudentPage({ searchParams: Promise.resolve({}) })
+    );
+    expect(getStudentCabinet).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain('Мои обучения');
   });
 
   it('renders the generic AppShell with the student CONTENT for a student session', async () => {
@@ -90,5 +168,7 @@ describe('StudentPage', () => {
 
     expect(container.querySelector('[data-testid="app-shell"]')).toBeTruthy();
     expect(getOrgPageContext).not.toHaveBeenCalled();
+    // Сервис кабинета отказал (не слушатель) — блока «Мои обучения» нет.
+    expect(container.textContent).not.toContain('Мои обучения');
   });
 });

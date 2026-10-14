@@ -64,6 +64,8 @@ export const NAV_ICONS = {
   certificates: '📜',
   learning: '📚',
   studentCabinet: '🎒',
+  // Этап 2 ТЗ 13.10.2026 (`У-284`): «Мой профиль» слушателя — удостоверение личности.
+  myProfile: '🪪',
 
   // Коммуникации
   messages: '💬',
