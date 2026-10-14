@@ -49,6 +49,26 @@ function fakePrisma(opts: {
 
 const ARGS = { orderId: 'order-1', companyId: 'co-1', organizationId: 'org-1' };
 
+describe('getDocumentGenerationPanel — реквизиты организации для окна (У-278)', () => {
+  it('отдаёт текущие реквизиты организации — окно «Заполнить» открывается заполненным', async () => {
+    const { prisma } = fakePrisma({
+      company: FULL,
+      organization: { ...FULL, name: 'Ромашка' },
+      generated: [],
+    });
+    const panel = await getDocumentGenerationPanel(prisma as never, ARGS);
+    const requisites: Record<string, unknown> = { ...FULL };
+    delete requisites.name;
+    expect(panel.organizationRequisites).toEqual(requisites);
+  });
+
+  it('организации нет — реквизитов для окна нет (null)', async () => {
+    const { prisma } = fakePrisma({ company: FULL, organization: null, generated: [] });
+    const panel = await getDocumentGenerationPanel(prisma as never, ARGS);
+    expect(panel.organizationRequisites).toBeNull();
+  });
+});
+
 describe('getDocumentGenerationPanel', () => {
   it('обе стороны заполнены: недостающего нет, флаги «уже сгенерировано» по типам', async () => {
     const { prisma } = fakePrisma({

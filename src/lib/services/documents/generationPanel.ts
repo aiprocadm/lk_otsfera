@@ -99,6 +99,28 @@ export type DocumentGenerationPanel = {
   counterpartyName: string;
   /** Состав заказа, которым форма заполняется по умолчанию. */
   orderLines: IssuePrefillLine[];
+  /**
+   * `У-278` (ТЗ 13.10.2026): текущие реквизиты организации-заказчика — чтобы
+   * окно «Заполнить реквизиты организации» открывалось с уже введённым, а не
+   * пустым. `null` — организация исчезла между запросами.
+   */
+  organizationRequisites: OrgRequisitesDefaults | null;
+};
+
+/** Реквизиты стороны для формы (название форма не правит). */
+export type OrgRequisitesDefaults = {
+  legalName: string | null;
+  inn: string | null;
+  kpp: string | null;
+  ogrn: string | null;
+  legalAddress: string | null;
+  bankName: string | null;
+  bankAccount: string | null;
+  corrAccount: string | null;
+  bic: string | null;
+  signerName: string | null;
+  signerPosition: string | null;
+  signerBasis: string | null;
 };
 
 export async function getDocumentGenerationPanel(
@@ -169,6 +191,22 @@ export async function getDocumentGenerationPanel(
       date: row.createdAt.toISOString(),
     })),
     counterpartyName: organization?.legalName?.trim() || organization?.name?.trim() || 'заказчик',
+    organizationRequisites: organization
+      ? {
+          legalName: organization.legalName,
+          inn: organization.inn,
+          kpp: organization.kpp,
+          ogrn: organization.ogrn,
+          legalAddress: organization.legalAddress,
+          bankName: organization.bankName,
+          bankAccount: organization.bankAccount,
+          corrAccount: organization.corrAccount,
+          bic: organization.bic,
+          signerName: organization.signerName,
+          signerPosition: organization.signerPosition,
+          signerBasis: organization.signerBasis,
+        }
+      : null,
     // `Decimal` через границу server→client не проходит — отдаём строками.
     orderLines: lineRows.map((row) => ({
       title: row.title,

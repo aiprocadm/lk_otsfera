@@ -20,6 +20,7 @@ export function RequisitesCard({
   action,
   hidden = {},
   canEdit = true,
+  onSaved,
   children,
 }: {
   /**
@@ -37,6 +38,8 @@ export function RequisitesCard({
   canEdit?: boolean;
   /** Доп. поля конкретного домена (например phone/email компании). */
   children?: React.ReactNode;
+  /** `У-278`: окно на карточке заказа закрывается после сохранения. */
+  onSaved?: (() => void) | undefined;
 }) {
   const [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState<string[]>([]);
@@ -55,6 +58,7 @@ export function RequisitesCard({
       return;
     }
     toast.success('Реквизиты сохранены.');
+    onSaved?.();
   }
 
   return (

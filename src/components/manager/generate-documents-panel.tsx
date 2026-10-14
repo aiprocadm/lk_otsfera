@@ -1,11 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Button } from '@/components/ui';
+import Link from 'next/link';
+import { Button, Dialog } from '@/components/ui';
+import { RequisitesCard } from '@/components/requisites/requisites-card';
+import { setOrgRequisitesByStaffAction } from '@/server-actions/requisites';
 import { toast } from '@/lib/ui/toast';
 import { requestRequisitesAction } from '@/server-actions/documents/generate';
 import { clientRequestLabels, type MissingRequisite } from '@/lib/documents/requisites-check';
-import type { IssueBaseDocument } from '@/lib/services/documents/generationPanel';
+import type {
+  IssueBaseDocument,
+  OrgRequisitesDefaults,
+} from '@/lib/services/documents/generationPanel';
 import { IssueDocumentDialog, type IssueDocType, type IssueLine } from './issue-document-dialog';
 
 /**
@@ -26,6 +32,9 @@ export function GenerateDocumentsPanel({
   baseDocuments,
   hasInvoice,
   hasContract,
+  cabinet = 'manager',
+  organizationId = null,
+  organizationRequisites = null,
 }: {
   orderId: string;
   counterpartyName: string;
@@ -34,8 +43,17 @@ export function GenerateDocumentsPanel({
   baseDocuments: IssueBaseDocument[];
   hasInvoice: boolean;
   hasContract: boolean;
+  /**
+   * `У-278`: кабинет — куда вести за реквизитами исполнителя. Руководитель и
+   * администратор правят их сами; менеджеру говорим, кто это делает.
+   */
+  cabinet?: 'manager' | 'leader' | 'admin';
+  /** `У-278`: организация заказа — реквизиты дозаполняются прямо отсюда. */
+  organizationId?: string | null;
+  organizationRequisites?: OrgRequisitesDefaults | null;
 }) {
   const [open, setOpen] = useState(false);
+  const [reqOpen, setReqOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   // `У-157`: когда реквизиты запрашивали в прошлый раз — показываем рядом
   // с кнопкой, чтобы повтор не выглядел молчаливым отказом.
@@ -53,7 +71,17 @@ export function GenerateDocumentsPanel({
   const contractExtra = missingByType.contract.filter(
     (m) => !invoiceMissing.some((i) => i.side === m.side && i.label === m.label)
   );
-  const companyMissing = [...invoiceMissing, ...contractExtra].filter((m) => m.side === 'company');
+  // `У-278` (`Д-59`): нехватка — по СТОРОНАМ, а не одной лентой. ПМ шесть раз
+  // правил реквизиты организации, когда не хватало реквизитов исполнителя:
+  // смешанный список не говорил, чьи данные и где их заполнять.
+  const contractOnly = new Set(contractExtra.map((m) => `${m.side}:${m.label}`));
+  const bySide = (side: MissingRequisite['side']) =>
+    [...invoiceMissing, ...contractExtra].filter((m) => m.side === side);
+  const companyMissing = bySide('company');
+  const orgMissing = bySide('organization');
+  const canEditCompany = cabinet === 'leader' || cabinet === 'admin';
+  const label = (m: MissingRequisite) =>
+    contractOnly.has(`${m.side}:${m.label}`) ? `${m.label} — нужно для договора` : m.label;
   // О чём будет письмо клиенту — тем же расчётом, что и само письмо
   // (`requestRequisites`): кнопка не предлагает просить то, чего письмо не
   // спросит, и не молчит о том, что спросит.
@@ -93,48 +121,86 @@ export function GenerateDocumentsPanel({
         Выпустить документ
       </Button>
 
-      {(invoiceMissing.length > 0 || contractExtra.length > 0) && (
-        <div className="mt-3" data-testid="missing-requisites">
-          {invoiceMissing.length > 0 && (
-            <>
-              <p className="text-sm text-gray-700">Для счёта не хватает реквизитов:</p>
-              <ul className="text-sm text-red-600 list-disc pl-5 mt-1 space-y-0.5">
-                {invoiceMissing.map((m) => (
-                  <li key={`${m.side}:${m.label}`}>{m.label}</li>
-                ))}
-              </ul>
-            </>
-          )}
-          {contractExtra.length > 0 && (
-            <>
-              <p className="text-sm text-gray-700 mt-2">
-                Для договора и доп. соглашения нужно дополнительно:
+      {(companyMissing.length > 0 || orgMissing.length > 0) && (
+        <div className="mt-3 space-y-3" data-testid="missing-requisites">
+          {companyMissing.length > 0 && (
+            <div data-testid="missing-company">
+              <p className="text-sm text-gray-700">
+                Не хватает данных вашей компании (исполнителя):
               </p>
               <ul className="text-sm text-red-600 list-disc pl-5 mt-1 space-y-0.5">
-                {contractExtra.map((m) => (
-                  <li key={`${m.side}:${m.label}`}>{m.label}</li>
+                {companyMissing.map((m) => (
+                  <li key={`${m.side}:${m.label}`}>{label(m)}</li>
                 ))}
               </ul>
-            </>
+              {canEditCompany ? (
+                <Link
+                  href={`/${cabinet}/settings/catalogs/requisites`}
+                  className="mt-1 inline-block text-sm text-[#F97316] hover:underline"
+                >
+                  Заполнить реквизиты исполнителя →
+                </Link>
+              ) : (
+                <p className="text-xs text-gray-500 mt-1">
+                  Их заполняет руководитель или администратор: «Настройки → Реквизиты исполнителя».
+                </p>
+              )}
+            </div>
           )}
-          {askLabels.length > 0 && (
-            <Button
-              size="sm"
-              variant="secondary"
-              className="mt-2"
-              disabled={busy}
-              onClick={() => void requestFromClient()}
-            >
-              {busy ? 'Отправляю…' : 'Запросить у клиента'}
-            </Button>
+          {orgMissing.length > 0 && (
+            <div data-testid="missing-organization">
+              <p className="text-sm text-gray-700">
+                Не хватает данных организации «{counterpartyName}» (заказчика):
+              </p>
+              <ul className="text-sm text-red-600 list-disc pl-5 mt-1 space-y-0.5">
+                {orgMissing.map((m) => (
+                  <li key={`${m.side}:${m.label}`}>{label(m)}</li>
+                ))}
+              </ul>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {organizationId && organizationRequisites && (
+                  <Button size="sm" onClick={() => setReqOpen(true)}>
+                    Заполнить реквизиты организации
+                  </Button>
+                )}
+                {askLabels.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={busy}
+                    onClick={() => void requestFromClient()}
+                  >
+                    {busy ? 'Отправляю…' : 'Запросить у клиента'}
+                  </Button>
+                )}
+              </div>
+              {requestedAt && (
+                <p className="text-xs text-gray-500 mt-1">Запрошено {requestedAt}.</p>
+              )}
+            </div>
           )}
-          {requestedAt && <p className="text-xs text-gray-500 mt-1">Запрошено {requestedAt}.</p>}
-          {companyMissing.length > 0 && (
-            <p className="text-xs text-gray-500 mt-2">
-              Реквизиты исполнителя заполняются в настройках: «Реквизиты исполнителя».
-            </p>
-          )}
+          <p className="text-xs text-gray-500">
+            Договор уже подписан на бумаге? Его не обязательно формировать здесь — прикрепите файл в
+            документы заказа.
+          </p>
         </div>
+      )}
+
+      {organizationId && organizationRequisites && (
+        <Dialog
+          open={reqOpen}
+          onClose={() => setReqOpen(false)}
+          title={`Реквизиты организации «${counterpartyName}»`}
+          size="lg"
+        >
+          <RequisitesCard
+            defaults={organizationRequisites}
+            idPrefix={`order-org-req-${orderId}`}
+            action={setOrgRequisitesByStaffAction}
+            hidden={{ orgId: organizationId, orderId }}
+            onSaved={() => setReqOpen(false)}
+          />
+        </Dialog>
       )}
 
       <IssueDocumentDialog

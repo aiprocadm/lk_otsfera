@@ -229,6 +229,9 @@ export default async function AdminOrderDetailPage({
           baseDocuments={documentsPanel.baseDocuments}
           hasInvoice={documentsPanel.hasInvoice}
           hasContract={documentsPanel.hasContract}
+          cabinet="admin"
+          organizationId={order.organizationId}
+          organizationRequisites={documentsPanel.organizationRequisites}
         />
       )}
 
