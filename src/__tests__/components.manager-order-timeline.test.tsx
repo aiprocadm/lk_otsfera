@@ -190,3 +190,52 @@ describe('ManagerOrderTimeline', () => {
     expect(html).not.toContain('Обновлено из 1С');
   });
 });
+
+describe('ManagerOrderTimeline — смена ответственного (У-283)', () => {
+  it('«Ответственный изменён» с именами было → стало', () => {
+    const html = renderToString(
+      React.createElement(ManagerOrderTimeline, {
+        order: makeOrder({}),
+        auditEntries: [
+          makeAudit({
+            action: 'order_manager_changed',
+            meta: { before: { managerId: 'u1' }, after: { managerId: 'u2' } },
+          }),
+        ],
+        userNames: { u1: 'Иванов', u2: 'Петрова' },
+      })
+    );
+    expect(html).toContain('Ответственный изменён');
+    expect(html).toContain('Иванов → Петрова');
+  });
+
+  it('снят ответственный и неизвестный id — «никто» и «сотрудник», а не служебный номер', () => {
+    const html = renderToString(
+      React.createElement(ManagerOrderTimeline, {
+        order: makeOrder({}),
+        auditEntries: [
+          makeAudit({
+            action: 'order_manager_changed',
+            meta: { before: { managerId: 'gone' }, after: { managerId: null } },
+          }),
+        ],
+      })
+    );
+    expect(html).toContain('сотрудник → никто');
+    expect(html).not.toContain('gone');
+  });
+
+  it('«Взят в работу» с именем взявшего', () => {
+    const html = renderToString(
+      React.createElement(ManagerOrderTimeline, {
+        order: makeOrder({}),
+        auditEntries: [
+          makeAudit({ action: 'order_self_assigned', meta: { after: { managerId: 'u2' } } }),
+        ],
+        userNames: { u2: 'Петрова' },
+      })
+    );
+    expect(html).toContain('Взят в работу');
+    expect(html).toContain('Петрова');
+  });
+});

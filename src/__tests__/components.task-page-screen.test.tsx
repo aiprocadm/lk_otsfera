@@ -44,6 +44,7 @@ function detail(over: Partial<TaskDetail> = {}): TaskDetail {
     links: [{ kind: 'order', id: 'ord1', title: 'Заказ №1' }],
     checklist: [],
     comments: [],
+    colleagues: [],
     history: [],
     ...over,
   };

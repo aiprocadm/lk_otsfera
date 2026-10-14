@@ -16,17 +16,31 @@ const ACTION_LABELS: Record<string, string> = {
   order_status_changed: 'Статус изменён',
   document_uploaded: 'Документ загружен',
   comment_posted: 'Комментарий',
+  // `У-283`: смена ответственного видна в истории заказа.
+  order_manager_changed: 'Ответственный изменён',
+  order_self_assigned: 'Взят в работу',
 };
 
 type AuditMetaShape = {
-  before?: { executionStatus?: string };
-  after?: { executionStatus?: string; actor?: string };
+  before?: { executionStatus?: string; managerId?: string | null };
+  after?: { executionStatus?: string; actor?: string; managerId?: string | null };
 };
 
-function summarizeAudit(entry: AuditLog): { label: string; detail: string | null } {
+function summarizeAudit(
+  entry: AuditLog,
+  userNames: Record<string, string>
+): { label: string; detail: string | null } {
   const label = ACTION_LABELS[entry.action] ?? entry.action;
-  if (entry.action !== 'order_status_changed') return { label, detail: null };
   const meta = (entry.meta ?? {}) as AuditMetaShape;
+  const who = (id: string | null | undefined): string =>
+    id ? (userNames[id] ?? 'сотрудник') : 'никто';
+  if (entry.action === 'order_manager_changed') {
+    return { label, detail: `${who(meta.before?.managerId)} → ${who(meta.after?.managerId)}` };
+  }
+  if (entry.action === 'order_self_assigned') {
+    return { label, detail: who(meta.after?.managerId) };
+  }
+  if (entry.action !== 'order_status_changed') return { label, detail: null };
   const before = meta.before?.executionStatus;
   const after = meta.after?.executionStatus;
   const actor = meta.after?.actor;
@@ -54,9 +68,12 @@ function summarizeAudit(entry: AuditLog): { label: string; detail: string | null
 export function ManagerOrderTimeline({
   order,
   auditEntries,
+  userNames = {},
 }: {
   order: ManagerOrderDetail;
   auditEntries: AuditLog[];
+  /** `У-283`: имена для строк смены ответственного. */
+  userNames?: Record<string, string>;
 }) {
   const milestones: { label: string; date: Date | null; tone?: 'success' | 'warning' }[] = [
     { label: 'Создан', date: order.createdAt },
@@ -106,7 +123,7 @@ export function ManagerOrderTimeline({
           </h3>
           <ul className="space-y-2">
             {visibleAudit.map((entry) => {
-              const { label, detail } = summarizeAudit(entry);
+              const { label, detail } = summarizeAudit(entry, userNames);
               return (
                 <li key={entry.id} className="text-sm flex items-start gap-3">
                   <span className="w-2 h-2 rounded-full bg-gray-300 flex-shrink-0 mt-1.5" />

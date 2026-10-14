@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db/prisma';
 import { requireManager, requireManagerLeader } from '@/lib/auth/requireRole';
-import { claimOrder } from '@/lib/services/manager/distribution';
+import { claimOrder, transferOwnOrder } from '@/lib/services/manager/distribution';
 import { assignOrderManagerAsLeader } from '@/lib/services/manager/leaderOrderAssignment';
 
 function revalidateOrder(orderId: string): void {
@@ -64,6 +64,32 @@ export async function assignOrderManagerLeaderAction(input: {
     orderId: parsed.data.orderId,
     managerUserId: parsed.data.managerUserId,
   });
+  if (!result.ok) return result;
+
+  revalidateOrder(parsed.data.orderId);
+  return { ok: true, changed: result.changed };
+}
+
+const TransferSchema = z.object({ orderId: z.string().min(1), toUserId: z.string().min(1) });
+
+export type TransferOrderActionResult =
+  | { ok: true; changed: boolean }
+  | { ok: false; error: 'validation' | 'order_not_found' | 'invalid_manager' | 'forbidden' };
+
+/**
+ * «Передать заказ» (`У-283`): менеджер отдаёт свой заказ коллеге — тонкий
+ * адаптер над `transferOwnOrder` (владение заказом и компания проверяются в
+ * сервисе, кнопка правами не является).
+ */
+export async function transferOrderAction(input: {
+  orderId: string;
+  toUserId: string;
+}): Promise<TransferOrderActionResult> {
+  const parsed = TransferSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'validation' };
+
+  const session = await requireManager();
+  const result = await transferOwnOrder(prisma, session, parsed.data);
   if (!result.ok) return result;
 
   revalidateOrder(parsed.data.orderId);

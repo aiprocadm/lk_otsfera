@@ -213,6 +213,7 @@ const RULES: Record<NotificationTypeKey, Rule> = {
   document_uploaded_by_partner: orderOrDocument,
   order_marked_paid_by_1c: order,
   order_status_changed_by_manager: order,
+  order_assigned: order,
   message_created: order,
   document_created: document,
 

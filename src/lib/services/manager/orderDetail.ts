@@ -14,7 +14,25 @@ export type ManagerOrderDetailData = {
   comments: CommentWithAuthor[];
   documentRows: OrgDocumentRow[];
   items: OrderItemRow[];
+  /**
+   * `У-283`: имена сотрудников для строк «Ответственный изменён» ленты —
+   * в журнале лежат id, человеку нужны имена. Только для этих строк.
+   */
+  userNames: Record<string, string>;
 };
+
+/** `У-283`: смена ответственного — в истории заказа рядом со статусами. */
+const MANAGER_CHANGE_ACTIONS = ['order_manager_changed', 'order_self_assigned'] as const;
+
+function managerIdsOf(entry: AuditLog): string[] {
+  const meta = (entry.meta ?? {}) as {
+    before?: { managerId?: unknown };
+    after?: { managerId?: unknown };
+  };
+  return [meta.before?.managerId, meta.after?.managerId].filter(
+    (v): v is string => typeof v === 'string'
+  );
+}
 
 export async function loadManagerOrderDetail(
   prisma: PrismaClient,
@@ -33,7 +51,14 @@ export async function loadManagerOrderDetail(
       where: {
         entityId: id,
         entity: 'order',
-        action: { in: ['order_status_changed', 'document_uploaded', 'comment_posted'] },
+        action: {
+          in: [
+            'order_status_changed',
+            'document_uploaded',
+            'comment_posted',
+            ...MANAGER_CHANGE_ACTIONS,
+          ],
+        },
       },
       orderBy: { createdAt: 'desc' },
       take: 50,
@@ -68,7 +93,23 @@ export async function loadManagerOrderDetail(
 
   const items = itemsResult.ok ? itemsResult.items : [];
 
-  return { order, auditEntries, comments, documentRows, items };
+  const ids = [
+    ...new Set(
+      auditEntries
+        .filter((e) => (MANAGER_CHANGE_ACTIONS as readonly string[]).includes(e.action))
+        .flatMap(managerIdsOf)
+    ),
+  ];
+  const users =
+    ids.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, name: true, email: true },
+        })
+      : [];
+  const userNames = Object.fromEntries(users.map((u) => [u.id, u.name || u.email]));
+
+  return { order, auditEntries, comments, documentRows, items, userNames };
 }
 
 export type OrderStudentOption = { id: string; name: string; email: string | null };

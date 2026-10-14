@@ -150,6 +150,18 @@ const nav = vi.hoisted(() => ({
 }));
 vi.mock('next/navigation', () => nav);
 
+// `У-283`: «Передать заказ» — кандидаты из списка менеджеров компании.
+const { listCompanyManagers } = vi.hoisted(() => ({ listCompanyManagers: vi.fn() }));
+vi.mock('@/lib/services/manager/team', () => ({ listCompanyManagers }));
+vi.mock('@/components/manager/manager-transfer-order-form', () => ({
+  ManagerTransferOrderForm: (p: { orderId: string; candidates: unknown[] }) =>
+    React.createElement('div', {
+      'data-testid': 'transfer-order',
+      'data-order': p.orderId,
+      'data-candidates': JSON.stringify(p.candidates),
+    }),
+}));
+
 vi.mock('@/components/manager/manager-order-detail-view', () => ({
   ManagerOrderDetailView: (props: {
     data: unknown;
@@ -167,6 +179,7 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
     dealPanel?: React.ReactNode;
     dialogsPanel?: React.ReactNode;
     contactPanel?: React.ReactNode;
+    transferPanel?: React.ReactNode;
     breadcrumbs?: Array<{ label: string; href: string | null }>;
   }) =>
     React.createElement(
@@ -186,6 +199,7 @@ vi.mock('@/components/manager/manager-order-detail-view', () => ({
       props.dealPanel,
       props.dialogsPanel,
       props.contactPanel,
+      props.transferPanel,
       JSON.stringify(props.breadcrumbs ?? [])
     ),
 }));
@@ -241,7 +255,52 @@ describe('ManagerOrderDetailPage', () => {
     getOrderLinesPanel.mockResolvedValue(null);
     getCompanyTeamVisibility.mockReset().mockResolvedValue(false);
     getOrderContactPanel.mockReset().mockResolvedValue(null);
+    listCompanyManagers.mockReset().mockResolvedValue([]);
     nav.redirect.mockClear();
+  });
+
+  describe('«Передать заказ» (У-283)', () => {
+    function setup(managerId: string | null) {
+      requireManager.mockResolvedValue(SESSION);
+      loadManagerOrderDetail.mockResolvedValue({
+        ...BASE_DATA,
+        order: { ...BASE_DATA.order, managerId },
+      });
+      listOrderStudentOptions.mockResolvedValue([]);
+      getDealActivity.mockResolvedValue({ ok: true, items: [] });
+      listDirections.mockResolvedValue({ ok: true, directions: [] });
+      getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+      isFeatureEnabled.mockReturnValue(false);
+    }
+
+    it('свой заказ: форма есть, кандидаты — активные коллеги компании без себя', async () => {
+      setup('u1');
+      listCompanyManagers.mockResolvedValue([
+        { id: 'u1', name: 'Я', email: 'me@x', isActive: true },
+        { id: 'u2', name: 'Петрова', email: 'p@x', isActive: true },
+        { id: 'u3', name: 'Уволен', email: 'gone@x', isActive: false },
+      ]);
+      const { container } = await renderServerComponent(
+        ManagerOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+      );
+      const html = container.innerHTML;
+      expect(listCompanyManagers).toHaveBeenCalledWith(prismaMock, 'c1');
+      expect(html).toContain('data-testid="transfer-order"');
+      expect(html).toContain('Петрова');
+      expect(html).not.toContain('Уволен');
+      expect(html).not.toContain('me@x');
+    });
+
+    it('чужой или ничей заказ: формы нет, список менеджеров не читается', async () => {
+      for (const managerId of ['u-other', null]) {
+        setup(managerId);
+        const { container } = await renderServerComponent(
+          ManagerOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+        );
+        expect(container.innerHTML).not.toContain('transfer-order');
+      }
+      expect(listCompanyManagers).not.toHaveBeenCalled();
+    });
   });
 
   it('монтирует блок «Состав и стоимость», когда сервис отдал строки заказа', async () => {

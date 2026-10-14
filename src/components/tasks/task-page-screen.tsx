@@ -80,7 +80,7 @@ export function TaskPageScreen({ task, cabinet }: { task: TaskDetail; cabinet: C
           </section>
 
           <TaskChecklist taskId={task.id} items={task.checklist} />
-          <TaskComments taskId={task.id} comments={task.comments} />
+          <TaskComments taskId={task.id} comments={task.comments} colleagues={task.colleagues} />
         </div>
 
         <aside className="space-y-4">

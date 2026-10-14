@@ -107,7 +107,7 @@ describe('loadManagerOrderDetail', () => {
       },
     ]);
 
-    // audit query is scoped to the order + the three timeline actions
+    // audit query is scoped to the order + the timeline actions (`У-283`: + смена ответственного)
     const auditCall = (prisma as never as { auditLog: { findMany: ReturnType<typeof vi.fn> } })
       .auditLog.findMany.mock.calls[0][0];
     expect(auditCall.where.entityId).toBe('order-1');
@@ -116,7 +116,50 @@ describe('loadManagerOrderDetail', () => {
       'order_status_changed',
       'document_uploaded',
       'comment_posted',
+      'order_manager_changed',
+      'order_self_assigned',
     ]);
+  });
+
+  it('У-283: имена сотрудников — только для строк смены ответственного, без лишних запросов', async () => {
+    getOrder.mockResolvedValue({ id: 'order-3', orderNumber: null, title: 'Т', documents: [] });
+    const userFindMany = vi.fn().mockResolvedValue([
+      { id: 'u1', name: 'Иванов', email: 'i@x' },
+      { id: 'u2', name: '', email: 'p@x' },
+    ]);
+    const prisma = {
+      auditLog: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'a1',
+            action: 'order_manager_changed',
+            meta: { before: { managerId: 'u1' }, after: { managerId: 'u2' } },
+          },
+          { id: 'a2', action: 'order_self_assigned', meta: { after: { managerId: 'u1' } } },
+          {
+            id: 'a3',
+            action: 'order_status_changed',
+            meta: { after: { managerId: 'не-сотрудник' } },
+          },
+        ]),
+      },
+      comment: { findMany: vi.fn().mockResolvedValue([]) },
+      user: { findMany: userFindMany },
+    } as never;
+    const result = await loadManagerOrderDetail(prisma, SESSION, 'order-3');
+    expect(userFindMany).toHaveBeenCalledWith({
+      where: { id: { in: ['u1', 'u2'] } },
+      select: { id: true, name: true, email: true },
+    });
+    // Пустое имя — почта, а не пустота.
+    expect(result!.userNames).toEqual({ u1: 'Иванов', u2: 'p@x' });
+  });
+
+  it('строк смены ответственного нет — имена не запрашиваются', async () => {
+    getOrder.mockResolvedValue({ id: 'order-4', orderNumber: null, title: 'Т', documents: [] });
+    const prisma = fakePrisma([{ id: 'a1', action: 'comment_posted', meta: null }]);
+    const result = await loadManagerOrderDetail(prisma, SESSION, 'order-4');
+    expect(result!.userNames).toEqual({});
   });
 
   it('returns an empty documentRows array when the order has no documents', async () => {

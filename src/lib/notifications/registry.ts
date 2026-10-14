@@ -156,6 +156,14 @@ export const NOTIFICATION_TYPES = {
     audience: ['manager'],
     producer: 'src/lib/notifications/manager.ts',
   },
+  // `У-283` (ТЗ 13.10.2026): заказ передали сотруднику — руководитель,
+  // администратор или коллега-менеджер.
+  order_assigned: {
+    label: 'Вам передан заказ',
+    icon: '📦',
+    audience: ['manager'],
+    producer: 'src/lib/notifications/manager.ts',
+  },
 
   // ── Заявки клиентов (Модуль 1) ──────────────────────────────────────────
   client_request_submitted: {

@@ -817,6 +817,66 @@ export async function notifyDialogAssigned(
 }
 
 /**
+ * Заказ передали сотруднику (`У-283`, ТЗ 13.10.2026): адресат один — новый
+ * ответственный. Кто передал сам себе («Взять в работу»), уведомления не
+ * получает — `excludeUserId`. Письмо — общий шаблон `notification`.
+ */
+export async function notifyOrderAssigned(
+  db: PrismaClient,
+  input: { assigneeId: string; orderId: string; orderTitle: string; actorUserId: string }
+): Promise<NotifyManagersSummary> {
+  const recipients = await resolveDialogAssigneeRecipients(db, input.assigneeId, {
+    excludeUserId: input.actorUserId,
+  });
+  if (recipients.length === 0) return { recipientsNotified: 0, emailsSent: 0, emailsSkipped: 0 };
+
+  const subject = 'Вам передан заказ';
+  const shortBody = `«${input.orderTitle}» — теперь вы ответственный. Откройте заказ, чтобы продолжить работу.`;
+  const url = `${getAppBaseUrl()}/manager/orders/${input.orderId}`;
+  // `Р-Э5-7`: в строке — идентификатор, адрес считается от роли получателя.
+  const meta: Record<string, unknown> = { orderId: input.orderId };
+  const channelPayload: ChannelPayload = {
+    type: 'order_assigned',
+    title: subject,
+    body: shortBody,
+    url,
+    email: {
+      template: 'notification',
+      props: { title: subject, body: shortBody, recipientName: 'коллега', url },
+    },
+  };
+  const routed = await allowedChannels(db, {
+    eventType: channelPayload.type,
+    audience: 'manager',
+  });
+  let emailsSent = 0,
+    emailsSkipped = 0,
+    emailsQueued = 0,
+    recipientsNotified = 0;
+  for (const r of recipients) {
+    const outcome = await recordAndDispatch(db, r, channelPayload, meta, input.orderId, routed);
+    recipientsNotified += 1;
+    if (!outcome) {
+      emailsSkipped += 1;
+      continue;
+    }
+    if (outcome.mode === 'queued') {
+      if (outcome.channels.includes('email')) emailsQueued += 1;
+      else emailsSkipped += 1;
+      continue;
+    }
+    if (outcome.results.email?.status === 'sent') emailsSent += 1;
+    else emailsSkipped += 1;
+  }
+  return {
+    recipientsNotified,
+    emailsSent,
+    emailsSkipped,
+    ...(emailsQueued > 0 ? { emailsQueued } : {}),
+  };
+}
+
+/**
  * Новое сообщение клиента в диалоге мессенджера (спека 2026-09-12, Р-М-9;
  * таргетинг уточнён `У-206`) → **ответственному за диалог**, а если его нет —
  * менеджерам организации, к которой привязан диалог. Заказа у диалога нет,

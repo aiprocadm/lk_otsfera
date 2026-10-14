@@ -27,6 +27,11 @@ const comments: TaskCommentView[] = [
   },
 ];
 
+const COLLEAGUES = [
+  { id: 'u2', name: 'Иван Петров' },
+  { id: 'u3', name: 'Анна Смирнова' },
+];
+
 beforeEach(() => {
   vi.clearAllMocks();
   addTaskCommentAction.mockResolvedValue({ ok: true });
@@ -34,19 +39,21 @@ beforeEach(() => {
 
 describe('TaskComments', () => {
   it('показывает автора и текст', () => {
-    render(React.createElement(TaskComments, { taskId: 't1', comments }));
+    render(React.createElement(TaskComments, { taskId: 't1', colleagues: COLLEAGUES, comments }));
     expect(screen.getByText('Иван Петров')).toBeTruthy();
     expect(screen.getByText('Документы получены')).toBeTruthy();
   });
 
   it('пустое обсуждение объясняет, что делать, и подсказывает про «@» (`У-74`)', () => {
-    render(React.createElement(TaskComments, { taskId: 't1', comments: [] }));
+    render(
+      React.createElement(TaskComments, { taskId: 't1', colleagues: COLLEAGUES, comments: [] })
+    );
     expect(screen.getByText(/Обсуждения пока нет/)).toBeTruthy();
     expect(screen.getByText(/через «@»/)).toBeTruthy();
   });
 
   it('отправка уходит с текстом и id задачи, поле чистится', async () => {
-    render(React.createElement(TaskComments, { taskId: 't1', comments }));
+    render(React.createElement(TaskComments, { taskId: 't1', colleagues: COLLEAGUES, comments }));
     const area = screen.getByLabelText('Текст комментария') as HTMLTextAreaElement;
     fireEvent.change(area, { target: { value: 'Проверил, всё на месте' } });
     fireEvent.submit(area.closest('form')!);
@@ -60,7 +67,7 @@ describe('TaskComments', () => {
 
   it('отказ сервера показывается по-русски, текст НЕ теряется', async () => {
     addTaskCommentAction.mockResolvedValue({ ok: false, error: 'not_found' });
-    render(React.createElement(TaskComments, { taskId: 't1', comments }));
+    render(React.createElement(TaskComments, { taskId: 't1', colleagues: COLLEAGUES, comments }));
     const area = screen.getByLabelText('Текст комментария') as HTMLTextAreaElement;
     fireEvent.change(area, { target: { value: 'Черновик' } });
     fireEvent.submit(area.closest('form')!);
@@ -68,5 +75,42 @@ describe('TaskComments', () => {
     // Написанное не должно пропадать из-за отказа сервера.
     expect(area.value).toBe('Черновик');
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it('У-282: после «@» поле подсказывает коллег, выбор подставляет имя, и оно уходит на сервер', async () => {
+    render(React.createElement(TaskComments, { taskId: 't1', colleagues: COLLEAGUES, comments }));
+    const area = screen.getByLabelText('Текст комментария') as HTMLTextAreaElement;
+    fireEvent.change(area, { target: { value: 'Посмотри, @Ан', selectionStart: 13 } });
+    const list = screen.getByRole('listbox', { name: 'Кого упомянуть' });
+    expect(list.textContent).toBe('@Анна Смирнова');
+    fireEvent.click(screen.getByRole('button', { name: '@Анна Смирнова' }));
+    expect(area.value).toBe('Посмотри, @Анна Смирнова ');
+    fireEvent.submit(area.closest('form')!);
+    await waitFor(() => expect(addTaskCommentAction).toHaveBeenCalled());
+    const fd = addTaskCommentAction.mock.calls[0][0] as FormData;
+    expect(fd.get('body')).toBe('Посмотри, @Анна Смирнова ');
+  });
+
+  it('У-282: упоминание в ленте выделено — видно, что коллегу позвали', () => {
+    const withMention: TaskCommentView[] = [
+      { ...comments[0], id: 'c2', body: '@Иван Петров, посмотри договор' },
+    ];
+    render(
+      React.createElement(TaskComments, {
+        taskId: 't1',
+        colleagues: COLLEAGUES,
+        comments: withMention,
+      })
+    );
+    const mark = screen.getByText('@Иван Петров');
+    expect(mark.tagName).toBe('SPAN');
+    expect(mark.className).toContain('font-medium');
+  });
+
+  it('пустое поле отправить нельзя — кнопка неактивна', () => {
+    render(React.createElement(TaskComments, { taskId: 't1', colleagues: COLLEAGUES, comments }));
+    expect((screen.getByRole('button', { name: 'Отправить' }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
   });
 });
