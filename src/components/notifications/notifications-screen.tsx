@@ -5,6 +5,7 @@ import { Badge, EmptyState, Paginator } from '@/components/ui';
 import { PageHeader } from '@/components/ui/page-header';
 import { fmtDateTime } from '@/lib/format';
 import { notificationHref, type NotificationRole } from '@/lib/notifications/href';
+import { notificationRoute } from '@/lib/notifications/routes';
 import {
   NOTIFICATION_TYPES,
   type NotificationRoleKey,
@@ -42,9 +43,25 @@ export type NotificationsScreenProps = {
   homeHref: string;
 };
 
-const SUBTITLE = 'Всё, что произошло по вашим заказам, обращениям и задачам.';
-const EMPTY_TEXT =
-  'Пока ничего не произошло — здесь появятся события по вашим заказам и обращениям.';
+type ScreenCopy = { subtitle: string; emptyTitle: string; emptyText: string };
+
+const COPY: ScreenCopy = {
+  subtitle: 'Всё, что произошло по вашим заказам, обращениям и задачам.',
+  emptyTitle: 'Пока тихо',
+  emptyText: 'Пока ничего не произошло — здесь появятся события по вашим заказам и обращениям.',
+};
+
+/**
+ * Этап 2 ТЗ 13.10.2026 (`У-286`): у слушателя нет заказов и обращений —
+ * тексты о них ему не показываются. Подзаголовок и пустое состояние — дословно
+ * из протокола ПМ.
+ */
+const STUDENT_COPY: ScreenCopy = {
+  subtitle:
+    'Здесь отображаются уведомления о ваших учебных курсах, сроках прохождения обучения и других важных событиях.',
+  emptyTitle: 'Пока ничего не произошло',
+  emptyText: 'Сюда придут напоминания о назначенных обучениях, их сроках и удостоверениях.',
+};
 
 function filterHref(basePath: string, params: { unread?: boolean; type?: string | null }): string {
   const q = new URLSearchParams();
@@ -55,8 +72,8 @@ function filterHref(basePath: string, params: { unread?: boolean; type?: string 
 }
 
 function rowHref(role: NotificationRoleKey, row: Notification): string | null {
-  // Слушателю ни один тип не адресован — резолвить нечего.
-  if (role === 'student') return null;
+  // Слушатель: все его типы ведут в «Мой профиль» (`У-286`).
+  if (role === 'student') return notificationRoute(row.type, row.meta, 'student');
   return notificationHref(role as NotificationRole, row.type, row.meta);
 }
 
@@ -73,12 +90,13 @@ export function NotificationsScreen(props: NotificationsScreenProps) {
     props;
   const skip = (page - 1) * pageSize;
   const hasFilter = unreadOnly || type !== null;
+  const copy = props.role === 'student' ? STUDENT_COPY : COPY;
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="Уведомления"
-        subtitle={SUBTITLE}
+        subtitle={copy.subtitle}
         action={<MarkAllReadButton basePath={basePath} unreadTotal={unreadTotal} />}
       />
 
@@ -105,8 +123,8 @@ export function NotificationsScreen(props: NotificationsScreenProps) {
       {rows.length === 0 ? (
         <EmptyState
           icon="🔔"
-          title={hasFilter ? 'По этому фильтру ничего нет' : 'Пока тихо'}
-          message={hasFilter ? 'Снимите фильтр — и увидите всё, что было.' : EMPTY_TEXT}
+          title={hasFilter ? 'По этому фильтру ничего нет' : copy.emptyTitle}
+          message={hasFilter ? 'Снимите фильтр — и увидите всё, что было.' : copy.emptyText}
           action={
             hasFilter ? (
               <Link href={basePath} className="text-sm text-[#EA580C] hover:underline">

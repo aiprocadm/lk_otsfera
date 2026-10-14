@@ -140,6 +140,40 @@ describe('NotificationsScreen', () => {
     expect(screen.getByText('Непрочитанные (4)')).toBeTruthy();
   });
 
+  it('этап 2 ТЗ 13.10.2026 (`У-286`): у слушателя — свои тексты, без заказов и обращений', () => {
+    const { container } = render(
+      <NotificationsScreen
+        role="student"
+        {...base}
+        basePath="/student/notifications"
+        homeHref="/student"
+        typeOptions={[]}
+        total={0}
+        rows={[]}
+      />
+    );
+    expect(
+      screen.getByText(
+        'Здесь отображаются уведомления о ваших учебных курсах, сроках прохождения обучения и других важных событиях.'
+      )
+    ).toBeTruthy();
+    expect(screen.getByText('Пока ничего не произошло')).toBeTruthy();
+    expect(container.textContent).not.toMatch(/заказ|обращени/i);
+  });
+
+  it('`У-286`: строка слушателя о его обучении ведёт в «Мой профиль»', () => {
+    const { container } = render(
+      <NotificationsScreen
+        role="student"
+        {...base}
+        basePath="/student/notifications"
+        homeHref="/student"
+        rows={[row({ type: 'training_assigned', meta: { enrollmentItemId: 'i1' } })]}
+      />
+    );
+    expect(container.querySelector('a[href="/student/profile"]')).toBeTruthy();
+  });
+
   it('у слушателя нет ни фильтра типов, ни ссылок в строках', () => {
     const { container } = render(
       <NotificationsScreen

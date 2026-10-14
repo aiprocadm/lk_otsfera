@@ -108,6 +108,17 @@ describe('страж: таблица маршрутов уведомлений (
     );
   });
 
+  it('этап 2 ТЗ 13.10.2026 (`У-286`): типы слушателя ведут его в «Мой профиль», чужие — никуда', () => {
+    for (const type of ['training_assigned', 'training_ending_soon', 'certificate_expiring']) {
+      expect(notificationRoute(type, FULL_META, 'student')).toBe('/student/profile');
+    }
+    // Кабинетам сотрудников и клиентов слушательские типы не адресованы.
+    for (const role of ['admin', 'manager', 'leader', 'partner', 'organization']) {
+      expect(notificationRoute('training_assigned', FULL_META, role)).toBeNull();
+      expect(notificationRoute('training_ending_soon', FULL_META, role)).toBeNull();
+    }
+  });
+
   it('слушатель и незнакомая роль — всегда null', () => {
     expect(notificationRoute('task_assigned', FULL_META, 'student')).toBeNull();
     expect(notificationRoute('task_assigned', FULL_META, 'robot')).toBeNull();

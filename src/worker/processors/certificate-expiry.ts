@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import { selectDueReminders, REMINDER_THRESHOLDS } from '@/lib/services/training/expiry';
 import { recordNotification, deliverNotificationToUser } from '@/lib/notifications';
 import { dueWithinDaysWhere } from '@/lib/tasks/due';
+import { runTrainingEndingSoon } from '@/lib/services/training/endingSoon';
 
 /**
  * Получатели напоминания: пользователи организации → партнёр (если есть) →
@@ -58,7 +59,7 @@ export async function runCertificateExpiry(
       organizationId: true,
       validUntil: true,
       number: true,
-      student: { select: { name: true } },
+      student: { select: { name: true, userId: true } },
       reminders: { select: { thresholdDays: true } },
     },
   });
@@ -88,6 +89,10 @@ export async function runCertificateExpiry(
     }
 
     const recipients = await recipientsForOrg(prisma, cert.organizationId);
+    // `У-286`: сам слушатель — тоже адресат, если его учётка связана с карточкой.
+    if (cert.student.userId && !recipients.includes(cert.student.userId)) {
+      recipients.push(cert.student.userId);
+    }
     const title = 'Истекает срок удостоверения';
     const when = d.daysLeft === 0 ? 'сегодня' : `через ${d.daysLeft} дн.`;
     const body = `Удостоверение № ${cert.number} (${cert.student.name}) истекает ${when}`;
@@ -121,8 +126,17 @@ export async function runCertificateExpiry(
   return { remindersSent };
 }
 
-/** BullMQ wrapper, вызывается воркером по расписанию. */
-export async function certificateExpiryProcessor(): Promise<{ remindersSent: number }> {
+/**
+ * BullMQ wrapper, вызывается воркером по расписанию. Тем же ежедневным
+ * прогоном слушателям уходит «скоро заканчивается срок обучения» (`У-286`).
+ */
+export async function certificateExpiryProcessor(): Promise<{
+  remindersSent: number;
+  trainingRemindersSent: number;
+}> {
   const { prisma } = await import('@/lib/db/prisma');
-  return runCertificateExpiry(prisma, new Date());
+  const now = new Date();
+  const certs = await runCertificateExpiry(prisma, now);
+  const training = await runTrainingEndingSoon(prisma, now);
+  return { remindersSent: certs.remindersSent, trainingRemindersSent: training.remindersSent };
 }

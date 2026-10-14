@@ -244,14 +244,15 @@ describe('listRoutingRules — таблица для экрана', () => {
  * бы запрет, которого на деле нет.
  */
 describe('isKnownAudience / isRoutableChannel', () => {
-  it.each(['organization', 'partner', 'manager', 'staff', 'admin'])(
+  // Этап 2 ТЗ 13.10.2026 (`У-286`): у слушателя появились свои типы — и роль в правилах.
+  it.each(['organization', 'partner', 'manager', 'staff', 'admin', 'student'])(
     'роль «%s» — своя',
     (audience) => {
       expect(isKnownAudience(audience)).toBe(true);
     }
   );
 
-  it.each(['', 'новая-роль', 'ADMIN', 'student', '__proto__'])(
+  it.each(['', 'новая-роль', 'ADMIN', 'STUDENT', '__proto__'])(
     'роль «%s» не принимается',
     (audience) => {
       expect(isKnownAudience(audience)).toBe(false);

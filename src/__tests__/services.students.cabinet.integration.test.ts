@@ -9,6 +9,8 @@ import {
 import { getStudentCabinet } from '@/lib/services/students/cabinet';
 import { linkStudentCardsToAccount } from '@/lib/services/students/account';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { runTrainingEndingSoon } from '@/lib/services/training/endingSoon';
+import { runCertificateExpiry } from '@/worker/processors/certificate-expiry';
 
 /**
  * Этап 2 ТЗ 13.10.2026 «Кабинет слушателя», PR-1 (`У-284`, `У-273`,
@@ -107,6 +109,24 @@ describe('кабинет слушателя: заявка → связь учё�
       select: { id: true },
     });
     itemId = item.id;
+  });
+
+  it('`У-273`: подтверждение — слушателю уведомление «Вам назначено обучение» со ссылкой на его обучение', async () => {
+    const rows = await prisma.notification.findMany({
+      where: { userId: STUDENT, type: 'training_assigned' },
+      select: { entityId: true, title: true, body: true },
+    });
+    expect(rows).toEqual([
+      {
+        entityId: itemId,
+        title: 'Вам назначено обучение',
+        body: `Обучение «${T}-Охрана труда» подтверждено. Сроки и переход на учебную площадку — в разделе «Мой профиль».`,
+      },
+    ]);
+    // Менеджер с тем же адресом, что у позиции, уведомление слушателя не получает.
+    expect(
+      await prisma.notification.count({ where: { userId: MANAGER, type: 'training_assigned' } })
+    ).toBe(0);
   });
 
   it('сотрудник задаёт сроки; кривая дата и «окончание раньше начала» — отказ', async () => {
@@ -246,6 +266,65 @@ describe('кабинет слушателя: заявка → связь учё�
     await rejectEnrollment(prisma, { id: res.request.id, reviewerId: REVIEWER, reason: 'нет' });
     const r = await getStudentCabinet(prisma, studentSession);
     expect(r.ok && r.cabinet.trainings.map((t) => t.id)).toEqual([itemId]);
+  });
+
+  it('`У-286`: за 3 дня до окончания обучения — напоминание, и только один раз', async () => {
+    // 12.11.2026 10:00 МСК — до 15.11 три дня.
+    const day = new Date('2026-11-12T07:00:00Z');
+    // За 14 и за 4 дня — ещё рано.
+    await runTrainingEndingSoon(prisma, new Date('2026-11-01T07:00:00Z'));
+    await runTrainingEndingSoon(prisma, new Date('2026-11-11T07:00:00Z'));
+    expect(
+      await prisma.notification.count({ where: { userId: STUDENT, type: 'training_ending_soon' } })
+    ).toBe(0);
+    const first = await runTrainingEndingSoon(prisma, day);
+    expect(first.remindersSent).toBeGreaterThanOrEqual(1);
+    const mine = await prisma.notification.findMany({
+      where: { userId: STUDENT, type: 'training_ending_soon' },
+      select: { entityId: true, body: true },
+    });
+    expect(mine).toEqual([
+      {
+        entityId: itemId,
+        body: `Обучение «${T}-Охрана труда» заканчивается через 3 дня. Успейте пройти курс на учебной площадке.`,
+      },
+    ]);
+    // Повторный прогон на следующий день — без второго напоминания. Первую
+    // строку «старим» на двое суток: иначе повтор склеило бы 60-минутное окно
+    // дедупа ленты, и страж молчал бы при сломанной проверке «уже отправляли»
+    // (найдено мутацией).
+    const old = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    await prisma.notification.updateMany({
+      where: { userId: STUDENT, type: 'training_ending_soon' },
+      data: { createdAt: old, lastOccurredAt: old },
+    });
+    await runTrainingEndingSoon(prisma, day);
+    await runTrainingEndingSoon(prisma, new Date('2026-11-15T07:00:00Z'));
+    expect(
+      await prisma.notification.count({ where: { userId: STUDENT, type: 'training_ending_soon' } })
+    ).toBe(1);
+  });
+
+  it('`У-286`: в последний день — «сегодня»', async () => {
+    await prisma.notification.deleteMany({
+      where: { userId: STUDENT, type: 'training_ending_soon' },
+    });
+    await runTrainingEndingSoon(prisma, new Date('2026-11-15T07:00:00Z'));
+    const row = await prisma.notification.findFirstOrThrow({
+      where: { userId: STUDENT, type: 'training_ending_soon' },
+      select: { body: true },
+    });
+    expect(row.body).toContain('заканчивается сегодня');
+  });
+
+  it('`У-286`: напоминание об удостоверении получает и сам слушатель', async () => {
+    // 20.08.2029: до 16.11.2029 — 88 дней, порог 90.
+    await runCertificateExpiry(prisma, new Date('2029-08-20T07:00:00Z'));
+    const row = await prisma.notification.findFirst({
+      where: { userId: STUDENT, type: 'certificate_expiring' },
+      select: { body: true },
+    });
+    expect(row?.body).toContain(`${T}-0001`);
   });
 
   it('не слушатель кабинета не получает', async () => {

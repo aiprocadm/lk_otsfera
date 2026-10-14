@@ -23,8 +23,13 @@ beforeAll(async () => {
   const orgUser = await prisma.user.create({
     data: { email: 'orguser@exp.ru', name: 'OrgU', role: 'organization', organizationId: org.id },
   });
+  // Этап 2 ТЗ 13.10.2026 (`У-286`): учётка слушателя связана с карточкой и
+  // одновременно числится пользователем организации — адресат один, письмо одно.
+  const studentUser = await prisma.user.create({
+    data: { email: 's@exp.ru', name: 'S', role: 'student', organizationId: org.id },
+  });
   const student = await prisma.student.create({
-    data: { name: 'S', email: 's@exp.ru', organizationId: org.id },
+    data: { name: 'S', email: 's@exp.ru', organizationId: org.id, userId: studentUser.id },
   });
   const validUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const cert = await prisma.certificate.create({
@@ -42,6 +47,7 @@ beforeAll(async () => {
     company: company.id,
     org: org.id,
     orgUser: orgUser.id,
+    studentUser: studentUser.id,
     student: student.id,
     cert: cert.id,
   });
@@ -51,7 +57,7 @@ afterAll(async () => {
   await prisma.certificateReminder.deleteMany({ where: { certificateId: ids.cert } });
   await prisma.certificate.delete({ where: { id: ids.cert } });
   await prisma.student.delete({ where: { id: ids.student } });
-  await prisma.user.delete({ where: { id: ids.orgUser } });
+  await prisma.user.deleteMany({ where: { id: { in: [ids.orgUser!, ids.studentUser!] } } });
   await prisma.organization.delete({ where: { id: ids.org } });
   await prisma.company.delete({ where: { id: ids.company } });
   await prisma.trainingDirection.delete({ where: { id: ids.dir } });
@@ -80,6 +86,11 @@ describe('certificate-expiry processor', () => {
         dedupKey: 'n1',
       })
     );
+
+    const toStudent = recordNotification.mock.calls.filter(
+      (c) => (c[1] as { userId: string }).userId === ids.studentUser
+    );
+    expect(toStudent).toHaveLength(1);
 
     const reminders = await prisma.certificateReminder.findMany({
       where: { certificateId: ids.cert },
