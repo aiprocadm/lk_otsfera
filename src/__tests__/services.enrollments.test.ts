@@ -377,7 +377,12 @@ describe('enrollment lifecycle (шапка + зеркалирование поз
     const itemUpdateMany = vi.fn().mockResolvedValue({ count: itemCount });
     const base = {
       enrollmentRequest: { findUnique: vi.fn().mockResolvedValue({ id: 'E1', status }) },
-      enrollmentRequestItem: { count: vi.fn().mockResolvedValue(itemCount) },
+      // Этап 2 ТЗ 13.10.2026 (`У-273`): после подтверждения карточки слушателей
+      // связываются с учётками — позиций со слушателем здесь нет.
+      enrollmentRequestItem: {
+        count: vi.fn().mockResolvedValue(itemCount),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
       $transaction: vi.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) =>
         fn({
           enrollmentRequest: { update: requestUpdate },

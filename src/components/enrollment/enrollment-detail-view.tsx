@@ -9,6 +9,18 @@ import { PageHeader } from '@/components/ui/page-header';
 import { EnrollmentStatusBadge } from './enrollment-status-badge';
 import { EnrollmentStatusRibbon } from './enrollment-status-ribbon';
 import { CertificateDownloadButton } from './certificate-download-button';
+import { EnrollmentItemDatesForm } from './enrollment-item-dates-form';
+
+/** `@db.Date` — полночь UTC; в форму уходит день без времени. */
+const isoDay = (d: Date | null): string | null => (d ? d.toISOString().slice(0, 10) : null);
+
+/** Подпись сроков позиции (`У-284`): «с 01.11.2026 по 15.11.2026». */
+function datesLabel(startsOn: Date | null, endsOn: Date | null): string | null {
+  if (startsOn && endsOn) return `Обучение с ${fmtDate(startsOn)} по ${fmtDate(endsOn)}`;
+  if (startsOn) return `Обучение с ${fmtDate(startsOn)}`;
+  if (endsOn) return `Обучение до ${fmtDate(endsOn)}`;
+  return null;
+}
 
 /**
  * Подпись заявки — одна на заголовок и на хлебную крошку (`У-72`): если бы
@@ -36,6 +48,7 @@ export function EnrollmentDetailView({
   backHref,
   breadcrumbs,
   actions,
+  editDates = false,
 }: {
   detail: EnrollmentDetail;
   backHref: string;
@@ -50,6 +63,11 @@ export function EnrollmentDetailView({
    * поэтому проп опциональный, а не «пустой блок у всех».
    */
   actions?: React.ReactNode;
+  /**
+   * Этап 2 ТЗ 13.10.2026 (`У-284`, `Р-2-3`): сотрудник ЦО задаёт сроки обучения
+   * в строке слушателя. Клиент сроки только видит.
+   */
+  editDates?: boolean;
 }) {
   return (
     <div className="space-y-5">
@@ -118,12 +136,25 @@ export function EnrollmentDetailView({
                   </span>
                   <span className="text-xs text-gray-500">{item.email}</span>
                   {item.position && <span className="text-xs text-gray-500">{item.position}</span>}
+                  {datesLabel(item.startsOn, item.endsOn) && (
+                    <span className="text-xs text-gray-500">
+                      {datesLabel(item.startsOn, item.endsOn)}
+                    </span>
+                  )}
                   <span className="ml-auto flex items-center gap-3">
                     {item.certificateDocumentId && (
                       <CertificateDownloadButton documentId={item.certificateDocumentId} />
                     )}
                     <EnrollmentStatusBadge status={item.status} />
                   </span>
+                  {editDates && item.status !== 'rejected' && (
+                    <EnrollmentItemDatesForm
+                      requestId={detail.id}
+                      itemId={item.id}
+                      startsOn={isoDay(item.startsOn)}
+                      endsOn={isoDay(item.endsOn)}
+                    />
+                  )}
                 </li>
               ))}
             </ul>

@@ -185,8 +185,8 @@
 
 | Вердикт | Кол-во |
 |---|---|
-| `✅` соответствует | **279** |
-| `⏳` запланировано | **41** |
+| `✅` соответствует | **281** |
+| `⏳` запланировано | **39** |
 | `❌` расхождение | 0 |
 | `⚠` вне объёма | 1 (см. раздел ниже) — расхождение в тексте ТЗ понятности (чинить нечего); карточка организации у администратора мимо реестра вкладок закрыта 05.09.2026 (этап 9, PR-1) |
 
@@ -241,8 +241,8 @@
 
 | Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
 |---|---|---|---|---|
-| `У-284` | Раздел «Мой профиль» слушателя: ФИО, организация, обучения, даты, срок действия удостоверения | [ТЗ §4](2026-10-13-tz-pm-review-student-manager.md) | ⏳ этап 2 | — |
-| `У-285` | Главная слушателя — «Мои обучения» со статусами, сроками и переходом на площадку | [student/page.tsx](../../src/app/student/page.tsx) | ⏳ этап 2 | — |
+| `У-284` | Раздел «Мой профиль» слушателя: ФИО, организация, обучения, даты, срок действия удостоверения | [student/profile/page.tsx](../../src/app/student/profile/page.tsx) + сервис [students/cabinet.ts](../../src/lib/services/students/cabinet.ts): скоуп — карточки `Student.userId = session.sub`, связь ставится по e-mail при подтверждении заявки и входе ([students/account.ts](../../src/lib/services/students/account.ts)), чужая карточка не перехватывается; сроки — `EnrollmentRequestItem.startsOn/endsOn`, задаёт сотрудник в карточке заявки (`setItemDates`, аудит `enrollment_item_dates_set`); удостоверение — «Действует до … — осталось N дней» по московскому дню. Другим ролям — 404. Стражи — живой [students.cabinet](../../src/__tests__/services.students.cabinet.integration.test.ts) (4 мутации пойманы) и [pages.student-profile](../../src/__tests__/pages.student-profile.test.tsx) | ✅ соответствует (этап 2 ПМ, PR-1) | 14.10.2026 · [спека этапа 2](../superpowers/specs/2026-10-14-pm-stage2-student-cabinet-design.md) |
+| `У-285` | Главная слушателя — «Мои обучения» со статусами, сроками и переходом на площадку | [student/page.tsx](../../src/app/student/page.tsx) + [student-trainings.tsx](../../src/components/student/student-trainings.tsx): у каждого обучения — направление, статус словами, сроки и кнопка «Перейти на учебную площадку» (`/student/redirect`, `Р-2-5`); «Перейти к обучению» осталась; без обучений — объяснение и ссылка в справку; отклонённые не показываются. Страж — [pages.student](../../src/__tests__/pages.student.test.tsx) | ✅ соответствует (этап 2 ПМ, PR-1) | 14.10.2026 · [спека этапа 2](../superpowers/specs/2026-10-14-pm-stage2-student-cabinet-design.md) |
 | `У-286` | У роли `student` есть типы уведомлений об обучении; подзаголовок и пустое состояние экрана — тексты ПМ для слушателя | [registry.ts](../../src/lib/notifications/registry.ts) · [notifications-screen.tsx](../../src/components/notifications/notifications-screen.tsx) | ⏳ этап 2 | — |
 | `У-287` | Справка слушателя: вступление ПМ и мини-инструкции; терминов CRM слушатель не видит | [help/page.tsx](../../src/app/help/page.tsx) | ⏳ этап 2 | — |
 

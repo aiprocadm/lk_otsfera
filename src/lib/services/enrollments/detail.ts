@@ -7,6 +7,9 @@ import { itemDirectionNames, scopeWhere, type EnrollmentItemRow } from './list';
 export type EnrollmentDetailItem = EnrollmentItemRow & {
   /** Документ удостоверения по направлению заявки — только если податель вправе его скачать. */
   certificateDocumentId: string | null;
+  /** Этап 2 ТЗ 13.10.2026 (`У-284`): сроки обучения по позиции (`@db.Date`, полночь UTC). */
+  startsOn: Date | null;
+  endsOn: Date | null;
 };
 
 export type EnrollmentDetail = {
@@ -62,6 +65,8 @@ export async function getEnrollmentRequest(
           extra: true,
           status: true,
           externalStudentId: true,
+          startsOn: true,
+          endsOn: true,
           directionId: true,
           direction: { select: { name: true } },
         },
