@@ -49,4 +49,25 @@ describe('страница /help (У-76)', () => {
     expect(back).not.toBeNull();
     expect(back?.textContent).toContain('Вернуться в кабинет');
   });
+
+  it('этап 2 ТЗ 13.10.2026 (`У-287`): слушатель видит свою справку, а не словарь CRM', async () => {
+    requireSession.mockResolvedValueOnce({ sub: 's1', role: 'student' });
+    const { container } = await renderServerComponent(HelpPage());
+    const text = container.textContent ?? '';
+    expect(container.querySelector('h1')?.textContent).toBe('Справка');
+    expect(text).toContain(
+      'Нужна помощь? Здесь вы найдёте ответы на частые вопросы и полезные инструкции по обучению и работе с платформой.'
+    );
+    for (const id of ['courses', 'portal', 'lost-access']) {
+      expect(container.querySelector(`[data-testid="student-help-${id}"]`)).not.toBeNull();
+    }
+    expect(text).toContain('Как посмотреть свои курсы');
+    expect(text).toContain('Как перейти на учебную площадку');
+    expect(text).toContain('Что делать, если потерян доступ к учебной площадке');
+    // Терминов CRM слушатель не видит.
+    expect(container.querySelector('[data-testid^="glossary-section-"]')).toBeNull();
+    expect(text).not.toMatch(/лид|заказ|кабинет[а-я]* сотрудник|обращени/i);
+    // Не тупик (§15).
+    expect(container.querySelector('a[href="/dashboard"]')).not.toBeNull();
+  });
 });

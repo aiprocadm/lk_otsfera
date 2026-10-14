@@ -3,6 +3,7 @@ import React from 'react';
 import { requireSession } from '@/lib/auth/requireRole';
 import { BackLink } from '@/components/ui';
 import { GLOSSARY } from '@/lib/help/glossary';
+import { STUDENT_HELP_INTRO, STUDENT_HELP_TOPICS } from '@/lib/help/studentHelp';
 
 import { PageHeader } from '@/components/ui/page-header';
 export const metadata: Metadata = { title: 'Справка · Словарь терминов' };
@@ -15,8 +16,47 @@ export const metadata: Metadata = { title: 'Справка · Словарь т�
  * Доступ — любой вошедший пользователь: `/help` не входит ни в один защищённый
  * префикс, поэтому middleware пускает сюда все роли (но не анонимов).
  */
+/**
+ * Справка слушателя (`У-287`): вместо словаря CRM — три мини-инструкции об
+ * обучении. Словарь для остальных ролей не меняется.
+ */
+function StudentHelp() {
+  return (
+    <main className="min-h-screen bg-gray-50 px-4 py-8">
+      <div className="max-w-3xl mx-auto space-y-6">
+        <BackLink href="/dashboard" label="Вернуться в кабинет" />
+        <PageHeader title="Справка" subtitle={STUDENT_HELP_INTRO} />
+        {STUDENT_HELP_TOPICS.map((topic) => (
+          <section
+            key={topic.id}
+            className="bg-white border border-gray-200 rounded-xl p-5 space-y-3"
+            data-testid={`student-help-${topic.id}`}
+          >
+            <h2 className="font-semibold text-[#111111]">{topic.title}</h2>
+            <ol className="list-decimal pl-5 space-y-1.5 text-sm text-gray-700">
+              {topic.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+            {topic.note && (
+              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded px-2 py-1">
+                {topic.note}
+              </p>
+            )}
+          </section>
+        ))}
+        <p className="text-xs text-gray-500">
+          Не нашли ответ — напишите своему менеджеру или ответственному за обучение в вашей
+          организации.
+        </p>
+      </div>
+    </main>
+  );
+}
+
 export default async function HelpPage() {
-  await requireSession();
+  const session = await requireSession();
+  if (session.role === 'student') return <StudentHelp />;
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8">
       <div className="max-w-3xl mx-auto space-y-6">
