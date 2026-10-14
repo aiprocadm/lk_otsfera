@@ -9,6 +9,7 @@ import { assertAllowedStudentPortalUrl } from '@/lib/security/redirect';
 import { recordAudit } from '@/lib/auth/audit';
 import { log } from '@/lib/logging';
 import { getStudentPortalConfig } from '@/lib/student/portal';
+import { PageHeader } from '@/components/ui/page-header';
 
 const bridgeCodeTtlSec = Number(process.env.STUDENT_BRIDGE_CODE_TTL_SEC ?? 60);
 
@@ -30,10 +31,11 @@ export default async function StudentRedirectPage() {
   if (portal.status === 'not_connected') {
     return (
       <div className="mx-auto max-w-lg space-y-3 p-6">
-        <h1 className="text-lg font-semibold text-[#111111]">Учебная площадка ещё не подключена</h1>
-        <p className="text-sm text-gray-600">
-          Учебная площадка ещё не подключена — обратитесь к менеджеру.
-        </p>
+        {/* `У-120`: шапку экрана рисует один компонент. */}
+        <PageHeader
+          title="Учебная площадка ещё не подключена"
+          subtitle="Учебная площадка ещё не подключена — обратитесь к менеджеру."
+        />
         <Link href="/student" className="text-sm text-[#F97316] hover:underline">
           ← В кабинет слушателя
         </Link>
