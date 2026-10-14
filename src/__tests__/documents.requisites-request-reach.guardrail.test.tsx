@@ -131,8 +131,11 @@ describe('ФТ-9.5: попросить недостающее у клиента 
       panel(missingByType(org));
 
       const block = screen.getByTestId('missing-requisites');
+      // `У-278`: пункты, нужные только договору, подписаны «— нужно для
+      // договора»; реквизит назван, если строка с него начинается.
+      const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       expect(
-        within(block).getByText(label),
+        within(block).getByText(new RegExp(`^${escaped}`)),
         'недостающий реквизит не назван на экране'
       ).toBeTruthy();
       expect(
@@ -159,6 +162,7 @@ describe('ФТ-9.5: попросить недостающее у клиента 
     ) as Record<IssueDocType, MissingRequisite[]>;
     panel(missing);
     expect(screen.queryByRole('button', { name: 'Запросить у клиента' })).toBeNull();
-    expect(screen.getByText(/Реквизиты исполнителя заполняются/)).toBeTruthy();
+    // `У-278`: менеджеру — кто заполняет реквизиты исполнителя.
+    expect(screen.getByText(/Их заполняет руководитель или администратор/)).toBeTruthy();
   });
 });

@@ -10,6 +10,7 @@ import { setPartnerRequisites } from '@/lib/services/partner/requisites';
 import { setCompanyRequisites } from '@/lib/services/admin/companyRequisites';
 import {
   setOrgRequisitesByAdmin,
+  setOrgRequisitesByStaff,
   setPartnerRequisitesByAdmin,
 } from '@/lib/services/admin/counterpartyRequisites';
 import type { RequisitesInput } from '@/lib/requisites/validate';
@@ -89,6 +90,25 @@ export async function setOrgRequisitesByAdminAction(fd: FormData): Promise<Requi
   const res = await setOrgRequisitesByAdmin(prisma, session, orgId, requisitesInput(fd));
   if (!res.ok) return res;
   revalidatePath(`/admin/organizations/${orgId}`);
+  return { ok: true };
+}
+
+/**
+ * `У-278` (ТЗ 13.10.2026): реквизиты организации из карточки заказа —
+ * администратор, руководитель или менеджер в границах своего охвата (проверяет
+ * сервис). После сохранения карточка заказа пересчитывает, чего ещё не хватает.
+ */
+export async function setOrgRequisitesByStaffAction(fd: FormData): Promise<RequisitesActionResult> {
+  const session = await requireSession();
+  const orgId = str(fd, 'orgId');
+  if (!orgId) return { ok: false, error: 'validation' };
+  const res = await setOrgRequisitesByStaff(prisma, session, orgId, requisitesInput(fd));
+  if (!res.ok) return res;
+  const orderId = str(fd, 'orderId');
+  for (const cabinet of ['manager', 'leader', 'admin'] as const) {
+    if (orderId) revalidatePath(`/${cabinet}/orders/${orderId}`);
+    revalidatePath(`/${cabinet}/organizations/${orgId}`);
+  }
   return { ok: true };
 }
 

@@ -88,6 +88,9 @@ export default async function ManagerOrderDetailPage({
         baseDocuments={panel.baseDocuments}
         hasInvoice={panel.hasInvoice}
         hasContract={panel.hasContract}
+        cabinet="manager"
+        organizationId={data.order.organizationId}
+        organizationRequisites={panel.organizationRequisites}
       />
     );
   }

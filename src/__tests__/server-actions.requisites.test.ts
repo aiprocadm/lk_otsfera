@@ -12,6 +12,7 @@ const {
   setPartnerRequisites,
   setCompanyRequisites,
   setOrgRequisitesByAdmin,
+  setOrgRequisitesByStaff,
   setPartnerRequisitesByAdmin,
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
@@ -21,6 +22,7 @@ const {
   setPartnerRequisites: vi.fn(),
   setCompanyRequisites: vi.fn(),
   setOrgRequisitesByAdmin: vi.fn(),
+  setOrgRequisitesByStaff: vi.fn(),
   setPartnerRequisitesByAdmin: vi.fn(),
 }));
 
@@ -33,6 +35,7 @@ vi.mock('@/lib/services/partner/requisites', () => ({ setPartnerRequisites }));
 vi.mock('@/lib/services/admin/companyRequisites', () => ({ setCompanyRequisites }));
 vi.mock('@/lib/services/admin/counterpartyRequisites', () => ({
   setOrgRequisitesByAdmin,
+  setOrgRequisitesByStaff,
   setPartnerRequisitesByAdmin,
 }));
 
@@ -41,6 +44,7 @@ import {
   setPartnerRequisitesAction,
   setCompanyRequisitesAction,
   setOrgRequisitesByAdminAction,
+  setOrgRequisitesByStaffAction,
   setPartnerRequisitesByAdminAction,
 } from '@/server-actions/requisites';
 
@@ -185,5 +189,45 @@ describe('requisites actions', () => {
       ok: false,
       error: 'validation',
     });
+  });
+});
+
+describe('setOrgRequisitesByStaffAction (У-278)', () => {
+  it('без orgId — validation, сервис не зовётся', async () => {
+    expect(await setOrgRequisitesByStaffAction(form({}))).toEqual({
+      ok: false,
+      error: 'validation',
+    });
+    expect(setOrgRequisitesByStaff).not.toHaveBeenCalled();
+  });
+
+  it('отказ сервиса уходит наверх как есть, без ревалидации', async () => {
+    setOrgRequisitesByStaff.mockResolvedValue({ ok: false, error: 'forbidden' });
+    expect(await setOrgRequisitesByStaffAction(form({ orgId: 'o1' }))).toEqual({
+      ok: false,
+      error: 'forbidden',
+    });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('успех: обновляет карточку заказа и организации во всех трёх кабинетах', async () => {
+    setOrgRequisitesByStaff.mockResolvedValue({ ok: true });
+    expect(
+      await setOrgRequisitesByStaffAction(
+        form({ orgId: 'o1', orderId: 'ord-1', signerBasis: 'Устава' })
+      )
+    ).toEqual({ ok: true });
+    expect(setOrgRequisitesByStaff.mock.calls[0]![2]).toBe('o1');
+    expect(setOrgRequisitesByStaff.mock.calls[0]![3]).toMatchObject({ signerBasis: 'Устава' });
+    for (const cab of ['manager', 'leader', 'admin']) {
+      expect(revalidatePath).toHaveBeenCalledWith(`/${cab}/orders/ord-1`);
+      expect(revalidatePath).toHaveBeenCalledWith(`/${cab}/organizations/o1`);
+    }
+  });
+
+  it('без orderId — обновляется только карточка организации', async () => {
+    setOrgRequisitesByStaff.mockResolvedValue({ ok: true });
+    await setOrgRequisitesByStaffAction(form({ orgId: 'o1' }));
+    expect(revalidatePath).toHaveBeenCalledTimes(3);
   });
 });

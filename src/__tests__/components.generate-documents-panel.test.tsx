@@ -21,6 +21,12 @@ const { toastSuccess, toastError } = vi.hoisted(() => ({
 }));
 vi.mock('@/lib/ui/toast', () => ({ toast: { success: toastSuccess, error: toastError } }));
 
+// `У-278`: реквизиты организации правятся прямо из панели.
+const { setOrgRequisitesByStaffAction } = vi.hoisted(() => ({
+  setOrgRequisitesByStaffAction: vi.fn(),
+}));
+vi.mock('@/server-actions/requisites', () => ({ setOrgRequisitesByStaffAction }));
+
 import { GenerateDocumentsPanel } from '@/components/manager/generate-documents-panel';
 import type { IssueDocType, IssueLine } from '@/components/manager/issue-document-dialog';
 import type { MissingRequisite } from '@/lib/documents/requisites-check';
@@ -103,7 +109,93 @@ describe('GenerateDocumentsPanel', () => {
       },
     });
     expect(screen.queryByRole('button', { name: 'Запросить у клиента' })).toBeNull();
-    expect(screen.getByText(/Реквизиты исполнителя заполняются/)).toBeTruthy();
+    // `У-278`: менеджеру — кто и где заполняет; ссылки в чужой раздел нет.
+    const company = screen.getByTestId('missing-company');
+    expect(company.textContent).toContain('Не хватает данных вашей компании (исполнителя)');
+    expect(company.textContent).toContain('БИК исполнителя');
+    expect(company.textContent).toContain('Их заполняет руководитель или администратор');
+    expect(screen.queryByRole('link', { name: /Заполнить реквизиты исполнителя/ })).toBeNull();
+    expect(screen.queryByTestId('missing-organization')).toBeNull();
+  });
+
+  it('У-278: руководитель и администратор идут за реквизитами исполнителя ссылкой в свой раздел', () => {
+    for (const cabinet of ['leader', 'admin'] as const) {
+      const { unmount } = panel({
+        cabinet,
+        missingByType: { ...NO_MISSING, invoice: [{ side: 'company', label: 'БИК исполнителя' }] },
+      });
+      const link = screen.getByRole('link', { name: /Заполнить реквизиты исполнителя/ });
+      expect(link.getAttribute('href')).toBe(`/${cabinet}/settings/catalogs/requisites`);
+      unmount();
+    }
+  });
+
+  it('У-278: нехватка по сторонам — отдельно исполнитель и организация, договорное помечено', () => {
+    panel({
+      missingByType: {
+        ...NO_MISSING,
+        invoice: [
+          { side: 'company', label: 'ИНН исполнителя' },
+          { side: 'organization', label: 'ИНН заказчика' },
+        ],
+        contract: [
+          { side: 'company', label: 'ИНН исполнителя' },
+          { side: 'organization', label: 'ИНН заказчика' },
+          { side: 'organization', label: 'основание полномочий заказчика' },
+        ],
+      },
+    });
+    const org = screen.getByTestId('missing-organization');
+    expect(org.textContent).toContain('Не хватает данных организации «ООО «Ромашка»» (заказчика)');
+    expect(org.textContent).toContain('ИНН заказчика');
+    expect(org.textContent).toContain('основание полномочий заказчика — нужно для договора');
+    expect(screen.getByTestId('missing-company').textContent).not.toContain('заказчика');
+    expect(screen.getByText(/прикрепите файл в документы заказа/)).toBeTruthy();
+  });
+
+  it('У-278: «Заполнить реквизиты организации» — окно с текущими данными, сохранение закрывает его', async () => {
+    setOrgRequisitesByStaffAction.mockResolvedValue({ ok: true });
+    panel({
+      organizationId: 'org-1',
+      organizationRequisites: {
+        legalName: 'ООО «Ромашка»',
+        inn: '7707083893',
+        kpp: null,
+        ogrn: null,
+        legalAddress: null,
+        bankName: null,
+        bankAccount: null,
+        corrAccount: null,
+        bic: null,
+        signerName: 'Иванов Иван',
+        signerPosition: null,
+        signerBasis: null,
+      },
+      missingByType: {
+        ...NO_MISSING,
+        contract: [{ side: 'organization', label: 'основание полномочий заказчика' }],
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Заполнить реквизиты организации' }));
+    const dialog = within(document.querySelector('dialog[open]') as HTMLElement);
+    expect((dialog.getByLabelText('ИНН') as HTMLInputElement).value).toBe('7707083893');
+    fireEvent.change(dialog.getByLabelText('Действует на основании'), {
+      target: { value: 'Устава' },
+    });
+    fireEvent.click(dialog.getByRole('button', { name: 'Сохранить' }));
+    await waitFor(() => expect(setOrgRequisitesByStaffAction).toHaveBeenCalled());
+    const fd = setOrgRequisitesByStaffAction.mock.calls[0]![0] as FormData;
+    expect(fd.get('orgId')).toBe('org-1');
+    expect(fd.get('orderId')).toBe('ord-1');
+    expect(fd.get('signerBasis')).toBe('Устава');
+    await waitFor(() => expect(document.querySelector('dialog[open]')).toBeNull());
+  });
+
+  it('без организации у панели кнопки «Заполнить реквизиты организации» нет', () => {
+    panel({
+      missingByType: { ...NO_MISSING, invoice: [{ side: 'organization', label: 'ИНН заказчика' }] },
+    });
+    expect(screen.queryByRole('button', { name: 'Заполнить реквизиты организации' })).toBeNull();
   });
 
   it('«Запросить у клиента» сообщает об успехе и об ошибке', async () => {
