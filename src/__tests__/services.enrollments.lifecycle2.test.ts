@@ -3,10 +3,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { recordAudit } = vi.hoisted(() => ({ recordAudit: vi.fn() }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
 
-const { notifySubmitterEnrollmentStatus } = vi.hoisted(() => ({
+const { notifySubmitterEnrollmentStatus, notifyStudentsTrainingAssigned } = vi.hoisted(() => ({
   notifySubmitterEnrollmentStatus: vi.fn(),
+  notifyStudentsTrainingAssigned: vi.fn(),
 }));
-vi.mock('@/lib/services/enrollments/notify', () => ({ notifySubmitterEnrollmentStatus }));
+vi.mock('@/lib/services/enrollments/notify', () => ({
+  notifySubmitterEnrollmentStatus,
+  notifyStudentsTrainingAssigned,
+}));
+const { warn } = vi.hoisted(() => ({ warn: vi.fn() }));
+vi.mock('@/lib/logging', () => ({ log: { warn } }));
 
 import {
   ENROLLMENT_PIPELINE,
@@ -242,6 +248,34 @@ describe('approve/reject/markProvisioned уведомляют подателя (
     expect(notifySubmitterEnrollmentStatus.mock.calls[0][1]).toMatchObject({
       id: 'E1',
       status: 'approved',
+    });
+  });
+
+  it('этап 2 ТЗ 13.10.2026 (`У-273`): подтверждение зовёт уведомление слушателей', async () => {
+    const r = await approveEnrollment(db('pending').d, { id: 'E1', reviewerId: 'm1' });
+    expect(r.ok).toBe(true);
+    expect(notifyStudentsTrainingAssigned).toHaveBeenCalledWith(expect.anything(), 'E1', []);
+  });
+
+  it('сбой привязки слушателей после подтверждения — заявка всё равно подтверждена', async () => {
+    const { d } = db('pending');
+    (
+      d as { enrollmentRequestItem: { findMany: ReturnType<typeof vi.fn> } }
+    ).enrollmentRequestItem.findMany.mockRejectedValue(new Error('db down'));
+    const r = await approveEnrollment(d, { id: 'E1', reviewerId: 'm1' });
+    expect(r.ok).toBe(true);
+    expect(warn).toHaveBeenCalledWith('[enrollments/lifecycle] student linking failed', {
+      requestId: 'E1',
+      error: 'db down',
+    });
+    expect(notifySubmitterEnrollmentStatus).toHaveBeenCalled();
+    (
+      d as { enrollmentRequestItem: { findMany: ReturnType<typeof vi.fn> } }
+    ).enrollmentRequestItem.findMany.mockRejectedValue('строка');
+    await approveEnrollment(d, { id: 'E1', reviewerId: 'm1' });
+    expect(warn).toHaveBeenLastCalledWith('[enrollments/lifecycle] student linking failed', {
+      requestId: 'E1',
+      error: 'строка',
     });
   });
 

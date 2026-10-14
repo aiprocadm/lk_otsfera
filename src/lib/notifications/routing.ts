@@ -37,7 +37,7 @@ export function isRoutableChannel(value: string): value is RoutableChannel {
 }
 
 export function isKnownAudience(value: string): value is NotificationAudience {
-  return ['organization', 'partner', 'manager', 'staff', 'admin'].includes(value);
+  return ['organization', 'partner', 'manager', 'staff', 'admin', 'student'].includes(value);
 }
 
 export type RoutingKey = {

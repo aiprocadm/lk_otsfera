@@ -61,7 +61,11 @@ vi.mock('@/lib/services/manager/distribution', () => ({ resolveAutoManager }));
 // db barrel used by the BullMQ wrapper certificateExpiryProcessor(); a mock prisma
 // whose certificate.findMany returns [] short-circuits with zero reminders sent.
 const { mockDbPrisma } = vi.hoisted(() => ({
-  mockDbPrisma: { certificate: { findMany: vi.fn().mockResolvedValue([]) } },
+  mockDbPrisma: {
+    certificate: { findMany: vi.fn().mockResolvedValue([]) },
+    // Этап 2 ТЗ 13.10.2026 (`У-286`): тем же прогоном — «скоро заканчивается обучение».
+    enrollmentRequestItem: { findMany: vi.fn().mockResolvedValue([]) },
+  },
 }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: mockDbPrisma }));
 
@@ -416,8 +420,9 @@ describe('certificateExpiryProcessor — BullMQ wrapper (lines 112-115)', () => 
   it('imports the shared prisma and runs runCertificateExpiry for today', async () => {
     // mockDbPrisma.certificate.findMany → [] → zero due reminders, no fan-out.
     const result = await certificateExpiryProcessor();
-    expect(result).toEqual({ remindersSent: 0 });
+    expect(result).toEqual({ remindersSent: 0, trainingRemindersSent: 0 });
     expect(mockDbPrisma.certificate.findMany).toHaveBeenCalledTimes(1);
+    expect(mockDbPrisma.enrollmentRequestItem.findMany).toHaveBeenCalledTimes(1);
     // the `gte: today` filter carries a Date — confirms `new Date()` was passed through.
     const arg = mockDbPrisma.certificate.findMany.mock.calls[0][0];
     expect(arg.where.validUntil.gte).toBeInstanceOf(Date);

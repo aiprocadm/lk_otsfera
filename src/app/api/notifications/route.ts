@@ -28,7 +28,7 @@ export async function GET() {
   if (!sessionResult.ok) return sessionResult.response;
   const session = sessionResult.value;
 
-  // Этап 5 (`Р-Э5-1`): слушатель тоже — у него есть страница, пусть и пустая.
+  // Этап 5 (`Р-Э5-1`): слушатель тоже — у него есть страница (с `У-286` — с уведомлениями).
   const roleResult = requireRole(session, [
     'admin',
     'manager',
@@ -49,7 +49,7 @@ export async function PATCH(req: Request) {
   if (!sessionResult.ok) return sessionResult.response;
   const session = sessionResult.value;
 
-  // Этап 5 (`Р-Э5-1`): слушатель тоже — у него есть страница, пусть и пустая.
+  // Этап 5 (`Р-Э5-1`): слушатель тоже — у него есть страница (с `У-286` — с уведомлениями).
   const roleResult = requireRole(session, [
     'admin',
     'manager',

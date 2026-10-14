@@ -1,4 +1,4 @@
-import type { NotificationRoleKey, NotificationTypeKey } from './registry';
+import { NOTIFICATION_TYPES, type NotificationRoleKey, type NotificationTypeKey } from './registry';
 
 /**
  * Таблица маршрутов уведомлений «тип × роль → адрес» (этап 5 PR-3, `У-232`,
@@ -202,6 +202,10 @@ const RULES: Record<NotificationTypeKey, Rule> = {
   client_request_status_changed: request,
   enrollment_status_changed: enrollment,
   certificate_expiring: (_m, c) => section(c, 'certificates', null),
+  // Слушательские типы кабинетам сотрудников и клиентов не адресованы —
+  // ссылку слушателю строит ветка `student` в `notificationRoute`.
+  training_assigned: () => null,
+  training_ending_soon: () => null,
   partner_material_published: (_m, c) => section(c, 'materials', null),
 
   // ── Заказ: клиент ↔ менеджер ──
@@ -364,6 +368,13 @@ export function notificationRoute(
   role: NotificationRoleKey | string
 ): string | null {
   if (!isNotificationTypeKey(type)) return null;
+  // Этап 2 ТЗ 13.10.2026 (`У-286`): у слушателя один экран о его обучениях —
+  // «Мой профиль»; туда ведёт каждый адресованный ему тип.
+  if (role === 'student') {
+    return (NOTIFICATION_TYPES[type].audience as readonly string[]).includes('student')
+      ? '/student/profile'
+      : null;
+  }
   if (!(role in CABINET_SECTIONS)) return null;
   const m = meta !== null && typeof meta === 'object' ? (meta as Record<string, unknown>) : null;
   return RULES[type](m, role as Cabinet);

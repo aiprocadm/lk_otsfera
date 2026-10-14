@@ -1,8 +1,9 @@
 import type { PrismaClient, EnrollmentRequest, EnrollmentStatus } from '@prisma/client';
 import { attachStudentsToApprovedItems } from '@/lib/services/students/fromEnrollment';
 import { recordAudit } from '@/lib/auth/audit';
+import { log } from '@/lib/logging';
 import { linkCardsToStudentAccounts } from '@/lib/services/students/account';
-import { notifySubmitterEnrollmentStatus } from './notify';
+import { notifyStudentsTrainingAssigned, notifySubmitterEnrollmentStatus } from './notify';
 
 /**
  * Reviewer-side enrollment lifecycle (T5 → этап 2). Return the §3 Result
@@ -84,16 +85,27 @@ export async function approveEnrollment(
   });
   // Этап 2 ТЗ 13.10.2026 (`У-273`, `Р-2-2`): карточки слушателей позиций
   // связываются с их учётками по e-mail — подтверждённое обучение появляется у
-  // человека в кабинете (а в PR-3 — и уведомлением).
-  const items = await prisma.enrollmentRequestItem.findMany({
-    where: { requestId: r.id, status: 'approved', studentId: { not: null } },
-    select: { studentId: true },
-  });
-  await linkCardsToStudentAccounts(
-    prisma,
-    // Позиции без карточки отсечены выборкой (`studentId: { not: null }`).
-    items.map((i) => i.studentId as string)
-  );
+  // человека в кабинете и уведомлением «Вам назначено обучение».
+  //
+  // Шаг после транзакции и best-effort (§3): заявка уже подтверждена, а
+  // привязка повторится сама при входе слушателя в кабинет.
+  try {
+    const items = await prisma.enrollmentRequestItem.findMany({
+      where: { requestId: r.id, status: 'approved', studentId: { not: null } },
+      select: { studentId: true },
+    });
+    const linked = await linkCardsToStudentAccounts(
+      prisma,
+      // Позиции без карточки отсечены выборкой (`studentId: { not: null }`).
+      items.map((i) => i.studentId as string)
+    );
+    await notifyStudentsTrainingAssigned(prisma, r.id, linked);
+  } catch (err) {
+    log.warn('[enrollments/lifecycle] student linking failed', {
+      requestId: r.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
   await recordAudit(prisma, {
     userId: args.reviewerId,
     action: 'enrollment_approved',

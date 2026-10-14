@@ -139,9 +139,13 @@ describe('getNotificationPreferenceMatrix', () => {
     expect(listRoutingRules).toHaveBeenCalledWith(prisma, null);
   });
 
-  it('слушатель: ни одной строки — настраивать нечего', async () => {
+  it('слушатель: только его три типа об обучении (`У-286`)', async () => {
     const { matrix } = await getNotificationPreferenceMatrix(prisma, student);
-    expect(matrix.rows).toEqual([]);
+    expect(matrix.rows.map((r) => r.eventType)).toEqual([
+      'certificate_expiring',
+      'training_assigned',
+      'training_ending_soon',
+    ]);
   });
 
   it('пользователь не найден — только почта в колонках, экран не падает', async () => {

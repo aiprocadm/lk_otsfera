@@ -19,7 +19,14 @@
  */
 
 /** Кому адресован тип. `staff` — сотрудники без разделения на роли кабинета. */
-export type NotificationAudience = 'organization' | 'partner' | 'manager' | 'staff' | 'admin';
+export type NotificationAudience =
+  | 'organization'
+  | 'partner'
+  | 'manager'
+  | 'staff'
+  | 'admin'
+  // Этап 2 ТЗ 13.10.2026 (`У-286`, `Р-2-6`): сам слушатель — о своих обучениях.
+  | 'student';
 
 export type NotificationTypeSpec = {
   /** Русская подпись типа — единственный источник для UI и писем. */
@@ -309,8 +316,22 @@ export const NOTIFICATION_TYPES = {
   certificate_expiring: {
     label: 'Истекает удостоверение',
     icon: '🎫',
-    audience: ['organization', 'partner'],
+    // `У-286`: напоминание получает и сам слушатель, чьё удостоверение.
+    audience: ['organization', 'partner', 'student'],
     producer: 'src/worker/processors/certificate-expiry.ts',
+  },
+  // ── Слушатель (этап 2 ТЗ 13.10.2026, `У-286`, `Р-2-6`) ──────────────────
+  training_assigned: {
+    label: 'Назначено обучение',
+    icon: '📚',
+    audience: ['student'],
+    producer: 'src/lib/services/enrollments/notify.ts',
+  },
+  training_ending_soon: {
+    label: 'Скоро заканчивается срок обучения',
+    icon: '⏳',
+    audience: ['student'],
+    producer: 'src/lib/services/training/endingSoon.ts',
   },
   calendar_event_reminder: {
     label: 'Напоминание о событии календаря',
@@ -379,8 +400,8 @@ export function notificationLabelRu(type: string): string {
  * что фильтр страницы, матрица личных настроек и маршруты строятся по нему.
  *
  * Руководитель получает всё менеджерское: рассылки `notifyManagers` идут
- * сотрудникам контура без разбора должности. Слушателю не адресован ни один
- * тип — его страница всегда пуста, и это записано решением `Р-Э5-1`.
+ * сотрудникам контура без разбора должности. Слушатель с этапа 2 ТЗ 13.10.2026
+ * (`У-286`) получает три типа о своём обучении; решение `Р-Э5-1` снято.
  */
 export type NotificationRoleKey =
   'admin' | 'leader' | 'manager' | 'partner' | 'organization' | 'student';
@@ -391,7 +412,8 @@ const ROLE_AUDIENCES: Record<NotificationRoleKey, NotificationAudience[]> = {
   manager: ['manager', 'staff'],
   partner: ['partner'],
   organization: ['organization'],
-  student: [],
+  // Этап 2 ТЗ 13.10.2026 (`У-286`): решение `Р-Э5-1` «слушателю — ничего» снято.
+  student: ['student'],
 };
 
 /**

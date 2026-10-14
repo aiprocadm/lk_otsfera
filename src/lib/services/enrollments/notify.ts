@@ -155,3 +155,53 @@ export async function notifyManagersEnrollmentSubmitted(
     });
   }
 }
+
+/**
+ * `training_assigned` слушателю (этап 2 ТЗ 13.10.2026, `У-273`, `У-286`):
+ * заявку подтвердили — человек узнаёт, что обучение назначено, и где его
+ * смотреть. Адресаты — учётки, связанные с карточками позиций
+ * (`linkCardsToStudentAccounts`); по строке на каждое обучение (позицию).
+ */
+export async function notifyStudentsTrainingAssigned(
+  prisma: PrismaClient,
+  requestId: string,
+  linked: { studentId: string; userId: string }[]
+): Promise<void> {
+  if (linked.length === 0) return;
+  try {
+    const userByStudent = new Map(linked.map((l) => [l.studentId, l.userId]));
+    const items = await prisma.enrollmentRequestItem.findMany({
+      where: { requestId, status: 'approved', studentId: { in: [...userByStudent.keys()] } },
+      select: { id: true, studentId: true, direction: { select: { name: true } } },
+    });
+    const title = 'Вам назначено обучение';
+    for (const item of items) {
+      // Выборка взяла только позиции связанных карточек — учётка есть всегда.
+      const userId = userByStudent.get(item.studentId as string) as string;
+      const body = `Обучение «${item.direction.name}» подтверждено. Сроки и переход на учебную площадку — в разделе «Мой профиль».`;
+      const meta = { enrollmentItemId: item.id, requestId };
+      const { row, deduped } = await recordNotification(prisma, {
+        userId,
+        type: 'training_assigned',
+        title,
+        body,
+        meta,
+        entityId: item.id,
+      });
+      if (deduped) continue;
+      await deliverNotificationToUser({
+        userId,
+        title,
+        body,
+        type: 'training_assigned',
+        meta,
+        dedupKey: row.id,
+      });
+    }
+  } catch (err) {
+    log.warn('[enrollments/notify] student notify failed', {
+      requestId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}

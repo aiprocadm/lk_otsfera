@@ -25,6 +25,7 @@ const AUDIENCE_RU: Record<string, string> = {
   partner: 'Партнёр',
   manager: 'Менеджер',
   staff: 'Сотрудники',
+  student: 'Слушатель',
   admin: 'Администратор',
 };
 
