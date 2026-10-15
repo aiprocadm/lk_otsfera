@@ -48,16 +48,6 @@ vi.mock('@/components/manager/my-kpi-grid', () => ({
     ),
 }));
 
-vi.mock('@/components/manager/manager-attention-list', () => ({
-  ManagerAttentionList: (props: { items: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'attention-list' }, JSON.stringify(props.items)),
-}));
-
-vi.mock('@/components/manager/manager-events-feed', () => ({
-  ManagerEventsFeed: (props: { events: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'events-feed' }, JSON.stringify(props.events)),
-}));
-
 const SESSION = {
   sub: 'u1',
   role: 'manager' as const,
@@ -80,36 +70,39 @@ describe('ManagerDashboard', () => {
     isFeatureEnabled.mockReturnValue(false);
   });
 
-  it('fetches kpis/attention/events in parallel, resolving teamMode ONCE for all three', async () => {
+  it('kpis и «Мой день» получают один и тот же единожды прочитанный teamMode', async () => {
     requireManager.mockResolvedValue(SESSION);
     kpis.mockResolvedValue({ activeOrders: 1 });
-    attention.mockResolvedValue([{ id: 'a1' }]);
-    recentEvents.mockResolvedValue([{ id: 'e1' }]);
 
     const { container } = await renderServerComponent(ManagerDashboard());
 
     expect(requireManager).toHaveBeenCalled();
-    // R2: один рид флага на запрос, прокинутый во все три сервиса — вместо
-    // трёх одинаковых внутри kpis/attention/recentEvents.
+    // R2: один рид флага на запрос, прокинутый во все сервисы, — вместо
+    // одинаковых внутри каждого.
     expect(getCompanyTeamVisibility).toHaveBeenCalledTimes(1);
     expect(getCompanyTeamVisibility).toHaveBeenCalledWith({}, 'c1');
     expect(kpis).toHaveBeenCalledWith({}, SESSION, true);
-    expect(attention).toHaveBeenCalledWith({}, SESSION, true);
-    expect(recentEvents).toHaveBeenCalledWith({}, SESSION, undefined, true);
     // «Мой день» получает тот же единожды прочитанный teamMode.
     expect(getMyDay).toHaveBeenCalledWith({}, SESSION, true);
     expect(container.textContent).toContain('tasksToday');
     expect(container.textContent).toContain('Главная');
     expect(container.textContent).toContain('activeOrders');
-    expect(container.textContent).toContain('a1');
-    expect(container.textContent).toContain('e1');
+  });
+
+  it('этап 4 ТЗ 13.10.2026 (`У-297`, `Р-4-6`): списка «Требует внимания» и ленты событий на главной нет', async () => {
+    requireManager.mockResolvedValue(SESSION);
+    kpis.mockResolvedValue({});
+    const { container } = await renderServerComponent(ManagerDashboard());
+    // Дублировали «Мой день» — их сервисы даже не зовутся.
+    expect(attention).not.toHaveBeenCalled();
+    expect(recentEvents).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain('Ничего срочного');
+    expect(container.textContent).not.toContain('Нет событий за последний период');
   });
 
   it('флаг выключен — блока «Мои KPI» нет и считать его не начинают', async () => {
     requireManager.mockResolvedValue(SESSION);
     kpis.mockResolvedValue({});
-    attention.mockResolvedValue([]);
-    recentEvents.mockResolvedValue([]);
 
     const { queryByTestId } = await renderServerComponent(ManagerDashboard());
 
@@ -122,8 +115,6 @@ describe('ManagerDashboard', () => {
     isFeatureEnabled.mockReturnValue(true);
     requireManager.mockResolvedValue(SESSION);
     kpis.mockResolvedValue({});
-    attention.mockResolvedValue([]);
-    recentEvents.mockResolvedValue([]);
 
     const { getByTestId } = await renderServerComponent(ManagerDashboard());
 
@@ -141,8 +132,6 @@ describe('ManagerDashboard', () => {
     requireManager.mockResolvedValue({ sub: 'u2', role: 'manager' as const });
     getCompanyTeamVisibility.mockResolvedValue(false);
     kpis.mockResolvedValue({});
-    attention.mockResolvedValue([]);
-    recentEvents.mockResolvedValue([]);
 
     const { queryByTestId, container } = await renderServerComponent(ManagerDashboard());
 
@@ -151,11 +140,9 @@ describe('ManagerDashboard', () => {
     expect(container.textContent).toContain('Главная');
   });
 
-  it('renders with empty attention/events arrays', async () => {
+  it('renders with empty kpis', async () => {
     requireManager.mockResolvedValue(SESSION);
     kpis.mockResolvedValue({});
-    attention.mockResolvedValue([]);
-    recentEvents.mockResolvedValue([]);
 
     const { container } = await renderServerComponent(ManagerDashboard());
 

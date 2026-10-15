@@ -1,11 +1,10 @@
 import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { managerOrderScope, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
-import { THIRTY_DAYS_MS, THREE_DAYS_MS, ACTIVE_EXEC, TERMINAL_EXEC } from './constants';
+import { orderFocusWhere } from '@/lib/services/manager/orderFocus';
 
 export type KpiData = {
   activeOrders: number;
-  activeOrdersDelta: number;
   attentionCount: number;
   unreadComments: number;
   urgentDeadlines: number;
@@ -14,6 +13,12 @@ export type KpiData = {
 /**
  * KPI counts for the manager dashboard, scoped to orders the manager can see
  * via the three-way scope filter (per-order, per-org, comments-history).
+ *
+ * Этап 4 ТЗ 13.10.2026 (`У-297`, `Р-4-3`): три заказных плитки считаются
+ * условиями «фокуса» списка заказов (`orderFocusWhere`) — тем же, что фильтрует
+ * список после перехода, поэтому число на плитке равно числу строк. Разница
+ * «±N за 30 дней» убрана вместе с её запросом: подпись «/ 30д» была непонятна
+ * (`Р-4-5`).
  */
 export async function kpis(
   prisma: PrismaClient,
@@ -23,55 +28,19 @@ export async function kpis(
   const teamMode = teamModeOverride ?? (await getCompanyTeamVisibility(prisma, session.companyId));
   const scope = managerOrderScope(session, teamMode);
   const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - THIRTY_DAYS_MS);
-  const threeDaysAhead = new Date(now.getTime() + THREE_DAYS_MS);
 
-  const [activeOrders, activeOrders30dAgo, attentionCount, unreadComments, urgentDeadlines] =
-    await Promise.all([
-      prisma.order.count({
-        where: { AND: [scope, { executionStatus: { in: [...ACTIVE_EXEC] } }] },
-      }),
-      prisma.order.count({
-        where: {
-          AND: [
-            scope,
-            { executionStatus: { in: [...ACTIVE_EXEC] } },
-            { createdAt: { lte: thirtyDaysAgo } },
-          ],
-        },
-      }),
-      prisma.order.count({
-        where: {
-          AND: [
-            scope,
-            { deadline: { lt: now } },
-            { executionStatus: { notIn: [...TERMINAL_EXEC] } },
-          ],
-        },
-      }),
-      prisma.notification.count({
-        where: {
-          userId: session.sub,
-          isRead: false,
-          type: 'comment_from_org',
-        },
-      }),
-      prisma.order.count({
-        where: {
-          AND: [
-            scope,
-            { deadline: { gte: now, lt: threeDaysAhead } },
-            { executionStatus: { notIn: [...TERMINAL_EXEC] } },
-          ],
-        },
-      }),
-    ]);
+  const [activeOrders, attentionCount, unreadComments, urgentDeadlines] = await Promise.all([
+    prisma.order.count({ where: { AND: [scope, orderFocusWhere('active', now)] } }),
+    prisma.order.count({ where: { AND: [scope, orderFocusWhere('overdue', now)] } }),
+    prisma.notification.count({
+      where: {
+        userId: session.sub,
+        isRead: false,
+        type: 'comment_from_org',
+      },
+    }),
+    prisma.order.count({ where: { AND: [scope, orderFocusWhere('due_soon', now)] } }),
+  ]);
 
-  return {
-    activeOrders,
-    activeOrdersDelta: activeOrders - activeOrders30dAgo,
-    attentionCount,
-    unreadComments,
-    urgentDeadlines,
-  };
+  return { activeOrders, attentionCount, unreadComments, urgentDeadlines };
 }

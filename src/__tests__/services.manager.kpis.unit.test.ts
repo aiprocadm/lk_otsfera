@@ -30,15 +30,10 @@ const SESSION: SessionPayload = {
   companyId: 'co-1',
 };
 
-function fakePrismaParallel(
-  activeOrders = 5,
-  activeOld = 2,
-  attention = 3,
-  unread = 1,
-  urgent = 0
-) {
+function fakePrismaParallel(activeOrders = 5, attention = 3, unread = 1, urgent = 0) {
   let orderCallIdx = 0;
-  const counts = [activeOrders, activeOld, attention, urgent]; // 3 order counts + urgentDeadlines
+  // Порядок запросов: в работе, просрочено, (уведомления), срок в 3 дня.
+  const counts = [activeOrders, attention, urgent];
   return {
     order: {
       count: vi.fn().mockImplementation(() => Promise.resolve(counts[orderCallIdx++] ?? 0)),
@@ -71,30 +66,24 @@ describe('kpis', () => {
   });
 
   it('returns correct KpiData shape', async () => {
-    const p = fakePrismaParallel(10, 3, 2, 5, 1);
+    const p = fakePrismaParallel(10, 2, 5, 1);
     const result = await kpis(p, SESSION, false);
-    expect(result).toMatchObject({
-      activeOrders: expect.any(Number),
-      activeOrdersDelta: expect.any(Number),
-      attentionCount: expect.any(Number),
-      unreadComments: expect.any(Number),
-      urgentDeadlines: expect.any(Number),
+    expect(result).toEqual({
+      activeOrders: 10,
+      attentionCount: 2,
+      unreadComments: 5,
+      urgentDeadlines: 1,
     });
   });
 
-  it('activeOrdersDelta = activeOrders - activeOrders30dAgo', async () => {
-    // Active now = 8, active 30d ago = 5, delta = 3
-    let orderCall = 0;
-    const orderCount = vi.fn().mockImplementation(() => {
-      const values = [8, 5, 0, 0]; // activeOrders, activeOrders30dAgo, attentionCount, urgentDeadlines
-      return Promise.resolve(values[orderCall++] ?? 0);
-    });
-    const p = {
-      order: { count: orderCount },
-      notification: { count: vi.fn().mockResolvedValue(0) },
-      company: { findUnique: vi.fn() },
-    } as never;
-    const result = await kpis(p, SESSION, false);
-    expect(result.activeOrdersDelta).toBe(3); // 8 - 5
+  it('этап 4 ТЗ 13.10.2026 (`У-297`): плитки считаются условиями фокуса списка заказов', async () => {
+    const p = fakePrismaParallel() as unknown as { order: { count: ReturnType<typeof vi.fn> } };
+    await kpis(p as never, SESSION, false);
+    const wheres = p.order.count.mock.calls.map((c) => c[0].where.AND[1]);
+    expect(wheres[0]).toEqual({ executionStatus: { in: ['pending', 'in_progress'] } });
+    expect(JSON.stringify(wheres[1])).toContain('"lt"');
+    expect(JSON.stringify(wheres[2])).toContain('"gte"');
+    // Разница «за 30 дней» больше не запрашивается.
+    expect(p.order.count).toHaveBeenCalledTimes(3);
   });
 });

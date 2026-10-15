@@ -19,30 +19,24 @@ import type { KpiData } from '@/lib/services/manager/dashboard';
 
 const base: KpiData = {
   activeOrders: 5,
-  activeOrdersDelta: 0,
   attentionCount: 0,
   unreadComments: 2,
   urgentDeadlines: 1,
 };
 
 describe('ManagerKpiGrid', () => {
-  it('delta === 0 renders the ±0 label', () => {
+  it('этап 4 ТЗ 13.10.2026 (`У-297`): понятные названия и у каждой плитки свой фильтр', () => {
     const html = renderToString(React.createElement(ManagerKpiGrid, { data: base }));
-    expect(html).toContain('±0 / 30д');
-  });
-
-  it('positive delta renders a leading +', () => {
-    const html = renderToString(
-      React.createElement(ManagerKpiGrid, { data: { ...base, activeOrdersDelta: 3 } })
-    );
-    expect(html).toContain('+3 / 30д');
-  });
-
-  it('negative delta renders without an extra sign (native minus)', () => {
-    const html = renderToString(
-      React.createElement(ManagerKpiGrid, { data: { ...base, activeOrdersDelta: -2 } })
-    );
-    expect(html).toContain('-2 / 30д');
+    expect(html).toContain('Заказы в работе');
+    expect(html).toContain('Просроченные заказы');
+    expect(html).toContain('Срок в ближайшие 3 дня');
+    expect(html).toContain('href="/manager/orders?focus=active"');
+    expect(html).toContain('href="/manager/orders?focus=overdue"');
+    expect(html).toContain('href="/manager/orders?focus=due_soon"');
+    // Ни одна заказная плитка не ведёт в список без фильтра.
+    expect(html).not.toContain('href="/manager/orders"');
+    // Прежние неясные подписи не вернулись.
+    expect(html).not.toMatch(/Активные заказы|Требует внимания|Срочные дедлайны|\/ 30д/);
   });
 
   it('attentionCount > 0 sets accent on the card', () => {

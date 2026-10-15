@@ -3,12 +3,8 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { managerOrderScope, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { taskFiltersWhere } from '@/lib/services/tasks/board';
 import { dealScopeWhere } from '@/lib/services/deals/board';
-import { countIntake, intakeInboundWhere, intakeCallWhere } from '@/lib/services/intake/list';
-import {
-  READINESS_SELECT,
-  evaluateReadinessBatch,
-  type OrderForReadiness,
-} from '@/lib/services/manager/orderDelivery';
+import { countIntake, countIntakeSla } from '@/lib/services/intake/list';
+import { readyToDeliverOrders } from '@/lib/services/manager/orderFocus';
 import { startOfMoscowDay } from '@/lib/dates/calendar';
 import { dueWithinDaysWhere } from '@/lib/tasks/due';
 import { DIALOG_STATUS } from '@/lib/services/messengers/dialogStatus';
@@ -24,13 +20,15 @@ import { ONE_DAY_MS } from './dashboard/constants';
  * здесь не появляется — это витрина, а не новый домен.
  *
  * «Готово к передаче» (решение заказчика §5-2 спеки этапа 11) = чек-лист
- * закрыт **и** кнопка передачи не нажата. Считается той же
- * `evaluateReadinessBatch`, что и блок на деталке заказа (этап 12), — второй
- * реализации правил готовности в проекте нет.
+ * закрыт **и** кнопка передачи не нажата. Считается `readyToDeliverOrders`
+ * (`orderFocus.ts`) — тем же, чем фильтруется список «Заказы» по ссылке с
+ * карточки (этап 4 ТЗ 13.10.2026, `У-295`): число на карточке = число строк.
+ *
+ * Этап 4 ТЗ 13.10.2026 (`У-293`, `У-294`, `У-296`): «Поступило» и «Свежие
+ * обращения» стали одной карточкой — вся очередь «Входящие в работу» со
+ * сроками ответа; «Шагов в чек-листах» убрано.
  */
 
-/** Сколько заказов проверяем на готовность за раз (витрина, не отчёт). */
-const READINESS_SCAN_CAP = 200;
 /** Сколько заказов показываем ссылками в карточке. */
 const READY_PREVIEW = 5;
 
@@ -39,7 +37,11 @@ type MyDayDeal = { stageName: string; count: number };
 export type MyDayData = {
   tasksToday: number;
   tasksOverdue: number;
+  /** Вся очередь «Входящие в работу» — тот же счётчик, что у пункта меню. */
   intake: number;
+  /** Из неё: срок ответа наступит в ближайший час / уже прошёл (`У-294`). */
+  intakeDueWithinHour: number;
+  intakeOverdue: number;
   readyToDeliver: number;
   /** Первые несколько готовых заказов — прямыми ссылками. */
   readyOrders: { id: string; orderNumber: string | null; title: string }[];
@@ -47,28 +49,13 @@ export type MyDayData = {
   readyTruncated: boolean;
   dealsOpen: number;
   dealsByStage: MyDayDeal[];
-  inboundFresh: number;
   /**
-   * Входящие звонки, которые ещё никто не разобрал (`Р-Э7-6`, этап 7).
-   *
-   * Раньше поле звалось «пропущенные», и это было НЕ ТО: расчёт
-   * (`intakeCallWhere`) смотрит на очередь разбора — входящий, без организации,
-   * без контакта, не закрыт, без лида — и поля `answeredAt` не касается вовсе.
-   * Звонок, на который ответили и просто не разобрали, попадал в «пропущенные»;
-   * настоящий пропуск с привязанной организацией — не попадал. Счётчик полезен
-   * как есть, врало название. Настоящие принятые и пропущенные считаются во
-   * вкладке «Коммуникации» по `answeredAt` (`У-243`).
-   */
-  callsUnsorted: number;
-  /**
-   * `У-226` (этап 4). Четыре вещи, которых в «Моём дне» не хватало: переписка,
-   * где клиент ждёт ответа именно от меня; коммерческие предложения, у которых
-   * срок вот-вот истечёт; сколько шагов чек-листов осталось в моих задачах;
-   * события календаря на сегодня.
+   * `У-226` (этап 4 ТЗ 12.09.2026): переписка, где клиент ждёт ответа именно от
+   * меня; коммерческие предложения, у которых срок вот-вот истечёт; события
+   * календаря на сегодня.
    */
   dialogsWaiting: number;
   proposalsExpiring: number;
-  checklistOpen: number;
   eventsToday: number;
 };
 
@@ -92,42 +79,6 @@ function dayBounds(now: Date): { start: Date; end: Date } {
   return { start, end };
 }
 
-/**
- * Заказы, готовые к передаче: не переданные и не отменённые (передавать
- * нечего), в скоупе менеджера. Готовность считается в памяти — правила живут в
- * одной чистой функции, дублировать их SQL-ом нельзя.
- */
-async function readyToDeliverOrders(
-  prisma: PrismaClient,
-  session: SessionPayload,
-  teamMode: boolean
-): Promise<{ total: number; preview: MyDayData['readyOrders'] }> {
-  const orders = await prisma.order.findMany({
-    where: {
-      AND: [
-        managerOrderScope(session, teamMode),
-        { resultDeliveredAt: null },
-        { executionStatus: { not: 'cancelled' } },
-      ],
-    },
-    select: READINESS_SELECT,
-    orderBy: { updatedAt: 'desc' },
-    take: READINESS_SCAN_CAP,
-  });
-
-  const readiness = await evaluateReadinessBatch(prisma, orders as OrderForReadiness[]);
-  // evaluateReadinessBatch — это orders.map(): длины массивов совпадают.
-  const ready = orders.filter((_, i) => readiness[i]!.ready);
-  return {
-    total: ready.length,
-    preview: ready.slice(0, READY_PREVIEW).map((o) => ({
-      id: o.id,
-      orderNumber: o.orderNumber,
-      title: o.title,
-    })),
-  };
-}
-
 export async function getMyDay(
   prisma: PrismaClient,
   session: SessionPayload,
@@ -137,19 +88,16 @@ export async function getMyDay(
   const teamMode = teamModeOverride ?? (await getCompanyTeamVisibility(prisma, session.companyId));
   const now = nowOverride ?? new Date();
   const { start, end } = dayBounds(now);
-  const dayAgo = new Date(now.getTime() - ONE_DAY_MS);
 
   const [
     tasksToday,
     tasksOverdue,
     intake,
+    intakeSla,
     ready,
     dealsGrouped,
-    inboundFresh,
-    callsUnsorted,
     dialogsWaiting,
     proposalsExpiring,
-    checklistOpen,
     eventsToday,
   ] = await Promise.all([
     prisma.task.count({
@@ -164,17 +112,12 @@ export async function getMyDay(
       where: taskFiltersWhere(session, { scope: 'mine', overdue: true }, now),
     }),
     countIntake(prisma, session),
-    readyToDeliverOrders(prisma, session, teamMode),
+    countIntakeSla(prisma, session, now),
+    readyToDeliverOrders(prisma, managerOrderScope(session, teamMode)),
     prisma.deal.groupBy({
       by: ['stageId'],
       where: { AND: [dealScopeWhere(session, { managerId: session.sub }), { status: 'open' }] },
       _count: { _all: true },
-    }),
-    prisma.inboundMessage.count({
-      where: { AND: [intakeInboundWhere(session), { createdAt: { gte: dayAgo } }] },
-    }),
-    prisma.call.count({
-      where: { AND: [intakeCallWhere(session), { startedAt: { gte: dayAgo } }] },
     }),
     // `У-226`: переписка ждёт ответа. Считаем МОИ диалоги — те, где я
     // ответственный: общая очередь ничейных это работа дежурного, а не моя
@@ -199,16 +142,6 @@ export async function getMyDay(
         type: 'commercial_proposal',
         status: 'sent',
         validUntil: dueWithinDaysWhere(now, PROPOSAL_SOON_DAYS),
-      },
-    }),
-    // Невыполненные шаги в моих незавершённых задачах — «сколько мелочи
-    // осталось», а не «сколько задач».
-    prisma.taskChecklistItem.count({
-      where: {
-        isDone: false,
-        task: {
-          AND: [taskFiltersWhere(session, { scope: 'mine' }, now), { status: { not: 'done' } }],
-        },
       },
     }),
     // События календаря на сегодня — мои и те, куда меня позвали.
@@ -246,16 +179,15 @@ export async function getMyDay(
     tasksToday,
     tasksOverdue,
     intake,
-    readyToDeliver: ready.total,
-    readyOrders: ready.preview,
-    readyTruncated: ready.total > ready.preview.length,
+    intakeDueWithinHour: intakeSla.dueWithinHour,
+    intakeOverdue: intakeSla.overdue,
+    readyToDeliver: ready.length,
+    readyOrders: ready.slice(0, READY_PREVIEW),
+    readyTruncated: ready.length > READY_PREVIEW,
     dealsOpen: dealsByStage.reduce((sum, s) => sum + s.count, 0),
     dealsByStage,
-    inboundFresh,
-    callsUnsorted,
     dialogsWaiting,
     proposalsExpiring,
-    checklistOpen,
     eventsToday,
   };
 }

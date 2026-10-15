@@ -32,6 +32,8 @@ type Props = {
     organizationId?: string;
     companyId?: string;
     unassigned?: string;
+    /** Этап 4 ТЗ 13.10.2026 (`Р-4-3`): поиск внутри фокуса его не сбрасывает. */
+    focus?: string | undefined;
   };
   basePath?: string;
   /** §10 ТЗ v0.5: рабочие статусы из справочника для выпадающего списка. */
@@ -66,6 +68,7 @@ export function ManagerOrdersFilter({
       action={`${basePath}/orders`}
       className="bg-white border border-gray-200 rounded-xl p-3 flex flex-col md:flex-row md:items-center gap-2"
     >
+      {initial.focus && <input type="hidden" name="focus" value={initial.focus} />}
       <input
         type="search"
         name="search"

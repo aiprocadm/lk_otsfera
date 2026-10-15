@@ -84,6 +84,17 @@ describe('ManagerOrdersTable', () => {
     expect(html).toContain('cursor=cur1');
   });
 
+  it('этап 4 ТЗ 13.10.2026: фокус с главной переживает листание', () => {
+    const html = renderToString(
+      React.createElement(ManagerOrdersTable, {
+        rows: [makeRow({})],
+        nextCursor: 'cur1',
+        searchParams: { focus: 'due_soon' },
+      })
+    );
+    expect(html).toContain('focus=due_soon');
+  });
+
   it('сохраняет unassigned=1 в ссылке «Дальше» (фильтр переживает пагинацию)', () => {
     const rows = [makeRow({})];
     const html = renderToString(

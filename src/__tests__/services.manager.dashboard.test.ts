@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import { kpis, attention, recentEvents } from '@/lib/services/manager/dashboard';
+import { kpis, recentEvents } from '@/lib/services/manager/dashboard';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 let prisma: PrismaClient;
@@ -115,7 +115,6 @@ describe('manager dashboard service — kpis', () => {
     const k = await kpis(prisma, session);
     expect(k).toEqual({
       activeOrders: 0,
-      activeOrdersDelta: 0,
       attentionCount: 0,
       unreadComments: 0,
       urgentDeadlines: 0,
@@ -270,153 +269,6 @@ describe('manager dashboard service — kpis', () => {
     const session = managerSession(managerUserId, [managedOrgId]);
     const k = await kpis(prisma, session);
     expect(k.unreadComments).toBe(1);
-  });
-});
-
-describe('manager dashboard service — attention', () => {
-  it('returns empty for assignmentless manager with no own assignments and no comment history', async () => {
-    const session = managerSession(assignmentlessManagerUserId, []);
-    const items = await attention(prisma, session);
-    expect(items).toEqual([]);
-  });
-
-  it('surfaces overdue orders as urgent and stalled in_progress orders as warn, with urgent first', async () => {
-    const now = Date.now();
-    const yesterday = new Date(now - 24 * 3600 * 1000);
-    const monthAgo = new Date(now - 30 * 24 * 3600 * 1000);
-
-    const overdueOrder = await prisma.order.create({
-      data: {
-        title: `Attn-Overdue-${now}`,
-        orderNumber: `ATTN-OD-${now}`,
-        companyId,
-        partnerId,
-        organizationId: managedOrgId,
-        executionStatus: 'in_progress',
-        deadline: yesterday,
-      },
-    });
-    const stalledOrder = await prisma.order.create({
-      data: {
-        title: `Attn-Stalled-${now}`,
-        orderNumber: `ATTN-ST-${now}`,
-        companyId,
-        partnerId,
-        organizationId: managedOrgId,
-        executionStatus: 'in_progress',
-      },
-    });
-    // Backdate updatedAt to >14d ago.
-    await prisma.order.update({
-      where: { id: stalledOrder.id },
-      data: { updatedAt: monthAgo },
-    });
-
-    const session = managerSession(managerUserId, [managedOrgId]);
-    const items = await attention(prisma, session);
-
-    const overdueItems = items.filter((i) => i.kind === 'order_overdue');
-    const stalledItems = items.filter((i) => i.kind === 'order_stalled');
-    expect(overdueItems.some((i) => i.id === `overdue-${overdueOrder.id}`)).toBe(true);
-    expect(stalledItems.some((i) => i.id === `stalled-${stalledOrder.id}`)).toBe(true);
-
-    // urgent before warn
-    const firstWarnIdx = items.findIndex((i) => i.severity === 'warn');
-    const lastUrgentIdx = items.map((i) => i.severity).lastIndexOf('urgent');
-    if (firstWarnIdx !== -1 && lastUrgentIdx !== -1) {
-      expect(lastUrgentIdx).toBeLessThan(firstWarnIdx);
-    }
-  });
-
-  it('surfaces unsigned act documents > 3 days old as warn', async () => {
-    const now = Date.now();
-    const fiveDaysAgo = new Date(now - 5 * 24 * 3600 * 1000);
-    const order = await prisma.order.create({
-      data: {
-        title: `Attn-ActOrder-${now}`,
-        orderNumber: `ATTN-ACT-${now}`,
-        companyId,
-        partnerId,
-        organizationId: managedOrgId,
-        executionStatus: 'in_progress',
-      },
-    });
-    const doc = await prisma.document.create({
-      data: {
-        name: `act-${now}.pdf`,
-        path: `fake://act-${now}`,
-        mimeType: 'application/pdf',
-        type: 'act',
-        orderId: order.id,
-        companyId,
-        counterpartyType: 'organization',
-        counterpartyId: managedOrgId,
-      },
-    });
-    await prisma.document.update({
-      where: { id: doc.id },
-      data: { createdAt: fiveDaysAgo },
-    });
-
-    const session = managerSession(managerUserId, [managedOrgId]);
-    const items = await attention(prisma, session);
-    const acts = items.filter((i) => i.kind === 'act_unsigned');
-    expect(acts.some((i) => i.id === `act-${doc.id}`)).toBe(true);
-    expect(acts[0]?.severity).toBe('warn');
-  });
-
-  it('surfaces org-author comments >24h without manager reply as urgent', async () => {
-    const now = Date.now();
-    const twoDaysAgo = new Date(now - 2 * 24 * 3600 * 1000);
-
-    const order = await prisma.order.create({
-      data: {
-        title: `Attn-CmtOrder-${now}`,
-        orderNumber: `ATTN-CMT-${now}`,
-        companyId,
-        partnerId,
-        organizationId: managedOrgId,
-        executionStatus: 'in_progress',
-      },
-    });
-
-    const oldOrgComment = await prisma.comment.create({
-      data: {
-        orderId: order.id,
-        body: 'нужна помощь',
-        authorId: orgUserId,
-      },
-    });
-    await prisma.comment.update({
-      where: { id: oldOrgComment.id },
-      data: { createdAt: twoDaysAgo },
-    });
-
-    const session = managerSession(managerUserId, [managedOrgId]);
-    const items = await attention(prisma, session);
-    const unreplied = items.filter((i) => i.kind === 'org_comment_unreplied');
-    expect(unreplied.length).toBeGreaterThanOrEqual(1);
-    expect(unreplied[0]?.severity).toBe('urgent');
-  });
-
-  it('does NOT include orders from foreign organizations', async () => {
-    const now = Date.now();
-    const yesterday = new Date(now - 24 * 3600 * 1000);
-    const foreignOrder = await prisma.order.create({
-      data: {
-        title: `Attn-Foreign-${now}`,
-        orderNumber: `ATTN-F-${now}`,
-        companyId,
-        partnerId: foreignPartnerId,
-        organizationId: foreignOrgId,
-        executionStatus: 'in_progress',
-        deadline: yesterday,
-      },
-    });
-
-    const session = managerSession(managerUserId, [managedOrgId]);
-    const items = await attention(prisma, session);
-    expect(items.some((i) => i.id === `overdue-${foreignOrder.id}`)).toBe(false);
   });
 });
 

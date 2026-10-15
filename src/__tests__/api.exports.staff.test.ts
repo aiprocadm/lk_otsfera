@@ -145,6 +145,17 @@ describe('GET /api/manager/orders/export', () => {
     expect(wb.worksheets[0]!.name).toBe('Заказы');
   });
 
+  it('этап 4 ТЗ 13.10.2026 (`Р-4-3`): фокус экрана уходит в выгрузку, незнакомый — нет', async () => {
+    getSession.mockResolvedValue(managerSession);
+    await ordersExport(req('http://x/e?focus=ready'));
+    expect(listOrdersForExport).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ focus: 'ready' })
+    );
+    await ordersExport(req('http://x/e?focus=__proto__'));
+    expect(listOrdersForExport.mock.lastCall![1]).not.toHaveProperty('focus');
+  });
+
   it('пустые фильтры не превращаются в пустые строки', async () => {
     getSession.mockResolvedValue(managerSession);
     await ordersExport(req('http://x/e?search=&unassigned=0'));

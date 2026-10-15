@@ -117,6 +117,50 @@ describe('ManagerOrdersPage', () => {
   });
 });
 
+// ─── Этап 4 ТЗ 13.10.2026 (`У-295`, `У-297`, `Р-4-3`): фокус с карточки главной ─
+
+describe('ManagerOrdersPage — фокус с карточки главной', () => {
+  beforeEach(() => {
+    requireManager.mockReset();
+    listOrders.mockReset();
+    listOrganizations.mockReset();
+    requireManager.mockResolvedValue(SESSION);
+    listOrders.mockResolvedValue({ rows: [], nextCursor: null });
+    listOrganizations.mockResolvedValue([]);
+  });
+
+  it('фокус уходит в сервис, в форму, в листание и в выгрузку; видна пометка с «Сбросить»', async () => {
+    const { container } = await renderServerComponent(
+      ManagerOrdersPage({ searchParams: Promise.resolve({ focus: 'overdue', search: 'x' }) })
+    );
+    expect(listOrders).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ session: SESSION, focus: 'overdue', search: 'x' })
+    );
+    const mark = container.querySelector('[data-testid="orders-focus"]');
+    expect(mark?.textContent).toContain('Показаны: Просроченные заказы');
+    expect(mark?.querySelector('a[href="/manager/orders"]')?.textContent).toBe('Сбросить');
+    expect(container.querySelector('[data-testid="orders-filter"]')?.textContent).toContain(
+      '"focus":"overdue"'
+    );
+    expect(container.querySelector('[data-testid="orders-table"]')?.textContent).toContain(
+      '"focus":"overdue"'
+    );
+    expect(
+      container.querySelector('a[href*="/api/manager/orders/export"]')?.getAttribute('href')
+    ).toContain('focus=overdue');
+  });
+
+  it('незнакомый фокус из адреса — как будто его нет, без пометки и без ошибки', async () => {
+    const { container } = await renderServerComponent(
+      ManagerOrdersPage({ searchParams: Promise.resolve({ focus: 'всё-сразу' }) })
+    );
+    const opts = listOrders.mock.calls[0][1] as Record<string, unknown>;
+    expect(opts).not.toHaveProperty('focus');
+    expect(container.querySelector('[data-testid="orders-focus"]')).toBeNull();
+  });
+});
+
 // ─── Этап 9 PR-3 (ФТ-12.2): кнопка выгрузки заказов ──────────────────────────
 
 describe('ManagerOrdersPage — выгрузка в Excel', () => {

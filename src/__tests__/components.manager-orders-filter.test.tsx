@@ -27,6 +27,17 @@ describe('ManagerOrdersFilter', () => {
     expect(html).toContain('action="/manager/orders"');
   });
 
+  it('этап 4 ТЗ 13.10.2026 (`Р-4-3`): поиск внутри фокуса его не сбрасывает', () => {
+    const withFocus = renderToString(
+      React.createElement(ManagerOrdersFilter, { orgs: [], initial: { focus: 'overdue' } })
+    );
+    expect(withFocus).toContain('type="hidden" name="focus" value="overdue"');
+    const without = renderToString(
+      React.createElement(ManagerOrdersFilter, { orgs: [], initial: {} })
+    );
+    expect(without).not.toContain('name="focus"');
+  });
+
   it('без активных фильтров ссылка "Сбросить" не рендерится', () => {
     const html = renderToString(
       React.createElement(ManagerOrdersFilter, { orgs: [], initial: {} })

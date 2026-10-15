@@ -3,6 +3,7 @@ import { isManagerLeader, isStaffManagerSide } from '@/lib/auth/roleModel';
 import { getSession } from '@/lib/auth/session';
 import { prisma } from '@/lib/db/prisma';
 import { listOrdersForExport } from '@/lib/services/manager/orders';
+import { isOrderFocus, type OrderFocus } from '@/lib/orders/focus';
 import { renderOrdersXlsx } from '@/lib/services/orders/xlsx';
 
 /**
@@ -34,6 +35,10 @@ export async function GET(req: Request) {
     financialStatus: url.searchParams.get('financialStatus') || undefined,
     organizationId: url.searchParams.get('organizationId') || undefined,
     unassigned: url.searchParams.get('unassigned') === '1' || undefined,
+    // Этап 4 ТЗ 13.10.2026 (`Р-4-3`): выгрузка уважает фокус экрана.
+    ...(isOrderFocus(url.searchParams.get('focus'))
+      ? { focus: url.searchParams.get('focus') as OrderFocus }
+      : {}),
     ...(companyWide ? { teamModeOverride: true } : {}),
   });
 
