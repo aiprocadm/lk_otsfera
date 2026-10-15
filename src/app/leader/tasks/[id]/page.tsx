@@ -5,6 +5,8 @@ import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
 import { getTaskDetail } from '@/lib/services/tasks/detail';
 import { TaskPageScreen } from '@/components/tasks/task-page-screen';
+import { TaskEditButton } from '@/components/tasks/task-edit-button';
+import { getTaskEditForm } from '@/lib/services/tasks/board';
 import { missingObjectHref } from '@/lib/navigation/missingObject';
 
 export const dynamic = 'force-dynamic';
@@ -24,5 +26,23 @@ export default async function LeaderTaskPage({ params }: { params: Promise<{ id:
   const result = await getTaskDetail(prisma, session, id);
   if (!result.ok) redirect(missingObjectHref('/leader/tasks'));
 
-  return <TaskPageScreen task={result.task} cabinet="leader" />;
+  // Этап 5 ТЗ 13.10.2026 (`У-302`): правка со страницы задачи — той же формой,
+  // что на доске; данные и охват даёт сервис доски.
+  const edit = await getTaskEditForm(prisma, session, id);
+  return (
+    <TaskPageScreen
+      task={result.task}
+      cabinet="leader"
+      edit={
+        edit.ok ? (
+          <TaskEditButton
+            card={edit.card}
+            columns={edit.columns}
+            options={edit.options}
+            listHref="/leader/tasks"
+          />
+        ) : null
+      }
+    />
+  );
 }

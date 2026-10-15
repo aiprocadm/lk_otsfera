@@ -48,7 +48,10 @@ const emptyOptions: TaskFormOptions = {
 };
 
 const fullOptions: TaskFormOptions = {
-  users: [{ id: 'u1', name: 'Иван Петров' }],
+  users: [
+    { id: 'u1', name: 'Иван Петров', email: 'ivan@co.test' },
+    { id: 'u2', name: 'Мария Сидорова', email: 'masha@co.test' },
+  ],
   organizations: [{ id: 'org1', name: 'ООО Ромашка' }],
   orders: [{ id: 'ord1', title: 'Заказ №1' }],
   organizationsTotal: 1,
@@ -173,10 +176,48 @@ describe('TaskDialog', () => {
     expect(screen.getByText('Нет доступных сотрудников.')).toBeTruthy();
   });
 
-  it('renders assignee checkboxes when options.users is non-empty', () => {
-    render(renderDialog({ target: null, columns, options: fullOptions, onClose, onSaved }));
-    expect(screen.getByRole('checkbox', { name: 'Иван Петров' })).toBeTruthy();
+  it('этап 5 ТЗ 13.10.2026 (`У-301`): исполнители — поиском по ФИО и e-mail, а не флажками', () => {
+    const { container } = render(
+      renderDialog({ target: null, columns, options: fullOptions, onClose, onSaved })
+    );
     expect(screen.queryByText('Нет доступных сотрудников.')).toBeNull();
+    expect(container.querySelector('input[type="checkbox"][name="assigneeIds"]')).toBeNull();
+    expect(screen.getByText('Пока никто не выбран.')).toBeTruthy();
+    const search = screen.getByLabelText('Исполнители');
+    // По e-mail.
+    fireEvent.change(search, { target: { value: 'MASHA@' } });
+    expect(screen.queryByRole('button', { name: /Иван Петров/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Мария Сидорова/ }));
+    expect(
+      (container.querySelector('input[type="hidden"][name="assigneeIds"]') as HTMLInputElement)
+        .value
+    ).toBe('u2');
+    // Выбранный больше не предлагается; поиск без совпадений — объяснение.
+    fireEvent.change(search, { target: { value: 'мария' } });
+    expect(screen.getByText('Никого не нашли — проверьте написание.')).toBeTruthy();
+    // По ФИО и убрать крестиком.
+    fireEvent.change(search, { target: { value: 'иван' } });
+    fireEvent.click(screen.getByRole('button', { name: /Иван Петров/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Убрать: Мария Сидорова' }));
+    const hidden = [...container.querySelectorAll('input[type="hidden"][name="assigneeIds"]')];
+    expect(hidden.map((i) => (i as HTMLInputElement).value)).toEqual(['u1']);
+  });
+
+  it('исполнитель, которого нет в списке (уволен), не теряется и подписан нейтрально', () => {
+    const { container } = render(
+      renderDialog({
+        target: { ...task, assigneeIds: ['gone'] },
+        columns,
+        options: fullOptions,
+        onClose,
+        onSaved,
+      })
+    );
+    expect(screen.getByRole('button', { name: 'Убрать: сотрудник' })).toBeTruthy();
+    expect(
+      (container.querySelector('input[type="hidden"][name="assigneeIds"]') as HTMLInputElement)
+        .value
+    ).toBe('gone');
   });
 
   it('edit mode: shows "Задача" title, pre-filled fields, and the delete button', async () => {
@@ -188,10 +229,8 @@ describe('TaskDialog', () => {
     expect(descInput.value).toBe('Срочно');
     const dueInput = screen.getByLabelText('Срок') as HTMLInputElement;
     expect(dueInput.value).toBe('2026-08-15');
-    const assigneeCheckbox = screen.getByRole('checkbox', {
-      name: 'Иван Петров',
-    }) as HTMLInputElement;
-    expect(assigneeCheckbox.checked).toBe(true);
+    // Текущий исполнитель — выбран плашкой.
+    expect(screen.getByRole('button', { name: 'Убрать: Иван Петров' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Удалить' })).toBeTruthy();
   });
 
@@ -322,6 +361,18 @@ describe('TaskDialog', () => {
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
   });
 
+  it('этап 5 ТЗ 13.10.2026 (`У-302`): со страницы задачи удаление уводит в список, а не обновляет страницу', async () => {
+    deleteTaskAction.mockResolvedValue({ ok: true });
+    const onDeleted = vi.fn();
+    render(
+      renderDialog({ target: task, columns, options: fullOptions, onClose, onSaved, onDeleted })
+    );
+    await screen.findByText('Задача');
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить' }));
+    await waitFor(() => expect(onDeleted).toHaveBeenCalledTimes(1));
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
   it('delete flow: error path toasts the mapped message and does not call onSaved', async () => {
     deleteTaskAction.mockResolvedValue({ ok: false, error: 'forbidden' });
     render(renderDialog({ target: task, columns, options: fullOptions, onClose, onSaved }));
@@ -434,6 +485,14 @@ describe('TaskDialog — повторение', () => {
     );
     const freq = container.querySelector('select[name="recurrenceFreq"]') as HTMLSelectElement;
     expect(freq.value).toBe('');
+    // Этап 5 ТЗ 13.10.2026 (`У-300`, `Д-58`): поля повторения — только после выбора.
+    expect(container.querySelector('input[name="recurrenceInterval"]')).toBeNull();
+    expect(container.querySelector('input[name="recurrenceUntil"]')).toBeNull();
+    fireEvent.change(freq, { target: { value: 'weekly' } });
+    expect(screen.getByLabelText('Каждые (раз в сколько)')).toBeTruthy();
+    expect(screen.getByLabelText('Повторять до (необязательно)')).toBeTruthy();
+    fireEvent.change(freq, { target: { value: '' } });
+    expect(container.querySelector('input[name="recurrenceInterval"]')).toBeNull();
     expect(container.querySelector('input[name="recurrenceScope"]')).toBeNull();
     expect(screen.getByText(/будет создаваться заново по расписанию/)).toBeTruthy();
   });
