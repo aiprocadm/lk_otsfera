@@ -18,7 +18,7 @@ vi.mock('@/server-actions/manager/leads', () => ({ createOrgFromLeadAction }));
 import { CreateOrgFromLeadButton } from '@/components/manager/create-org-from-lead-button';
 
 /**
- * `У-161` — «Завести организацию» на карточке лида.
+ * `У-161` — «Создать организацию» на карточке лида (`У-289`).
  *
  * Проверяем то, что человек читает после нажатия: он должен понять, создали
  * ему карточку или привязали существующую (у второй уже есть чужая история) и
@@ -35,7 +35,7 @@ describe('CreateOrgFromLeadButton', () => {
       transferred: 2,
     });
     render(React.createElement(CreateOrgFromLeadButton, { leadId: 'lead-1' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Завести организацию' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Создать организацию' }));
     await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
     expect(String(toastSuccess.mock.calls[0]![0])).toContain('Организация создана');
 
@@ -47,7 +47,7 @@ describe('CreateOrgFromLeadButton', () => {
       transferred: 0,
     });
     render(React.createElement(CreateOrgFromLeadButton, { leadId: 'lead-2' }));
-    fireEvent.click(screen.getAllByRole('button', { name: 'Завести организацию' })[0]!);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Создать организацию' })[0]!);
     await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
     expect(String(toastSuccess.mock.calls[0]![0])).toContain('существующей организации');
   });
@@ -62,7 +62,7 @@ describe('CreateOrgFromLeadButton', () => {
       transferred: 0,
     });
     render(React.createElement(CreateOrgFromLeadButton, { leadId: 'lead-1' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Завести организацию' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Создать организацию' }));
     await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
     expect(String(toastSuccess.mock.calls[0]![0])).toContain('Предложений перенесено: 0');
   });
@@ -70,7 +70,7 @@ describe('CreateOrgFromLeadButton', () => {
   it('отказ показывается РУССКОЙ строкой, а не кодом', async () => {
     createOrgFromLeadAction.mockResolvedValue({ ok: false, error: 'already_linked' });
     render(React.createElement(CreateOrgFromLeadButton, { leadId: 'lead-1' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Завести организацию' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Создать организацию' }));
     await waitFor(() => expect(toastError).toHaveBeenCalled());
     expect(String(toastError.mock.calls[0]![0])).toContain('организация уже есть');
     expect(refresh).not.toHaveBeenCalled();
@@ -84,7 +84,7 @@ describe('CreateOrgFromLeadButton', () => {
       transferred: 1,
     });
     render(React.createElement(CreateOrgFromLeadButton, { leadId: 'lead-1' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Завести организацию' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Создать организацию' }));
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
   });
 });

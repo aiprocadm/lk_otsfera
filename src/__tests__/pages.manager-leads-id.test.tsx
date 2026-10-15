@@ -565,6 +565,14 @@ describe('ManagerLeadDetailPage', () => {
       return container.querySelector('[data-testid="create-contact-from-lead"]');
     }
 
+    it('`У-288`: ссылка возврата — «← Все лиды»', async () => {
+      const { container } = await renderLead();
+      // Первая ссылка туда же — крошка «Лиды»; проверяем все.
+      const links = [...container.querySelectorAll('a[href="/manager/leads"]')];
+      expect(links.map((a) => a.textContent)).toContain('← Все лиды');
+      expect(container.textContent).not.toContain('Все заявки');
+    });
+
     it('флаг contacts выключен: блока нет, право, режим команды и поиск не спрашиваются', async () => {
       // Флаг стоит первым в условии: при выключенном справочнике страница не
       // должна ходить ни за правом, ни в базу за режимом команды.
@@ -576,7 +584,7 @@ describe('ManagerLeadDetailPage', () => {
       expect(getCompanyTeamVisibility).not.toHaveBeenCalled();
       expect(findLeadContact).not.toHaveBeenCalled();
       expect(contactBlock(container)).toBeNull();
-      expect(container.textContent).not.toContain('в справочнике контактов нет');
+      expect(container.textContent).not.toContain('нет в справочнике контактов');
       expect(container.textContent).not.toContain('совпали с контактом');
     });
 
@@ -591,7 +599,7 @@ describe('ManagerLeadDetailPage', () => {
       expect(getCompanyTeamVisibility).not.toHaveBeenCalled();
       expect(findLeadContact).not.toHaveBeenCalled();
       expect(contactBlock(container)).toBeNull();
-      expect(container.textContent).not.toContain('в справочнике контактов нет');
+      expect(container.textContent).not.toContain('нет в справочнике контактов');
     });
 
     it('контакт найден: ссылка на его карточку с именем, кнопки создания нет', async () => {
@@ -626,8 +634,9 @@ describe('ManagerLeadDetailPage', () => {
 
       expect(getCompanyTeamVisibility).toHaveBeenCalledWith({}, 'c1');
       expect(findLeadContact).toHaveBeenCalledWith({}, SESSION, false, expect.anything());
+      // `У-289`: текст ПМ дословно.
       expect(container.textContent).toContain(
-        'Человека из этой заявки в справочнике контактов нет'
+        'Человека из этой заявки нет в справочнике контактов. Создайте карточку контакта одним кликом — звонки, письма и диалоги свяжутся с ней, а лид получит адресата.'
       );
       const button = contactBlock(container);
       expect(JSON.parse(button?.textContent ?? '{}')).toEqual({

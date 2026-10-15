@@ -131,7 +131,8 @@ export function LeadCreateStaffForm({ organizations }: { organizations: LeadCrea
                 required
               />
             </Field>
-            <Field htmlFor="lcs-phone" label="Телефон" hint="Телефон или email — хотя бы одно">
+            {/* `У-290`: звёздочка у обоих полей, одна подсказка под парой. */}
+            <Field htmlFor="lcs-phone" label="Телефон *">
               <Input
                 id="lcs-phone"
                 type="tel"
@@ -139,7 +140,7 @@ export function LeadCreateStaffForm({ organizations }: { organizations: LeadCrea
                 onChange={(e) => setContactPhone(e.target.value)}
               />
             </Field>
-            <Field htmlFor="lcs-email" label="Email" hint="Телефон или email — хотя бы одно">
+            <Field htmlFor="lcs-email" label="Email *">
               <Input
                 id="lcs-email"
                 type="email"
@@ -147,6 +148,9 @@ export function LeadCreateStaffForm({ organizations }: { organizations: LeadCrea
                 onChange={(e) => setContactEmail(e.target.value)}
               />
             </Field>
+            <p className="sm:col-span-2 -mt-1 text-xs text-gray-500" data-testid="lcs-contact-hint">
+              Телефон или email — хотя бы одно
+            </p>
           </div>
           {organizations.length > 0 && (
             <Field htmlFor="lcs-org" label="Организация">

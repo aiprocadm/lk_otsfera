@@ -8,7 +8,7 @@ import { errorMessageRu } from '@/lib/errors/messages';
 import { createOrgFromLeadAction } from '@/server-actions/manager/leads';
 
 /**
- * `У-161` (этап 7) — «Завести организацию» на карточке лида.
+ * `У-161` (этап 7) — «Создать организацию» (до `У-289` — «Завести организацию») на карточке лида.
  *
  * Отдельная кнопка, а не побочный эффект чего-то ещё: до этого места лид
  * получал организацию ТОЛЬКО при создании, и «навесить» переход было не на
@@ -48,7 +48,7 @@ export function CreateOrgFromLeadButton({ leadId }: { leadId: string }) {
 
   return (
     <Button size="sm" variant="secondary" loading={busy} onClick={run}>
-      Завести организацию
+      Создать организацию
     </Button>
   );
 }
