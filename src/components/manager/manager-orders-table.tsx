@@ -17,6 +17,8 @@ type SearchParams = {
   organizationId?: string;
   companyId?: string;
   unassigned?: string;
+  /** Этап 4 ТЗ 13.10.2026: фокус переживает листание. */
+  focus?: string;
   cursor?: string;
 };
 
@@ -42,6 +44,7 @@ function buildNextHref(searchParams: SearchParams, cursor: string, basePath: str
   if (searchParams.organizationId) params.set('organizationId', searchParams.organizationId);
   if (searchParams.companyId) params.set('companyId', searchParams.companyId);
   if (searchParams.unassigned) params.set('unassigned', searchParams.unassigned);
+  if (searchParams.focus) params.set('focus', searchParams.focus);
   params.set('cursor', cursor);
   return `${basePath}/orders?${params.toString()}`;
 }

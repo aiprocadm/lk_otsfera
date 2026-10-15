@@ -14,17 +14,16 @@ const EMPTY: MyDayData = {
   tasksToday: 0,
   tasksOverdue: 0,
   intake: 0,
+  intakeDueWithinHour: 0,
+  intakeOverdue: 0,
   readyToDeliver: 0,
   readyOrders: [],
   readyTruncated: false,
   dealsOpen: 0,
   dealsByStage: [],
-  inboundFresh: 0,
-  callsUnsorted: 0,
-  // `У-226` (этап 4): четыре новых показателя сводки.
+  // `У-226` (этап 4 ТЗ 12.09.2026): показатели сводки.
   dialogsWaiting: 0,
   proposalsExpiring: 0,
-  checklistOpen: 0,
   eventsToday: 0,
 };
 
@@ -32,6 +31,8 @@ const FULL: MyDayData = {
   tasksToday: 3,
   tasksOverdue: 2,
   intake: 7,
+  intakeDueWithinHour: 2,
+  intakeOverdue: 3,
   readyToDeliver: 6,
   readyOrders: [
     { id: 'o1', orderNumber: '2026-1', title: 'Обучение по ОТ' },
@@ -43,11 +44,8 @@ const FULL: MyDayData = {
     { stageName: 'Переговоры', count: 3 },
     { stageName: 'Счёт', count: 2 },
   ],
-  inboundFresh: 4,
-  callsUnsorted: 1,
   dialogsWaiting: 4,
   proposalsExpiring: 2,
-  checklistOpen: 9,
   eventsToday: 3,
 };
 
@@ -61,13 +59,15 @@ describe('MyDayCards', () => {
     for (const title of [
       'Задачи на сегодня',
       'Просроченные задачи',
-      'Поступило',
       'Готово к передаче',
       'Мои сделки',
       'Свежие обращения',
     ]) {
       expect(html).toContain(title);
     }
+    // Этап 4 ТЗ 13.10.2026: «Поступило» (`У-293`) и чек-листы (`У-296`) убраны.
+    expect(html).not.toContain('Поступило');
+    expect(html).not.toContain('Шагов в чек-листах');
   });
 
   it('каждая карточка — ссылка в свой раздел', () => {
@@ -76,9 +76,9 @@ describe('MyDayCards', () => {
       '/manager/tasks',
       '/manager/tasks?overdue=1',
       '/manager/intake',
-      '/manager/orders',
+      // `У-295`: «Готово к передаче» — в «Заказы» с тем же фильтром.
+      '/manager/orders?focus=ready',
       '/manager/deals',
-      '/manager/inbox',
     ]) {
       expect(html).toContain(`href="${href}"`);
     }
@@ -89,10 +89,9 @@ describe('MyDayCards', () => {
     expect(html).toContain('Готово к передаче');
     expect(html).toContain('На сегодня задач нет');
     expect(html).toContain('Просроченных нет');
-    expect(html).toContain('Новых обращений и звонков нет');
+    expect(html).toContain('Неотвеченных обращений нет');
     expect(html).toContain('Готовых к передаче заказов нет');
     expect(html).toContain('Открытых сделок нет');
-    expect(html).toContain('За сутки новых нет');
   });
 
   it('готовые заказы перечислены, номер выводится с решёткой', () => {
@@ -115,10 +114,20 @@ describe('MyDayCards', () => {
     expect(html).toContain('Счёт');
   });
 
-  it('входящие без разбора показаны внутри карточки обращений', () => {
-    // `Р-Э7-6`: счётчик про очередь разбора, а не про неотвеченные звонки —
-    // подпись обещала не то, что считается.
-    expect(render(FULL)).toContain('Входящие без разбора за сутки');
+  it('этап 4 ТЗ 13.10.2026 (`У-293`, `У-294`): одна карточка обращений — вся очередь и сроки ответа', () => {
+    const html = render(FULL);
+    expect(html.match(/Свежие обращения/g)).toHaveLength(1);
+    const slaOf = (h: string) => {
+      const from = h.indexOf('data-testid="intake-sla"');
+      return h.slice(from, h.indexOf('</ul>', from));
+    };
+    const sla = slaOf(html);
+    expect(sla).toMatch(/Остался 1 час на ответ<\/span><span[^>]*>2</);
+    expect(sla).toMatch(/Просрочено<\/span><span[^>]*>3</);
+    // Просрочка подсвечена; без неё — нет.
+    expect(sla).toContain('text-[#EA580C]');
+    const calm = render({ ...FULL, intakeOverdue: 0 });
+    expect(slaOf(calm)).not.toContain('text-[#EA580C]');
   });
 
   it('заголовок раздела связан с секцией через aria-labelledby', () => {

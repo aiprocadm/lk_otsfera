@@ -332,3 +332,46 @@ export async function countIntake(prisma: PrismaClient, session: SessionPayload)
   ]);
   return a + b + c + d;
 }
+
+const HOUR_MS = 3_600_000;
+
+/**
+ * Сроки ответа по очереди (этап 4 ТЗ 13.10.2026, `У-294`, `Р-4-2`): сколько
+ * обращений с ответом «в ближайший час» и сколько уже просрочено.
+ *
+ * Срок ответа — время поступления + `Company.slaResponseHours` (по умолчанию
+ * {@link INTAKE_BREACH_HOURS}): то же правило, по которому очередь красит
+ * строки (`slaLevelFor`, «просрочено» — ждёт дольше срока). Критерии очереди —
+ * те же, что у счётчика меню, добавляется только окно по `createdAt`.
+ */
+export async function countIntakeSla(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  now: Date
+): Promise<{ dueWithinHour: number; overdue: number }> {
+  if (!canTriageClientRequests(session)) return { dueWithinHour: 0, overdue: 0 };
+  const company = session.companyId
+    ? await prisma.company.findUnique({
+        where: { id: session.companyId },
+        select: { slaResponseHours: true },
+      })
+    : null;
+  const hours = company?.slaResponseHours ?? INTAKE_BREACH_HOURS;
+  const deadlineEdge = new Date(now.getTime() - hours * HOUR_MS);
+  const soon = { gte: deadlineEdge, lte: new Date(deadlineEdge.getTime() + HOUR_MS) };
+  const late = { lt: deadlineEdge };
+
+  const count = async (createdAt: Prisma.DateTimeFilter): Promise<number> => {
+    const [a, b, c, d] = await Promise.all([
+      prisma.clientRequest.count({
+        where: { AND: [intakeClientRequestWhere(session), { createdAt }] },
+      }),
+      prisma.enrollmentRequest.count({ where: { AND: [intakeEnrollmentWhere(), { createdAt }] } }),
+      prisma.inboundMessage.count({ where: { AND: [intakeInboundWhere(session), { createdAt }] } }),
+      prisma.call.count({ where: { AND: [intakeCallWhere(session), { createdAt }] } }),
+    ]);
+    return a + b + c + d;
+  };
+  const [dueWithinHour, overdue] = await Promise.all([count(soon), count(late)]);
+  return { dueWithinHour, overdue };
+}

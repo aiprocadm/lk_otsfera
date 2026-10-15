@@ -18,16 +18,11 @@ vi.mock('@/lib/services/tasks/board', () => ({ taskFiltersWhere }));
 const { dealScopeWhere } = vi.hoisted(() => ({ dealScopeWhere: vi.fn(() => ({ d: true })) }));
 vi.mock('@/lib/services/deals/board', () => ({ dealScopeWhere }));
 
-const { countIntake, intakeInboundWhere, intakeCallWhere } = vi.hoisted(() => ({
+const { countIntake, countIntakeSla } = vi.hoisted(() => ({
   countIntake: vi.fn(),
-  intakeInboundWhere: vi.fn(() => ({ i: true })),
-  intakeCallWhere: vi.fn(() => ({ c: true })),
+  countIntakeSla: vi.fn(),
 }));
-vi.mock('@/lib/services/intake/list', () => ({
-  countIntake,
-  intakeInboundWhere,
-  intakeCallWhere,
-}));
+vi.mock('@/lib/services/intake/list', () => ({ countIntake, countIntakeSla }));
 
 const { evaluateReadinessBatch } = vi.hoisted(() => ({ evaluateReadinessBatch: vi.fn() }));
 vi.mock('@/lib/services/manager/orderDelivery', () => ({
@@ -46,12 +41,9 @@ type PrismaStub = {
   taskCounts?: number[];
   deals?: Array<{ stageId: string | null; _count: { _all: number } }>;
   stages?: Array<{ id: string; name: string; position: number }>;
-  inbound?: number;
-  calls?: number;
-  // `У-226` (этап 4): четыре новых показателя сводки.
+  // `У-226` (этап 4 ТЗ 12.09.2026): показатели сводки.
   dialogs?: number;
   proposals?: number;
-  checklist?: number;
   events?: number;
 };
 
@@ -61,7 +53,6 @@ function makePrisma(stub: PrismaStub = {}) {
   const dealStageFindMany = vi.fn().mockResolvedValue(stub.stages ?? []);
   const dialogCount = vi.fn().mockResolvedValue(stub.dialogs ?? 0);
   const documentCount = vi.fn().mockResolvedValue(stub.proposals ?? 0);
-  const checklistCount = vi.fn().mockResolvedValue(stub.checklist ?? 0);
   const eventCount = vi.fn().mockResolvedValue(stub.events ?? 0);
   return {
     prisma: {
@@ -69,18 +60,16 @@ function makePrisma(stub: PrismaStub = {}) {
       order: { findMany: orderFindMany },
       deal: { groupBy: vi.fn().mockResolvedValue(stub.deals ?? []) },
       dealStage: { findMany: dealStageFindMany },
-      inboundMessage: { count: vi.fn().mockResolvedValue(stub.inbound ?? 0) },
-      call: { count: vi.fn().mockResolvedValue(stub.calls ?? 0) },
+      // Этап 4 ТЗ 13.10.2026: «за сутки» (письма, звонки) и шаги чек-листов
+      // больше не считаются — заглушек нет, запрос к ним упал бы.
       messengerDialog: { count: dialogCount },
       document: { count: documentCount },
-      taskChecklistItem: { count: checklistCount },
       calendarEvent: { count: eventCount },
     } as never,
     orderFindMany,
     dealStageFindMany,
     dialogCount,
     documentCount,
-    checklistCount,
     eventCount,
   };
 }
@@ -89,6 +78,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   getCompanyTeamVisibility.mockResolvedValue(false);
   countIntake.mockResolvedValue(0);
+  countIntakeSla.mockResolvedValue({ dueWithinHour: 0, overdue: 0 });
   evaluateReadinessBatch.mockResolvedValue([]);
 });
 
@@ -100,17 +90,16 @@ describe('getMyDay', () => {
       tasksToday: 0,
       tasksOverdue: 0,
       intake: 0,
+      intakeDueWithinHour: 0,
+      intakeOverdue: 0,
       readyToDeliver: 0,
       readyOrders: [],
       readyTruncated: false,
       dealsOpen: 0,
       dealsByStage: [],
-      inboundFresh: 0,
-      callsUnsorted: 0,
-      // `У-226`: новые показатели тоже обязаны быть честными нулями.
+      // `У-226`: показатели тоже обязаны быть честными нулями.
       dialogsWaiting: 0,
       proposalsExpiring: 0,
-      checklistOpen: 0,
       eventsToday: 0,
     });
   });
@@ -212,26 +201,27 @@ describe('getMyDay', () => {
     expect(data.dealsByStage).toEqual([{ stageName: 'Без стадии', count: 2 }]);
   });
 
-  it('свежие обращения и входящие без разбора — за сутки, своими скоупами', async () => {
-    const { prisma } = makePrisma({ inbound: 4, calls: 2 });
+  it('этап 4 ТЗ 13.10.2026 (`У-293`, `У-294`): «Свежие обращения» — вся очередь и сроки ответа', async () => {
+    countIntake.mockResolvedValue(7);
+    countIntakeSla.mockResolvedValue({ dueWithinHour: 2, overdue: 3 });
+    const { prisma } = makePrisma();
     const data = await getMyDay(prisma, session, false, NOW);
-    expect(data.inboundFresh).toBe(4);
-    expect(data.callsUnsorted).toBe(2);
-    expect(intakeInboundWhere).toHaveBeenCalledWith(session);
-    expect(intakeCallWhere).toHaveBeenCalledWith(session);
+    expect(data.intake).toBe(7);
+    expect(data.intakeDueWithinHour).toBe(2);
+    expect(data.intakeOverdue).toBe(3);
+    expect(countIntake).toHaveBeenCalledWith(prisma, session);
+    expect(countIntakeSla).toHaveBeenCalledWith(prisma, session, NOW);
   });
 
-  it('`У-226`: четыре новых показателя считаются своими условиями', async () => {
-    const { prisma, dialogCount, documentCount, checklistCount, eventCount } = makePrisma({
+  it('`У-226`: показатели сводки считаются своими условиями', async () => {
+    const { prisma, dialogCount, documentCount, eventCount } = makePrisma({
       dialogs: 4,
       proposals: 2,
-      checklist: 9,
       events: 3,
     });
     const data = await getMyDay(prisma, session, false, NOW);
     expect(data.dialogsWaiting).toBe(4);
     expect(data.proposalsExpiring).toBe(2);
-    expect(data.checklistOpen).toBe(9);
     expect(data.eventsToday).toBe(3);
 
     // Переписка — МОЯ: без этого условия менеджер видел бы общую очередь.
@@ -242,11 +232,8 @@ describe('getMyDay', () => {
     expect(documentCount.mock.calls[0][0].where.validUntil.gte).toEqual(
       new Date('2026-07-28T00:00:00+03:00')
     );
-    // Шаги чек-листов — только из незакрытых задач моего охвата.
-    expect(checklistCount.mock.calls[0][0].where.isDone).toBe(false);
-    expect(checklistCount.mock.calls[0][0].where.task.AND).toContainEqual({
-      status: { not: 'done' },
-    });
+    // `У-296`: шагов чек-листов в сводке больше нет.
+    expect(data).not.toHaveProperty('checklistOpen');
     // События — мои и те, куда меня позвали.
     expect(eventCount.mock.calls[0][0].where.OR).toEqual([
       { createdById: 'm1' },

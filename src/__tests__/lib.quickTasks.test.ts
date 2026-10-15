@@ -76,3 +76,14 @@ describe('quickTasksFor (У-71)', () => {
     expect(partner).not.toBe(admin);
   });
 });
+
+describe('этап 4 ТЗ 13.10.2026 (`У-298`, `Р-4-7`): плитка сделок говорит, что делает', () => {
+  it('ведёт на доску и называется по ней, без слов лида', () => {
+    const deals = quickTasksFor('manager').find((t) => t.href === '/manager/deals');
+    expect(deals?.title).toBe('Сделки');
+    expect(deals?.hint).toBe('Продажи с суммой: ведите их по стадиям до оплаты');
+    // «Создать сделку» вела на доску, а не в форму; «Переговоры со стадиями» — слова лида.
+    expect(quickTasksFor('manager').map((t) => t.title)).not.toContain('Создать сделку');
+    expect(deals?.hint).not.toContain('Переговоры');
+  });
+});

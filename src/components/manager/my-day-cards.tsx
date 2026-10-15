@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import type { MyDayData } from '@/lib/services/manager/myDay';
+import { ORDER_FOCUS_LABEL, orderFocusHref } from '@/lib/orders/focus';
 
 /**
  * Этап 11 PR-2 (Модуль 15, ФТ-15.3) — «Мой день».
@@ -70,19 +71,39 @@ export function MyDayCards({ data }: { data: MyDayData }) {
           hint={data.tasksOverdue === 0 ? 'Просроченных нет' : 'Срок уже прошёл'}
           href="/manager/tasks?overdue=1"
         />
+        {/* Этап 4 ТЗ 13.10.2026 (`У-293`, `У-294`): «Поступило» и «Свежие
+            обращения» — одна карточка: вся очередь «Входящие в работу» и сроки
+            ответа по ней. */}
         <Card
-          title="Поступило"
+          title="Свежие обращения"
           value={data.intake}
+          tone={data.intakeOverdue > 0 ? 'warning' : 'neutral'}
           hint={
             data.intake === 0
-              ? 'Новых обращений и звонков нет'
-              : 'Заявки, обращения и звонки без ответственного'
+              ? 'Неотвеченных обращений нет'
+              : 'Обращения, заявки, письма и звонки без ответа'
           }
           href="/manager/intake"
-        />
+        >
+          <ul className="mt-2 space-y-0.5 text-xs text-gray-600" data-testid="intake-sla">
+            <li className="flex justify-between gap-2">
+              <span>Остался 1 час на ответ</span>
+              <span className="font-medium">{data.intakeDueWithinHour}</span>
+            </li>
+            <li className="flex justify-between gap-2">
+              <span>Просрочено</span>
+              <span
+                className={data.intakeOverdue > 0 ? 'font-medium text-[#EA580C]' : 'font-medium'}
+              >
+                {data.intakeOverdue}
+              </span>
+            </li>
+          </ul>
+        </Card>
 
+        {/* `У-295`: переход — в «Заказы» с тем же фильтром, число = строки. */}
         <Card
-          title="Готово к передаче"
+          title={ORDER_FOCUS_LABEL.ready}
           value={data.readyToDeliver}
           tone="success"
           hint={
@@ -90,7 +111,7 @@ export function MyDayCards({ data }: { data: MyDayData }) {
               ? 'Готовых к передаче заказов нет'
               : 'Чек-лист закрыт, результат ещё не передан'
           }
-          href="/manager/orders"
+          href={orderFocusHref('ready')}
         >
           {data.readyOrders.length > 0 && (
             <ul className="mt-2 space-y-0.5 text-xs text-gray-600">
@@ -123,22 +144,7 @@ export function MyDayCards({ data }: { data: MyDayData }) {
           )}
         </Card>
 
-        <Card
-          title="Свежие обращения"
-          value={data.inboundFresh}
-          hint={
-            data.inboundFresh === 0 ? 'За сутки новых нет' : 'Пришли за сутки и ещё не разобраны'
-          }
-          href="/manager/inbox"
-        >
-          <div className="mt-2 text-xs text-gray-600">
-            {/* `Р-Э7-6`: подпись обещала «пропущенные», а считается очередь
-                разбора — объяснение в `myDay.ts`. */}
-            Входящие без разбора за сутки: <span className="font-medium">{data.callsUnsorted}</span>
-          </div>
-        </Card>
-
-        {/* `У-226` (этап 4): четыре вещи, которых в сводке не хватало. Экран
+        {/* `У-226` (этап 4 ТЗ 12.09.2026): вещи, которых в сводке не хватало. Экран
             остался одним — новые карточки встали рядом, а не отдельным блоком:
             «Мой день» отвечает на один вопрос «чем заняться сейчас». */}
         <Card
@@ -163,14 +169,8 @@ export function MyDayCards({ data }: { data: MyDayData }) {
           }
           href="/manager/documents"
         />
-        <Card
-          title="Шагов в чек-листах"
-          value={data.checklistOpen}
-          hint={
-            data.checklistOpen === 0 ? 'Все шаги отмечены' : 'Невыполненные пункты в моих задачах'
-          }
-          href="/manager/tasks"
-        />
+        {/* `У-296`: «Шагов в чек-листах» убрано — шаги несопоставимы по
+            объёму, их число ничего не говорит. */}
         <Card
           title="События сегодня"
           value={data.eventsToday}

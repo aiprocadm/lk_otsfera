@@ -150,8 +150,6 @@ const GUARDED_SITES: Record<string, string> = {
     'Список документов заказов у менеджера — через managerDocumentScope.',
   'src/lib/services/manager/organizationCard.ts::getOrganizationCard':
     'Блок «Документы» карточки организации у менеджера.',
-  'src/lib/services/manager/dashboard/attention.ts::attention':
-    'Лента «Требует внимания»: заменённый акт подписывать уже не нужно.',
   'src/lib/services/documents/generalList.ts::listGeneralDocuments':
     'Админское зеркало «Общие документы».',
   'src/lib/services/documents/list.ts::listAllDocuments': 'Админская панель документов.',

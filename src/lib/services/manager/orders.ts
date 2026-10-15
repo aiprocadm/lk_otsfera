@@ -7,6 +7,8 @@ import {
   getCompanyTeamVisibility,
   isLeaderSameCompany,
 } from '@/lib/auth/managerPolicy';
+import { orderFocusFilter } from '@/lib/services/manager/orderFocus';
+import { ORDER_FOCUS } from '@/lib/orders/focus';
 
 /**
  * Manager-facing orders service. All visibility is governed by the three-way
@@ -30,6 +32,8 @@ const ListOrdersOptionsSchema = z.object({
   organizationId: z.string().optional(),
   // «Без менеджера»: только заказы без персонального менеджера (Order.managerId IS NULL).
   unassigned: z.boolean().optional(),
+  // Этап 4 ТЗ 13.10.2026 (`У-295`, `У-297`): переход с карточки главной.
+  focus: z.enum(ORDER_FOCUS).optional(),
   take: z.number().int().min(1).max(100).default(50),
   cursor: z.string().optional(),
   // Кабинет руководителя форсит company-wide независимо от toggle ("играющий
@@ -108,6 +112,7 @@ export async function listOrders(
     opts.teamModeOverride ?? (await getCompanyTeamVisibility(prisma, opts.session.companyId));
   const scope = managerOrderScope(opts.session, teamMode);
   const filters = buildOrdersFilters(opts, scope);
+  if (opts.focus) filters.push(await orderFocusFilter(prisma, opts.focus, scope, new Date()));
 
   const rows = await prisma.order.findMany({
     where: { AND: filters },
@@ -141,7 +146,9 @@ export async function listOrdersForExport(
   const teamMode =
     opts.teamModeOverride ?? (await getCompanyTeamVisibility(prisma, opts.session.companyId));
   const scope = managerOrderScope(opts.session, teamMode);
-  const where: Prisma.OrderWhereInput = { AND: buildOrdersFilters(opts, scope) };
+  const filters = buildOrdersFilters(opts, scope);
+  if (opts.focus) filters.push(await orderFocusFilter(prisma, opts.focus, scope, new Date()));
+  const where: Prisma.OrderWhereInput = { AND: filters };
 
   const [total, rows] = await Promise.all([
     prisma.order.count({ where }),
