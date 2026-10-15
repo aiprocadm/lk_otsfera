@@ -283,7 +283,8 @@ export async function listLinkedTasks(
 
 /** Данные для селектов диалога задачи (исполнители/организации/заявки), company-scoped. */
 export type TaskFormOptions = {
-  users: { id: string; name: string }[];
+  /** `У-301`: e-mail — для поиска исполнителя в форме. */
+  users: { id: string; name: string; email: string }[];
   organizations: { id: string; name: string }[];
   orders: { id: string; title: string }[];
   /** `Р-27`: полные счётчики — диалог подписывает усечённый селект «показаны N из M». */
@@ -303,7 +304,7 @@ export async function getTaskFormOptions(
   const [users, organizations, orders, organizationsTotal, ordersTotal] = await Promise.all([
     prisma.user.findMany({
       where: { companyId, role: { in: ['manager', 'leader'] }, isActive: true },
-      select: { id: true, name: true },
+      select: { id: true, name: true, email: true },
       orderBy: { name: 'asc' },
       take: 200,
     }),
@@ -325,6 +326,35 @@ export async function getTaskFormOptions(
     prisma.order.count({ where: { companyId } }),
   ]);
   return { users, organizations, orders, organizationsTotal, ordersTotal };
+}
+
+/**
+ * Данные формы правки для страницы задачи (этап 5 ТЗ 13.10.2026, `У-302`,
+ * `Р-5-7`): та же карточка, колонки и списки, что у доски, — форма одна.
+ * Охват — тот же, что у доски (`taskFiltersWhere`): чужая задача неотличима от
+ * несуществующей.
+ */
+export async function getTaskEditForm(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  id: string
+): Promise<
+  | { ok: true; card: TaskCard; columns: TaskColumnView[]; options: TaskFormOptions }
+  | { ok: false; error: 'not_found' }
+> {
+  if (!session.companyId) return { ok: false, error: 'not_found' };
+  const row = await prisma.task.findFirst({
+    where: { AND: [taskFiltersWhere(session, undefined, new Date()), { id }] },
+    select: CARD_SELECT,
+  });
+  if (!row) return { ok: false, error: 'not_found' };
+  const [columns, options] = await Promise.all([
+    resolveTaskColumns(prisma, session.companyId),
+    getTaskFormOptions(prisma, session),
+  ]);
+  // Статус без своей колонки — форма откроется на первой, как новая задача.
+  const column = columnForTask(columns, row) ?? columns[0];
+  return { ok: true, card: toCard(row, column?.id ?? ''), columns, options };
 }
 
 export type MoveTaskError = 'not_found' | 'forbidden' | 'invalid_column' | 'checklist_incomplete';

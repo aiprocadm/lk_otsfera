@@ -44,7 +44,16 @@ function LinkHref(kind: TaskDetail['links'][number]['kind'], id: string, cabinet
 
 type Cabinet = 'manager' | 'leader';
 
-export function TaskPageScreen({ task, cabinet }: { task: TaskDetail; cabinet: Cabinet }) {
+export function TaskPageScreen({
+  task,
+  cabinet,
+  edit,
+}: {
+  task: TaskDetail;
+  cabinet: Cabinet;
+  /** Этап 5 ТЗ 13.10.2026 (`У-302`): кнопка «Редактировать» — её даёт страница роли. */
+  edit?: React.ReactNode;
+}) {
   const crumbs = buildCabinetBreadcrumbs(cabinet, `/${cabinet}/tasks`, [{ label: task.title }]);
   const due = task.dueDate ? fmtDate(task.dueDate) : null;
   // «Просрочена» — когда закончился московский день срока (прогон №36,
@@ -61,6 +70,7 @@ export function TaskPageScreen({ task, cabinet }: { task: TaskDetail; cabinet: C
         subtitle="Что нужно сделать, кто делает и к какому сроку. Здесь же обсуждение и шаги."
         action={
           <div className="flex items-center gap-2">
+            {edit}
             <Badge tone={task.completedAt ? 'success' : overdue ? 'danger' : 'neutral'}>
               {task.completedAt ? 'Выполнена' : overdue ? 'Просрочена' : task.columnName}
             </Badge>

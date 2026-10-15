@@ -8,6 +8,7 @@ import { createTaskAction, updateTaskAction, deleteTaskAction } from '@/server-a
 import type { TaskColumnView } from '@/lib/tasks/columns';
 import type { TaskCard, TaskFormOptions } from '@/lib/services/tasks/board';
 import { startOfMoscowDay as moscowDayAsUtcMidnight } from '@/lib/documents/proposalExpiry';
+import { AssigneePicker } from './assignee-picker';
 
 export type { TaskFormOptions };
 
@@ -77,6 +78,7 @@ export function TaskDialog({
   link,
   onClose,
   onSaved,
+  onDeleted,
 }: {
   target: TaskCard | null;
   columns: TaskColumnView[];
@@ -84,8 +86,16 @@ export function TaskDialog({
   link?: TaskDialogLink;
   onClose: () => void;
   onSaved: () => void;
+  /**
+   * Этап 5 ТЗ 13.10.2026 (`У-302`): со страницы задачи после удаления надо
+   * уйти в список — обновлять страницу удалённой задачи незачем. Не передан —
+   * удаление ведёт себя как сохранение (доска просто перерисуется).
+   */
+  onDeleted?: (() => void) | undefined;
 }) {
   const [submitting, setSubmitting] = useState(false);
+  // `У-300` (`Д-58`): «Каждые» и «Повторять до» — только когда повторение выбрано.
+  const [recurrenceFreq, setRecurrenceFreq] = useState(target?.recurrence?.freq ?? '');
   // Привязки к лиду/сделке задаются контекстом (link) или сохраняются с target —
   // скрытые поля обязательны: без них редактирование стирало бы связь (taskInput → null).
   const linkedLeadId = link?.leadId ?? target?.linkedLeadId ?? '';
@@ -148,7 +158,7 @@ export function TaskDialog({
       return;
     }
     toast.success('Задача удалена.');
-    onSaved();
+    (onDeleted ?? onSaved)();
   }
 
   return (
@@ -211,7 +221,8 @@ export function TaskDialog({
             <Select
               id="tk-repeat"
               name="recurrenceFreq"
-              defaultValue={target?.recurrence?.freq ?? ''}
+              value={recurrenceFreq}
+              onChange={(ev) => setRecurrenceFreq(ev.target.value)}
             >
               {RECURRENCE_FREQ.map((r) => (
                 <option key={r.value} value={r.value}>
@@ -220,24 +231,28 @@ export function TaskDialog({
               ))}
             </Select>
           </Field>
-          <Field htmlFor="tk-repeat-n" label="Каждые (раз в сколько)">
-            <Input
-              id="tk-repeat-n"
-              name="recurrenceInterval"
-              type="number"
-              min={1}
-              max={365}
-              defaultValue={String(target?.recurrence?.interval ?? 1)}
-            />
-          </Field>
-          <Field htmlFor="tk-repeat-until" label="Повторять до (необязательно)">
-            <Input
-              id="tk-repeat-until"
-              name="recurrenceUntil"
-              type="date"
-              defaultValue={target?.recurrence?.until ?? ''}
-            />
-          </Field>
+          {recurrenceFreq !== '' && (
+            <>
+              <Field htmlFor="tk-repeat-n" label="Каждые (раз в сколько)">
+                <Input
+                  id="tk-repeat-n"
+                  name="recurrenceInterval"
+                  type="number"
+                  min={1}
+                  max={365}
+                  defaultValue={String(target?.recurrence?.interval ?? 1)}
+                />
+              </Field>
+              <Field htmlFor="tk-repeat-until" label="Повторять до (необязательно)">
+                <Input
+                  id="tk-repeat-until"
+                  name="recurrenceUntil"
+                  type="date"
+                  defaultValue={target?.recurrence?.until ?? ''}
+                />
+              </Field>
+            </>
+          )}
           <Field htmlFor="tk-col" label="Колонка">
             <Select
               id="tk-col"
@@ -286,27 +301,18 @@ export function TaskDialog({
             </Select>
           </Field>
         </div>
-        <div>
-          <p className="text-sm font-medium text-[#111111] mb-2">Исполнители</p>
-          {options.users.length === 0 ? (
-            <p className="text-xs text-gray-400">Нет доступных сотрудников.</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-              {options.users.map((u) => (
-                <label key={u.id} className="flex items-center gap-2 cursor-pointer text-sm">
-                  <input
-                    type="checkbox"
-                    name="assigneeIds"
-                    value={u.id}
-                    defaultChecked={target?.assigneeIds.includes(u.id) ?? false}
-                    className="h-4 w-4 rounded"
-                  />
-                  <span>{u.name}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* `У-301`: исполнители — поиском по ФИО и e-mail, а не сеткой флажков. */}
+        {options.users.length === 0 ? (
+          <p className="text-xs text-gray-500">Нет доступных сотрудников.</p>
+        ) : (
+          <AssigneePicker
+            users={options.users}
+            defaultSelected={target?.assigneeIds ?? []}
+            name="assigneeIds"
+            label="Исполнители"
+            idPrefix="tk-assignees"
+          />
+        )}
         {target?.recurrence && (
           <fieldset className="rounded-lg border border-gray-200 p-3 space-y-2">
             <legend className="px-1 text-sm font-medium text-[#111111]">

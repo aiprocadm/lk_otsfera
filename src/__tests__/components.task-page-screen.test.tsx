@@ -66,6 +66,17 @@ describe('TaskPageScreen', () => {
     expect(screen.getByLabelText('Текст комментария')).toBeTruthy();
   });
 
+  it('этап 5 ТЗ 13.10.2026 (`У-302`): кнопка правки, которую дала страница, — в шапке', () => {
+    render(
+      React.createElement(TaskPageScreen, {
+        task: detail(),
+        cabinet: 'manager',
+        edit: React.createElement('button', null, 'Редактировать'),
+      })
+    );
+    expect(screen.getByRole('button', { name: 'Редактировать' })).toBeTruthy();
+  });
+
   it('ссылки связей ведут в СВОЙ кабинет (правило зеркала)', () => {
     const { unmount } = render(
       React.createElement(TaskPageScreen, { task: detail(), cabinet: 'manager' })

@@ -40,11 +40,23 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 const { getTaskDetail } = vi.hoisted(() => ({ getTaskDetail: vi.fn() }));
 vi.mock('@/lib/services/tasks/detail', () => ({ getTaskDetail }));
 
+const { getTaskEditForm } = vi.hoisted(() => ({ getTaskEditForm: vi.fn() }));
+vi.mock('@/lib/services/tasks/board', () => ({ getTaskEditForm }));
+vi.mock('@/components/tasks/task-edit-button', () => ({
+  TaskEditButton: (props: { listHref: string; card: { id: string } }) =>
+    React.createElement('span', null, `ПРАВКА:${props.card.id}:${props.listHref}`),
+}));
+
 const { screenSpy } = vi.hoisted(() => ({ screenSpy: vi.fn() }));
 vi.mock('@/components/tasks/task-page-screen', () => ({
-  TaskPageScreen: (props: { task: { id: string }; cabinet: string }) => {
+  TaskPageScreen: (props: { task: { id: string }; cabinet: string; edit?: React.ReactNode }) => {
     screenSpy(props);
-    return React.createElement('div', null, `КАРТОЧКА:${props.task.id}:${props.cabinet}`);
+    return React.createElement(
+      'div',
+      null,
+      `КАРТОЧКА:${props.task.id}:${props.cabinet}`,
+      props.edit
+    );
   },
 }));
 
@@ -60,6 +72,12 @@ beforeEach(() => {
   requireManager.mockResolvedValue(SESSION);
   requireManagerLeader.mockResolvedValue({ ...SESSION, role: 'leader' });
   getTaskDetail.mockResolvedValue({ ok: true, task: TASK });
+  getTaskEditForm.mockResolvedValue({
+    ok: true,
+    card: { id: 't1' },
+    columns: [],
+    options: { users: [] },
+  });
 });
 
 const CASES = [
@@ -74,6 +92,19 @@ describe.each(CASES)('карточка задачи: $name', ({ Page, cabinet, g
     const { container } = await renderServerComponent(open('t1'));
     expect(container.textContent).toContain(`КАРТОЧКА:t1:${cabinet}`);
     expect(screenSpy.mock.calls[0][0].cabinet).toBe(cabinet);
+  });
+
+  it('этап 5 ТЗ 13.10.2026 (`У-302`): на странице есть «Редактировать», после удаления — в СВОЙ список', async () => {
+    const { container } = await renderServerComponent(open('t1'));
+    expect(getTaskEditForm).toHaveBeenCalledWith({}, expect.anything(), 't1');
+    expect(container.textContent).toContain(`ПРАВКА:t1:/${cabinet}/tasks`);
+  });
+
+  it('данных для правки нет — кнопки нет, карточка цела', async () => {
+    getTaskEditForm.mockResolvedValue({ ok: false, error: 'not_found' });
+    const { container } = await renderServerComponent(open('t1'));
+    expect(container.textContent).toContain(`КАРТОЧКА:t1:${cabinet}`);
+    expect(container.textContent).not.toContain('ПРАВКА');
   });
 
   it('флаг выключен → 404, задачу даже не спрашиваем', async () => {

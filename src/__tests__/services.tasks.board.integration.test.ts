@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
-import { listTaskBoard, moveTask, getTaskFormOptions } from '@/lib/services/tasks/board';
+import {
+  listTaskBoard,
+  moveTask,
+  getTaskFormOptions,
+  getTaskEditForm,
+} from '@/lib/services/tasks/board';
 import { createTask, updateTask, deleteTask, assignTask } from '@/lib/services/tasks/tasks';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import type { SessionAccessProfile } from '@/lib/auth/accessProfile';
@@ -273,5 +278,31 @@ describe('per-manager scope (tasks: own)', () => {
     });
     const board2 = await listTaskBoard(prisma, sAOwn());
     expect(board2.board.flatMap((col) => col.cards.map((cc) => cc.id))).toContain(c.id);
+  });
+});
+
+describe('этап 5 ТЗ 13.10.2026 (`У-302`): данные формы правки для страницы задачи', () => {
+  it('своя задача — карточка, колонки и списки формы; чужая и без компании — not_found', async () => {
+    // Ставит коллега и назначает на себя: для «только своих» у M1 задача чужая.
+    const r = await createTask(prisma, sM2(), { title: `t-edit-${STAMP}`, assigneeIds: [m2] });
+    if (!r.ok) throw new Error('create failed');
+    const id = r.id;
+
+    const mine = await getTaskEditForm(prisma, sA(), id);
+    if (!mine.ok) throw new Error('not ok');
+    expect(mine.card).toMatchObject({ id, title: `t-edit-${STAMP}`, assigneeIds: [m2] });
+    expect(mine.card.columnId).toBe(mine.columns[0]!.id);
+    // `У-301`: в списке исполнителей есть e-mail — по нему ищут.
+    expect(mine.options.users.find((u) => u.id === m2)?.email).toBe(`g36m2-${STAMP}@t.local`);
+
+    expect(await getTaskEditForm(prisma, sB(), id)).toEqual({ ok: false, error: 'not_found' });
+    expect(await getTaskEditForm(prisma, sAOwn(), id)).toEqual({ ok: false, error: 'not_found' });
+    expect(
+      await getTaskEditForm(prisma, { ...sA(), companyId: null } as unknown as SessionPayload, id)
+    ).toEqual({ ok: false, error: 'not_found' });
+    expect(await getTaskEditForm(prisma, sA(), 'нет-такой')).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
   });
 });
