@@ -74,7 +74,8 @@ export function ManagerLeadsFilter({ query }: { query: Query }) {
               : 'border-gray-200 text-gray-700 hover:border-[#F97316]'
           }`}
         >
-          {mine ? '✓ Мои заявки' : 'Мои заявки'}
+          {/* `У-288`: в разделе «Лиды» фильтр называется по объекту раздела. */}
+          {mine ? '✓ Мои лиды' : 'Мои лиды'}
         </Link>
       </div>
     </div>

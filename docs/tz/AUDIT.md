@@ -185,8 +185,8 @@
 
 | Вердикт | Кол-во |
 |---|---|
-| `✅` соответствует | **284** |
-| `⏳` запланировано | **36** |
+| `✅` соответствует | **289** |
+| `⏳` запланировано | **31** |
 | `❌` расхождение | 0 |
 | `⚠` вне объёма | 1 (см. раздел ниже) — расхождение в тексте ТЗ понятности (чинить нечего); карточка организации у администратора мимо реестра вкладок закрыта 05.09.2026 (этап 9, PR-1) |
 
@@ -250,11 +250,11 @@
 
 | Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
 |---|---|---|---|---|
-| `У-288` | «Лиды»: новый подзаголовок, фильтр «Мои лиды», возврат «← Все лиды» | [leads/page.tsx](../../src/app/manager/leads/page.tsx) · [manager-leads-filter.tsx](../../src/components/manager/manager-leads-filter.tsx) | ⏳ этап 3 | — |
-| `У-289` | Карточка лида: «Создать организацию», текст про контакт — дословно из ТЗ | [create-org-from-lead-button.tsx](../../src/components/manager/create-org-from-lead-button.tsx) | ⏳ этап 3 | — |
-| `У-290` | Форма лида: звёздочки у Email и Телефона, одна подсказка под обоими | [lead-create-staff-form.tsx](../../src/components/manager/lead-create-staff-form.tsx) | ⏳ этап 3 | — |
-| `У-291` | Форма контакта: подсказка «Сейчас контакт не прикреплен к организации…» | [contact-form-dialog.tsx](../../src/components/manager/contacts/contact-form-dialog.tsx) | ⏳ этап 3 | — |
-| `У-292` | Пустой чат по заказу: «…или вам напишет клиент.» | [order-thread-inbox.tsx](../../src/components/chat/order-thread-inbox.tsx) | ⏳ этап 3 | — |
+| `У-288` | «Лиды»: новый подзаголовок, фильтр «Мои лиды», возврат «← Все лиды» | [manager/leads/page.tsx](../../src/app/manager/leads/page.tsx): подзаголовок «Возможные продажи: входящие запросы, которые ещё не стали заказом.» (`Р-3-1`); [manager-leads-filter.tsx](../../src/components/manager/manager-leads-filter.tsx): «Мои лиды»; карточка лида: «← Все лиды». Стражи — [pages.manager-leads](../../src/__tests__/pages.manager-leads.test.tsx), [components.manager-leads-filter](../../src/__tests__/components.manager-leads-filter.test.tsx), [pages.manager-leads-id](../../src/__tests__/pages.manager-leads-id.test.tsx): новые тексты есть, старых нет | ✅ соответствует (этап 3 ПМ) | 15.10.2026 · [спека этапа 3](../superpowers/specs/2026-10-15-pm-stage3-manager-texts-design.md) |
+| `У-289` | Карточка лида: «Создать организацию», текст про контакт — дословно из ТЗ | [create-org-from-lead-button.tsx](../../src/components/manager/create-org-from-lead-button.tsx): «Создать организацию»; [manager/leads/[id]/page.tsx](../../src/app/manager/leads/[id]/page.tsx): текст ПМ про контакт дословно. Стражи — pages.manager-leads-id (дословная строка; прежние проверки «текста нет» переведены на новую фразу, иначе молчали бы всегда), [components.create-org-from-lead-button](../../src/__tests__/components.create-org-from-lead-button.test.tsx) | ✅ соответствует (этап 3 ПМ) | 15.10.2026 · [спека этапа 3](../superpowers/specs/2026-10-15-pm-stage3-manager-texts-design.md) |
+| `У-290` | Форма лида: звёздочки у Email и Телефона, одна подсказка под обоими | [lead-create-staff-form.tsx](../../src/components/manager/lead-create-staff-form.tsx): «Телефон *» и «Email *», одна подсказка «Телефон или email — хотя бы одно» под парой полей; серверное правило «хотя бы одно» не менялось (`Р-3-3`). Страж — [components.lead-create-staff-form](../../src/__tests__/components.lead-create-staff-form.test.tsx): подсказка ровно одна | ✅ соответствует (этап 3 ПМ) | 15.10.2026 · [спека этапа 3](../superpowers/specs/2026-10-15-pm-stage3-manager-texts-design.md) |
+| `У-291` | Форма контакта: подсказка «Сейчас контакт не прикреплен к организации…» | [contact-form-dialog.tsx](../../src/components/manager/contacts/contact-form-dialog.tsx): подсказка ПМ дословно. Страж — [components.contact-form-dialog](../../src/__tests__/components.contact-form-dialog.test.tsx) | ✅ соответствует (этап 3 ПМ) | 15.10.2026 · [спека этапа 3](../superpowers/specs/2026-10-15-pm-stage3-manager-texts-design.md) |
+| `У-292` | Пустой чат по заказу: «…или вам напишет клиент.» | [order-thread-inbox.tsx](../../src/components/chat/order-thread-inbox.tsx): у сотрудников (`variant="team"`) текст ПМ дословно; у заказчика и партнёра — прежний «…вам напишет команда» (`Р-3-2`: «клиент» в кабинете клиента — неправда). Страж — [components.order-thread-inbox](../../src/__tests__/components.order-thread-inbox.test.tsx), мутация «текст про клиента всем ролям» поймана | ✅ соответствует (этап 3 ПМ) | 15.10.2026 · [спека этапа 3](../superpowers/specs/2026-10-15-pm-stage3-manager-texts-design.md) |
 
 ## Блок ПМ-4. Главная менеджера — этап 4
 

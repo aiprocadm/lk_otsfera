@@ -65,6 +65,11 @@ describe('ManagerLeadsPage', () => {
       ManagerLeadsPage({ searchParams: Promise.resolve({ status: 'bogus' }) })
     );
 
+    // `У-288`: нейтральный подзаголовок (`Р-3-1`), без «клиент их не видит».
+    expect(document.body.textContent).toContain(
+      'Возможные продажи: входящие запросы, которые ещё не стали заказом.'
+    );
+    expect(document.body.textContent).not.toContain('клиент их не видит');
     expect(listManagerLeads).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({

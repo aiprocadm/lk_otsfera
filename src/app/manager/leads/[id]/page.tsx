@@ -115,7 +115,7 @@ export default async function ManagerLeadDetailPage({
       />
       <div>
         <Link href="/manager/leads" className="text-sm text-gray-500 hover:text-[#F97316]">
-          ← Все заявки
+          ← Все лиды
         </Link>
         {/* `У-120`: карточка сущности — подзаголовок берётся из её данных
             (тема обращения), а не выдумывается. */}
@@ -201,8 +201,9 @@ export default async function ManagerLeadDetailPage({
           ) : (
             <div className="space-y-2">
               <p className="text-sm text-gray-600">
-                Человека из этой заявки в справочнике контактов нет. Заведите его — звонки, письма и
-                диалоги свяжутся с карточкой, а заявка получит адресата.
+                {/* `У-289`: текст ПМ дословно. */}
+                Человека из этой заявки нет в справочнике контактов. Создайте карточку контакта
+                одним кликом — звонки, письма и диалоги свяжутся с ней, а лид получит адресата.
               </p>
               <CreateContactFromLeadButton
                 name={lead.clientContactName}

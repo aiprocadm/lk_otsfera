@@ -84,6 +84,10 @@ describe('LeadCreateStaffForm', () => {
     expect(screen.getByLabelText('Организация')).toBeTruthy();
     expect(screen.getByText('ООО Заказчик')).toBeTruthy();
     expect(screen.getByText('— без организации —')).toBeTruthy();
+    // `У-290`: звёздочка у обоих полей, подсказка — одна на пару.
+    expect(input('Телефон *')).toBeTruthy();
+    expect(input('Email *')).toBeTruthy();
+    expect(screen.getAllByText('Телефон или email — хотя бы одно')).toHaveLength(1);
   });
 
   it('happy path: server-action получает все поля (пустые → null), диалог закрыт, тост, refresh, форма сброшена', async () => {
@@ -94,7 +98,7 @@ describe('LeadCreateStaffForm', () => {
 
     fillRequired();
     fireEvent.change(input('ИНН'), { target: { value: '7701234567' } });
-    fireEvent.change(input('Телефон'), { target: { value: '+79990001122' } });
+    fireEvent.change(input('Телефон *'), { target: { value: '+79990001122' } });
     fireEvent.change(screen.getByLabelText('Примечание'), { target: { value: 'Срочно' } });
     submitForm();
 
@@ -232,8 +236,8 @@ describe('LeadCreateStaffForm', () => {
       expect(input('Название компании *').value).toBe('ООО Ромашка');
       expect(input('ИНН').value).toBe('7707083893');
 
-      fireEvent.change(input('Email'), { target: { value: 'client@x.ru' } });
-      expect(input('Email').value).toBe('client@x.ru');
+      fireEvent.change(input('Email *'), { target: { value: 'client@x.ru' } });
+      expect(input('Email *').value).toBe('client@x.ru');
     } finally {
       vi.useRealTimers();
       vi.unstubAllGlobals();

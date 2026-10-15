@@ -107,6 +107,22 @@ describe('OrderThreadInbox variant=role (partner/org)', () => {
       })
     );
     expect(html).toContain('Нет переписок');
+    // `Р-3-2`: у заказчика и партнёра «клиент» — это они сами.
+    expect(html).toContain('или вам напишет команда.');
+    expect(html).not.toContain('вам напишет клиент');
+  });
+
+  it('`У-292`: у сотрудников пустой чат — текст ПМ про клиента', () => {
+    const html = renderToString(
+      React.createElement(OrderThreadInbox, {
+        threads: [],
+        currentUserId: CURRENT_USER,
+        variant: 'team',
+      })
+    );
+    expect(html).toContain(
+      'Переписка появится, когда вы напишете сообщение по заказу или вам напишет клиент.'
+    );
   });
 
   it('renders both thread order labels', () => {

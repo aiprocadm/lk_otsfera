@@ -42,7 +42,8 @@ export default async function ManagerLeadsPage({
         <div>
           <PageHeader
             title="Лиды"
-            subtitle="Возможные продажи — внутренние карточки, клиент их не видит"
+            // `У-288`, `Р-3-1`: лид — универсальное понятие, без «внутренние/клиент не видит».
+            subtitle="Возможные продажи: входящие запросы, которые ещё не стали заказом."
           />
         </div>
         <LeadCreateStaffForm organizations={organizations} />

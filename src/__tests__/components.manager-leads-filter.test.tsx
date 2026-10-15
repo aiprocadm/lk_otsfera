@@ -17,11 +17,13 @@ vi.mock('next/link', () => ({
 import { ManagerLeadsFilter } from '@/components/manager/manager-leads-filter';
 
 describe('ManagerLeadsFilter', () => {
-  it('default query: "Все" tab is active, "Мои заявки" is inactive', () => {
+  it('default query: "Все" tab is active, "Мои лиды" is inactive', () => {
     const html = renderToString(React.createElement(ManagerLeadsFilter, { query: {} }));
     expect(html).toContain('bg-[#F97316] text-white border-[#F97316]');
-    expect(html).toContain('Мои заявки');
-    expect(html).not.toContain('✓ Мои заявки');
+    expect(html).toContain('Мои лиды');
+    expect(html).not.toContain('✓ Мои лиды');
+    // `У-288`: старое имя фильтра не возвращается.
+    expect(html).not.toContain('Мои заявки');
   });
 
   it('status=in_review: matching tab is active, others are not', () => {
@@ -34,11 +36,11 @@ describe('ManagerLeadsFilter', () => {
     expect(activeTabHref).toContain('bg-[#F97316]');
   });
 
-  it('assignedToMe=1: shows the checked "Мои заявки" state and hidden input', () => {
+  it('assignedToMe=1: shows the checked "Мои лиды" state and hidden input', () => {
     const html = renderToString(
       React.createElement(ManagerLeadsFilter, { query: { assignedToMe: '1' } })
     );
-    expect(html).toContain('✓ Мои заявки');
+    expect(html).toContain('✓ Мои лиды');
     expect(html).toContain('name="assignedToMe"');
     expect(html).toContain('value="1"');
   });
@@ -56,7 +58,7 @@ describe('ManagerLeadsFilter', () => {
     const html = renderToString(
       React.createElement(ManagerLeadsFilter, { query: { assignedToMe: '1' } })
     );
-    // The "Мои заявки" link should now point to assignedToMe='' (i.e. omitted from querystring)
+    // The "Мои лиды" link should now point to assignedToMe='' (i.e. omitted from querystring)
     expect(html).toContain('href="/manager/leads"');
   });
 });

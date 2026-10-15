@@ -163,7 +163,8 @@ export function ContactFormDialog(props: Props) {
           <Field
             htmlFor={`${idPrefix}-org`}
             label="Организация"
-            hint="Контакт без организации — это человек «с улицы»; привязать можно позже."
+            // `У-291`: текст ПМ дословно.
+            hint="Сейчас контакт не прикреплен к организации. Привязать его к компании можно позже."
           >
             <Select
               id={`${idPrefix}-org`}

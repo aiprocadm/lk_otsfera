@@ -64,6 +64,12 @@ describe('ContactFormDialog — создание', () => {
     expect(dialog.getByLabelText('Номер или адрес')).toBeTruthy();
     // Поле «Заметка» есть и при создании (ревью PR-2): ветка с заметкой в createContactAction — живая.
     expect(dialog.queryByLabelText('Заметка')).not.toBeNull();
+    // `У-291`: подсказка ПМ дословно.
+    expect(
+      dialog.getByText(
+        'Сейчас контакт не прикреплен к организации. Привязать его к компании можно позже.'
+      )
+    ).toBeTruthy();
     const org = dialog.getByLabelText('Организация') as HTMLSelectElement;
     expect(Array.from(org.options).map((o) => o.textContent)).toEqual([
       'Без организации',
