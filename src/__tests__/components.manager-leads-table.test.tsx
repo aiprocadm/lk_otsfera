@@ -13,8 +13,10 @@ vi.mock('next/link', () => ({
     className?: string;
   }) => React.createElement('a', { href, className }, children),
 }));
-vi.mock('@/components/partner/lead-status-badge', () => ({
-  LeadStatusBadge: ({ status }: { status: string }) => React.createElement('span', null, status),
+// `У-307`: в списке статус — выбор; его поведение — в своём тесте.
+vi.mock('@/components/manager/lead-status-picker', () => ({
+  LeadStatusPicker: ({ status, leadId }: { status: string; leadId: string }) =>
+    React.createElement('span', { 'data-lead': leadId }, status),
 }));
 
 import { ManagerLeadsTable } from '@/components/manager/manager-leads-table';

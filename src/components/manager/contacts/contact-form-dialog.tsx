@@ -13,6 +13,7 @@ import {
 } from '@/lib/services/contacts/channelLabels';
 import type { ContactOrgOption } from '@/lib/services/contacts/orgOptions';
 import { contactHref, type ContactsCabinet } from '@/lib/navigation/contactsHrefs';
+import { ContactOrgPicker } from './contact-org-picker';
 
 const ERROR_LABEL: Record<string, string> = {
   forbidden: 'Нет права на справочник контактов — обратитесь к администратору.',
@@ -160,26 +161,14 @@ export function ContactFormDialog(props: Props) {
               placeholder="Специалист по охране труда"
             />
           </Field>
-          <Field
-            htmlFor={`${idPrefix}-org`}
-            label="Организация"
-            // `У-291`: текст ПМ дословно.
-            hint="Сейчас контакт не прикреплен к организации. Привязать его к компании можно позже."
-          >
-            <Select
-              id={`${idPrefix}-org`}
-              value={organizationId}
-              onChange={(e) => setOrganizationId(e.target.value)}
-              disabled={pending}
-            >
-              <option value="">Без организации</option>
-              {orgOptions.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          {/* `У-309`: найти по названию или ИНН — или создать новую. */}
+          <ContactOrgPicker
+            idPrefix={idPrefix}
+            options={orgOptions}
+            value={organizationId}
+            onChange={setOrganizationId}
+            disabled={pending}
+          />
           <Field htmlFor={`${idPrefix}-note`} label="Заметка">
             <Textarea
               id={`${idPrefix}-note`}

@@ -89,13 +89,14 @@ describe('ManagerOrdersKanban', () => {
     transitionOrderStatusAction.mockResolvedValue({
       ok: false,
       error: 'completion_conditions_unmet',
-      unmet: ['accounting_signed', 'documents_uploaded'],
+      unmet: ['accounting_signed', 'documents_uploaded', 'новое_условие'],
     });
     render(<ManagerOrdersKanban board={BOARD} />);
     drag('o1', 's1', 'Оплата поступила');
     await waitFor(() =>
       expect(toastMock.error).toHaveBeenCalledWith(
-        'Заказ пока нельзя закрыть: бухгалтерия не подписана, нет чистого документа.'
+        // Незнакомое условие — его код, а не пустота.
+        'Заказ пока нельзя закрыть: бухгалтерия не подписана, нет чистого документа, новое_условие.'
       )
     );
     transitionOrderStatusAction.mockResolvedValue({ ok: false, error: 'backward_forbidden' });

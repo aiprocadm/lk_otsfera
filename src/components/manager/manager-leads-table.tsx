@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import type { ManagerLeadRow } from '@/lib/services/manager/leads';
-import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
+import { LeadStatusPicker } from '@/components/manager/lead-status-picker';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { CardList, Card, CardRow } from '@/components/ui/card-list';
 import { fmtMoney } from '@/lib/format';
@@ -42,7 +42,7 @@ export function ManagerLeadsTable({ rows, nextCursor, query }: Props) {
                 {l.clientCompanyName}
               </Link>
             }
-            actions={<LeadStatusBadge status={l.status} />}
+            actions={<LeadStatusPicker leadId={l.id} status={l.status} />}
           >
             <CardRow label="ИНН">{l.clientInn}</CardRow>
             <CardRow label="Тема">{l.subject}</CardRow>
@@ -82,7 +82,8 @@ export function ManagerLeadsTable({ rows, nextCursor, query }: Props) {
                 {l.estimatedAmount ? fmtMoney(l.estimatedAmount) : '—'}
               </Td>
               <Td>
-                <LeadStatusBadge status={l.status} />
+                {/* `У-307`: статус меняется прямо из списка. */}
+                <LeadStatusPicker leadId={l.id} status={l.status} />
               </Td>
               <Td className="text-gray-600">{l.assignedManagerName ?? '—'}</Td>
             </Tr>

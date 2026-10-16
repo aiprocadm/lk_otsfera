@@ -5,6 +5,7 @@ import { listOrganizations } from '@/lib/services/manager/organizations';
 import { ManagerOrgsList } from '@/components/manager/manager-orgs-list';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { CreateOrganizationButton } from '@/components/manager/create-organization-button';
 export default async function ManagerOrganizationsPage({
   searchParams,
 }: {
@@ -20,6 +21,8 @@ export default async function ManagerOrganizationsPage({
       <PageHeader
         title="Организации"
         subtitle="Ваши клиенты: в карточке собрана вся история работы"
+        // Этап 6 ТЗ 13.10.2026 (`У-308`): новая организация сразу закреплена за вами.
+        action={<CreateOrganizationButton />}
       />
       <ManagerOrgsList orgs={orgs} withoutInn={withoutInn} />
     </div>

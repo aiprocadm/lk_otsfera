@@ -27,6 +27,25 @@ export const LEAD_STATUS_FILTER_LABELS_RU: Record<LeadStatus, string> = {
 
 export const LEAD_STATUSES = Object.keys(LEAD_STATUS_FILTER_LABELS_RU) as LeadStatus[];
 
+/**
+ * Куда лид можно перевести простой сменой статуса (без «передать в сделку»,
+ * «сделать заказом», «отклонить» — у них свои действия карточки). Один
+ * источник для сервера (`setLeadStatus`) и выбора в списке (`У-307`): второе
+ * правило рядом с первым обязано разъехаться.
+ */
+const LEAD_STATUS_TRANSITIONS: Record<LeadStatus, LeadStatus[]> = {
+  new: ['in_review'],
+  in_review: ['new', 'qualified'],
+  qualified: ['in_review'],
+  promoted_to_order: [],
+  promoted_to_deal: [],
+  rejected: [],
+};
+
+export function leadStatusTransitions(status: LeadStatus): LeadStatus[] {
+  return LEAD_STATUS_TRANSITIONS[status];
+}
+
 export function isLeadStatus(value: string): value is LeadStatus {
   return (LEAD_STATUSES as string[]).includes(value);
 }
