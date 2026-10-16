@@ -165,7 +165,7 @@ describe('OrderStatusPanel — переходы', () => {
     await waitFor(() =>
       expect(transitionOrderStatusAction).toHaveBeenCalledWith({ orderId: 'o7', toId: 'c' })
     );
-    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Статус заявки обновлён'));
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Статус заказа обновлён'));
   });
 
   it('отмена требует причину и шлёт её', async () => {
@@ -238,7 +238,7 @@ describe('OrderStatusPanel — переходы', () => {
 
     await waitFor(() =>
       expect(toastError).toHaveBeenCalledWith(
-        'Вернуть заявку на предыдущую стадию могут администратор и руководитель.'
+        'Вернуть заказ на предыдущую стадию могут администратор и руководитель.'
       )
     );
   });
@@ -286,5 +286,35 @@ describe('OrderStatusPanel — закрытие окна отмены', () => {
 
     await waitFor(() => expect(HTMLDialogElement.prototype.close).toHaveBeenCalled());
     expect(transitionOrderStatusAction).not.toHaveBeenCalled();
+  });
+
+  it('этап 6 ТЗ 13.10.2026 (`У-304`): менеджеру — где настраивают статусы, руководителю — ссылка', () => {
+    const { rerender, container } = render(
+      <OrderStatusPanel
+        orderId="o1"
+        current={null}
+        forward={[]}
+        backward={[]}
+        terminal={null}
+        history={[]}
+      />
+    );
+    expect(screen.getByRole('heading', { name: 'Статус заказа' })).toBeTruthy();
+    expect(screen.getByText(/настраивают руководитель и администратор/)).toBeTruthy();
+    expect(container.querySelector('a')).toBeNull();
+    rerender(
+      <OrderStatusPanel
+        orderId="o1"
+        current={null}
+        forward={[]}
+        backward={[]}
+        terminal={null}
+        history={[]}
+        statusesHref="/leader/settings/catalogs/application-statuses"
+      />
+    );
+    expect(
+      screen.getByRole('link', { name: 'Настроить статусы заказов' }).getAttribute('href')
+    ).toBe('/leader/settings/catalogs/application-statuses');
   });
 });

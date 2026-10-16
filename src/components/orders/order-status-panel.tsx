@@ -12,6 +12,7 @@
  * и возвращается тем же кодом `completion_conditions_unmet`.
  */
 
+import Link from 'next/link';
 import React, { useState, useTransition } from 'react';
 import { Badge, Button, Dialog, Textarea } from '@/components/ui';
 import { toast } from '@/lib/ui/toast';
@@ -38,8 +39,8 @@ type StatusHistoryRow = {
 };
 
 const ERROR_LABELS: Record<string, string> = {
-  forbidden: 'Нет доступа к этой заявке.',
-  backward_forbidden: 'Вернуть заявку на предыдущую стадию могут администратор и руководитель.',
+  forbidden: 'Нет доступа к этому заказу.',
+  backward_forbidden: 'Вернуть заказ на предыдущую стадию могут администратор и руководитель.',
   reason_required: 'Укажите причину отмены.',
   status_inactive: 'Этот статус выключен в справочнике.',
 };
@@ -61,6 +62,8 @@ export type OrderStatusPanelProps = {
   /** Терминальный статус («Отменена»), если он активен. */
   terminal: StatusOption | null;
   history: StatusHistoryRow[];
+  /** Этап 6 ТЗ 13.10.2026 (`У-304`): ссылка в справочник статусов; `null` — подсказка словами. */
+  statusesHref?: string | null | undefined;
 };
 
 export function OrderStatusPanel({
@@ -70,6 +73,7 @@ export function OrderStatusPanel({
   backward,
   terminal,
   history,
+  statusesHref = null,
 }: OrderStatusPanelProps) {
   const [pending, startTransition] = useTransition();
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -86,7 +90,7 @@ export function OrderStatusPanel({
       });
       if (res.ok) {
         setCancelOpen(false);
-        toast.success('Статус заявки обновлён');
+        toast.success('Статус заказа обновлён');
         return;
       }
       if (res.error === 'completion_conditions_unmet') {
@@ -105,7 +109,7 @@ export function OrderStatusPanel({
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-[#111111]">Статус заявки</h2>
+        <h2 className="text-sm font-semibold text-[#111111]">Статус заказа</h2>
         <Badge tone={current?.isTerminal ? 'warning' : current ? 'info' : 'neutral'}>
           {current?.label ?? 'Без статуса'}
         </Badge>
@@ -113,7 +117,7 @@ export function OrderStatusPanel({
 
       {unmet.length > 0 && (
         <div role="alert" className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm">
-          <p className="font-medium text-amber-800">Заявку пока нельзя закрыть:</p>
+          <p className="font-medium text-amber-800">Заказ пока нельзя закрыть:</p>
           <ul className="list-disc list-inside text-amber-700">
             {unmet.map((c) => (
               <li key={c}>{UNMET_RU[c]}</li>
@@ -158,6 +162,18 @@ export function OrderStatusPanel({
         <p className="text-sm text-gray-500">Доступных переходов нет.</p>
       )}
 
+      {/* Этап 6 ТЗ 13.10.2026 (`У-304`, `Р-6-3`): где настраивают статусы. */}
+      {statusesHref ? (
+        <Link href={statusesHref} className="inline-block text-xs text-[#EA580C] hover:underline">
+          Настроить статусы заказов
+        </Link>
+      ) : (
+        <p className="text-xs text-gray-500">
+          Набор и порядок статусов настраивают руководитель и администратор: «Настройки →
+          Справочники → Статусы заказов».
+        </p>
+      )}
+
       {history.length > 0 && (
         <div className="space-y-1 pt-1">
           <h3 className="text-xs font-semibold text-gray-500">История статусов</h3>
@@ -176,7 +192,7 @@ export function OrderStatusPanel({
       <Dialog
         open={cancelOpen}
         onClose={() => setCancelOpen(false)}
-        title={terminal ? terminal.label : 'Отмена заявки'}
+        title={terminal ? terminal.label : 'Отмена заказа'}
         busy={pending}
       >
         <form onSubmit={onCancelSubmit} className="space-y-3">

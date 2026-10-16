@@ -89,4 +89,9 @@ describe('OrderLifecyclePanel — отметка бухгалтерии', () => 
     expect(screen.getByText('Бухгалтерия')).toBeTruthy();
     expect(screen.queryByRole('button')).toBeNull();
   });
+
+  it('этап 6 ТЗ 13.10.2026 (`У-305`): «Бухгалтерия подписана» — отметка, без неё заказ не закрыть', () => {
+    render(<OrderLifecyclePanel orderId="o1" accountingSigned={false} returnReason={null} />);
+    expect(screen.getByText('Отметка, а не этап: без неё заказ нельзя закрыть.')).toBeTruthy();
+  });
 });

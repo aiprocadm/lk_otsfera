@@ -45,6 +45,16 @@ vi.mock('@/components/manager/manager-orders-table', () => ({
     ),
 }));
 
+// Этап 6 ТЗ 13.10.2026 (`У-306`): кнопка «Создать заказ» — клиентский компонент
+// со своим тестом; здесь видно лишь, что она есть и получила организации.
+vi.mock('@/components/manager/create-order-button', () => ({
+  CreateOrderButton: (props: { organizations: unknown[] }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'create-order' },
+      JSON.stringify(props.organizations)
+    ),
+}));
 vi.mock('@/components/manager/manager-orders-card-list', () => ({
   ManagerOrdersCardList: (props: { rows: unknown[] }) =>
     React.createElement('div', { 'data-testid': 'orders-card-list' }, JSON.stringify(props.rows)),
@@ -82,6 +92,10 @@ describe('ManagerOrdersPage', () => {
     expect(container.textContent).toContain('Заказы');
     expect(container.textContent).toContain('o1');
     expect(container.textContent).toContain('Org');
+    // `У-306`: «Создать заказ» рядом с выгрузкой — со своими организациями.
+    expect(container.querySelector('[data-testid="create-order"]')?.textContent).toBe(
+      JSON.stringify([{ id: 'org1', name: 'Org' }])
+    );
   });
 
   it('renders with empty searchParams and empty results', async () => {

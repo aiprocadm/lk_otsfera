@@ -167,6 +167,8 @@ export const AUDIT_ACTIONS = [
   'task_result_set',
   'task_result_file_uploaded',
   'task_result_file_deleted',
+  // Этап 6 ТЗ 13.10.2026 (`У-306`): заказ без лида.
+  'order_created_directly',
   'enrollment_provisioned',
   'enrollment_rejected',
   'enrollment_submitted',
