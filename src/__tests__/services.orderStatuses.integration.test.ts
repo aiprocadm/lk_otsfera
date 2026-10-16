@@ -10,6 +10,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { createOrderDirect } from '@/lib/services/manager/orderCreate';
+import { listOrderKanban } from '@/lib/services/manager/orders';
 import { getOrderStatusPanel } from '@/lib/services/orderStatuses/panel';
 import {
   listStatusDefinitions,
@@ -938,5 +939,62 @@ describe('этап 6 ТЗ 13.10.2026 (`У-304`, `Р-6-3`): где настраи
       (await getOrderStatusPanel(prisma, sess(managerId, 'manager', { companyId }), orderId))
         .statusesHref
     ).toBeNull();
+  });
+});
+
+describe('этап 6 ТЗ 13.10.2026 (`У-303`): канбан заказов', () => {
+  const mgr = () => sess(managerId, 'manager', { companyId, managedOrgIds: [orgId] });
+
+  it('столбцы — этапы по порядку и «Отменена»; заказ лежит в столбце своего этапа', async () => {
+    const mk = (suffix: string, statusId: string | null) =>
+      prisma.order.create({
+        data: {
+          title: `OSS-KB-${suffix}-${S}`,
+          companyId,
+          organizationId: orgId,
+          executionStatus: 'pending',
+          ...(statusId ? { statusId } : {}),
+        },
+        select: { id: true },
+      });
+    const a = await mk('acc', accepted);
+    const p = await mk('paid', paid);
+    const c = await mk('cancel', cancelled);
+    const docs = (await getOrderedStatuses(prisma)).find((s) => s.key === 'documents_issued')!;
+    const orphan = await mk('orphan', docs.id);
+
+    const board = await listOrderKanban(prisma, { session: mgr(), search: `OSS-KB-` });
+    expect(board.columns.map((col) => col.label)).toEqual([
+      'Без этапа',
+      'Черновик заявки',
+      'Принято в работу',
+      'Оплата поступила',
+      'Заказ закрыт',
+      'Отменена',
+    ]);
+    const where = (id: string) => board.columns.find((col) => col.orders.some((o) => o.id === id));
+    expect(where(a.id)?.id).toBe(accepted);
+    expect(where(p.id)?.id).toBe(paid);
+    expect(where(c.id)?.isTerminal).toBe(true);
+    // Заказ на выключенном этапе не теряется — «Без этапа», куда не бросают.
+    expect(where(orphan.id)).toMatchObject({ id: '', droppable: false });
+    expect(board.total).toBe(4);
+    expect(board.shown).toBe(4);
+    const card = board.columns.flatMap((col) => col.orders).find((o) => o.id === a.id)!;
+    expect(card.organizationName).toBe(`OSS-Org-${S}`);
+  });
+
+  it('те же скоуп и фильтры, что у списка: чужое не видно, фокус работает, без «Без этапа» — нет столбца', async () => {
+    const other = sess(managerId, 'manager', { companyId, managedOrgIds: [] });
+    const none = await listOrderKanban(prisma, { session: other, search: `OSS-KB-` });
+    expect(none.total).toBe(0);
+    expect(none.columns.map((col) => col.label)).not.toContain('Без этапа');
+    const active = await listOrderKanban(prisma, {
+      session: mgr(),
+      search: `OSS-KB-`,
+      focus: 'active',
+    });
+    // «В работе» — pending/in_progress, все четыре созданы как pending.
+    expect(active.total).toBe(4);
   });
 });

@@ -18,8 +18,15 @@ vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
-const { listOrders } = vi.hoisted(() => ({ listOrders: vi.fn() }));
-vi.mock('@/lib/services/manager/orders', () => ({ listOrders }));
+const { listOrders, listOrderKanban } = vi.hoisted(() => ({
+  listOrders: vi.fn(),
+  listOrderKanban: vi.fn(),
+}));
+vi.mock('@/lib/services/manager/orders', () => ({ listOrders, listOrderKanban }));
+vi.mock('@/components/manager/manager-orders-kanban', () => ({
+  ManagerOrdersKanban: (props: { board: { total: number } }) =>
+    React.createElement('div', { 'data-testid': 'orders-kanban' }, String(props.board.total)),
+}));
 
 const { listOrganizations } = vi.hoisted(() => ({ listOrganizations: vi.fn() }));
 vi.mock('@/lib/services/manager/organizations', () => ({ listOrganizations }));
@@ -238,5 +245,57 @@ describe('ManagerOrdersPage — плашка «объект недоступен
       ManagerOrdersPage({ searchParams: Promise.resolve({}) })
     );
     expect(container.querySelector('[data-testid="missing-object-notice"]')).toBeNull();
+  });
+});
+
+describe('ManagerOrdersPage — «Список / Канбан» (`У-303`)', () => {
+  beforeEach(() => {
+    requireManager.mockReset();
+    listOrders.mockReset();
+    listOrderKanban.mockReset();
+    listOrganizations.mockReset();
+    requireManager.mockResolvedValue(SESSION);
+    listOrganizations.mockResolvedValue([]);
+  });
+
+  it('по умолчанию — список; канбан не грузится; переключатель хранит фильтры', async () => {
+    listOrders.mockResolvedValue({ rows: [], nextCursor: null });
+    const { container } = await renderServerComponent(
+      ManagerOrdersPage({ searchParams: Promise.resolve({ search: 'абв', cursor: 'c1' }) })
+    );
+    expect(listOrderKanban).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="orders-table"]')).not.toBeNull();
+    const kanbanLink = [...container.querySelectorAll('a')].find((a) => a.textContent === 'Канбан');
+    // Страница списка (cursor) в доску не переносится, фильтры — переносятся.
+    expect(kanbanLink?.getAttribute('href')).toBe(
+      `/manager/orders?search=${encodeURIComponent('абв')}&view=kanban`
+    );
+  });
+
+  it('?view=kanban — доска с теми же фильтрами и фокусом; список не грузится', async () => {
+    listOrderKanban.mockResolvedValue({ columns: [], shown: 300, total: 450 });
+    const { container } = await renderServerComponent(
+      ManagerOrdersPage({ searchParams: Promise.resolve({ view: 'kanban', focus: 'overdue' }) })
+    );
+    expect(listOrders).not.toHaveBeenCalled();
+    expect(listOrderKanban).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ session: SESSION, focus: 'overdue' })
+    );
+    expect(container.querySelector('[data-testid="orders-kanban"]')?.textContent).toBe('450');
+    // Доска упёрлась в предел — сказано, что показано не всё.
+    expect(container.textContent).toContain('На доске — 300 последних из 450');
+    const listLink = [...container.querySelectorAll('a')].find((a) => a.textContent === 'Список');
+    expect(listLink?.getAttribute('href')).toBe('/manager/orders?focus=overdue');
+  });
+
+  it('доска влезла целиком — без оговорки', async () => {
+    listOrderKanban.mockResolvedValue({ columns: [], shown: 3, total: 3 });
+    const { container } = await renderServerComponent(
+      ManagerOrdersPage({ searchParams: Promise.resolve({ view: 'kanban' }) })
+    );
+    expect(container.textContent).not.toContain('На доске —');
+    const listLink = [...container.querySelectorAll('a')].find((a) => a.textContent === 'Список');
+    expect(listLink?.getAttribute('href')).toBe('/manager/orders');
   });
 });

@@ -9,6 +9,7 @@ import {
 } from '@/lib/auth/managerPolicy';
 import { orderFocusFilter } from '@/lib/services/manager/orderFocus';
 import { ORDER_FOCUS } from '@/lib/orders/focus';
+import { getOrderedStatuses } from '@/lib/services/orderStatuses/definitions';
 
 /**
  * Manager-facing orders service. All visibility is governed by the three-way
@@ -160,6 +161,102 @@ export async function listOrdersForExport(
     }),
   ]);
   return { rows, total };
+}
+
+/** Предел канбана: доска — витрина «где что стоит», а не выгрузка. */
+const ORDER_KANBAN_CAP = 300;
+
+type OrderKanbanCard = {
+  id: string;
+  title: string;
+  orderNumber: string | null;
+  organizationName: string;
+  totalAmount: string;
+};
+
+export type OrderKanban = {
+  columns: {
+    /** id строки справочника; `''` — заказы без этапа (на них не бросают). */
+    id: string;
+    label: string;
+    isTerminal: boolean;
+    droppable: boolean;
+    orders: OrderKanbanCard[];
+  }[];
+  shown: number;
+  total: number;
+};
+
+/**
+ * Канбан заказов (этап 6 ТЗ 13.10.2026, `У-303`, `Р-6-6`): те же скоуп и
+ * фильтры, что у списка (`buildOrdersFilters` + фокус), разложенные по этапам
+ * справочника — активные по порядку, затем «Отменена». Заказ на выключенном
+ * или пропавшем статусе не теряется: он в столбце «Без этапа», куда карточки
+ * не перетаскивают (сменить этап — перетащив оттуда).
+ */
+export async function listOrderKanban(
+  prisma: PrismaClient,
+  optsRaw: ListOrdersForExportOptions
+): Promise<OrderKanban> {
+  const opts = ListOrdersOptionsSchema.parse(optsRaw);
+  const teamMode =
+    opts.teamModeOverride ?? (await getCompanyTeamVisibility(prisma, opts.session.companyId));
+  const scope = managerOrderScope(opts.session, teamMode);
+  const filters = buildOrdersFilters(opts, scope);
+  if (opts.focus) filters.push(await orderFocusFilter(prisma, opts.focus, scope, new Date()));
+  const where: Prisma.OrderWhereInput = { AND: filters };
+
+  const [statuses, rows, total] = await Promise.all([
+    getOrderedStatuses(prisma),
+    prisma.order.findMany({
+      where,
+      select: {
+        id: true,
+        title: true,
+        orderNumber: true,
+        statusId: true,
+        totalAmount: true,
+        organization: { select: { name: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: ORDER_KANBAN_CAP,
+    }),
+    prisma.order.count({ where }),
+  ]);
+
+  const active = statuses.filter((s) => s.isActive);
+  const ordered = [...active.filter((s) => !s.isTerminal), ...active.filter((s) => s.isTerminal)];
+  const columns: OrderKanban['columns'] = ordered.map((s) => ({
+    id: s.id,
+    label: s.label,
+    isTerminal: s.isTerminal,
+    droppable: true,
+    orders: [],
+  }));
+  const byId = new Map(columns.map((c) => [c.id, c]));
+  const orphans: OrderKanbanCard[] = [];
+  for (const r of rows) {
+    const card: OrderKanbanCard = {
+      id: r.id,
+      title: r.title,
+      orderNumber: r.orderNumber,
+      organizationName: r.organization.name,
+      totalAmount: r.totalAmount.toString(),
+    };
+    const column = r.statusId ? byId.get(r.statusId) : undefined;
+    if (column) column.orders.push(card);
+    else orphans.push(card);
+  }
+  if (orphans.length > 0) {
+    columns.unshift({
+      id: '',
+      label: 'Без этапа',
+      isTerminal: false,
+      droppable: false,
+      orders: orphans,
+    });
+  }
+  return { columns, shown: rows.length, total };
 }
 
 const DETAIL_INCLUDE = {
