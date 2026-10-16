@@ -3,7 +3,8 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { managerOrgScope } from '@/lib/auth/managerPolicy';
 import { isManagerLeader } from '@/lib/auth/roleModel';
 
-export type ContactOrgOption = { id: string; name: string };
+// `inn` — для поиска по ИНН в форме контакта (`У-309`).
+export type ContactOrgOption = { id: string; name: string; inn?: string | null | undefined };
 
 const OPTIONS_CAP = 500;
 
@@ -27,7 +28,7 @@ export async function listContactOrgOptions(
       : { AND: [floor, managerOrgScope(session, teamMode)] };
   return prisma.organization.findMany({
     where,
-    select: { id: true, name: true },
+    select: { id: true, name: true, inn: true },
     orderBy: [{ name: 'asc' }, { id: 'asc' }],
     take: OPTIONS_CAP,
   });

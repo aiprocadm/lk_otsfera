@@ -52,7 +52,7 @@ describe('listContactOrgOptions', () => {
     expect(findMany).toHaveBeenCalledTimes(1);
     expect(findMany).toHaveBeenCalledWith({
       where: { companyId: 'c1' },
-      select: { id: true, name: true },
+      select: { id: true, name: true, inn: true },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
       take: 500,
     });

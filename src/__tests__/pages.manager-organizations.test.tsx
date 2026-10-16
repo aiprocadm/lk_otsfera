@@ -11,6 +11,9 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 const { listOrganizations } = vi.hoisted(() => ({ listOrganizations: vi.fn() }));
 vi.mock('@/lib/services/manager/organizations', () => ({ listOrganizations }));
 
+vi.mock('@/components/manager/create-organization-button', () => ({
+  CreateOrganizationButton: () => React.createElement('button', null, 'Создать организацию'),
+}));
 vi.mock('@/components/manager/manager-orgs-list', () => ({
   ManagerOrgsList: (props: { orgs: unknown[] }) =>
     React.createElement('div', { 'data-testid': 'orgs-list' }, JSON.stringify(props.orgs)),
@@ -44,6 +47,8 @@ describe('ManagerOrganizationsPage', () => {
     expect(listOrganizations).toHaveBeenCalledWith({}, SESSION, undefined, { withoutInn: false });
     expect(container.textContent).toContain('Организации');
     expect(container.textContent).toContain('Org');
+    // `У-308`: главное действие экрана — создать организацию.
+    expect(container.querySelector('button')?.textContent).toBe('Создать организацию');
   });
 
   it('renders with an empty organizations list', async () => {

@@ -1,4 +1,5 @@
 import type { PrismaClient, Lead, LeadStatus, Order } from '@prisma/client';
+import { leadStatusTransitions } from '@/lib/leads/statuses';
 import { recordAudit } from '@/lib/auth/audit';
 import { getInitialStatusId } from '@/lib/services/orderStatuses';
 
@@ -14,11 +15,6 @@ import { getInitialStatusId } from '@/lib/services/orderStatuses';
  */
 
 // Allowed manual status moves (excludes terminal promote/reject — those are actions).
-const ALLOWED_STATUS: Record<string, LeadStatus[]> = {
-  new: ['in_review'],
-  in_review: ['new', 'qualified'],
-  qualified: ['in_review'],
-};
 
 async function loadLead(prisma: PrismaClient, leadId: string) {
   return prisma.lead.findUnique({
@@ -94,7 +90,7 @@ export async function setLeadStatus(
 ): Promise<LeadResult> {
   const lead = await loadLead(prisma, args.leadId);
   if (!lead) return { ok: false, error: 'not_found' };
-  const allowed = ALLOWED_STATUS[lead.status] ?? [];
+  const allowed = leadStatusTransitions(lead.status);
   if (!allowed.includes(args.status)) {
     return { ok: false, error: 'lifecycle_violation' };
   }
