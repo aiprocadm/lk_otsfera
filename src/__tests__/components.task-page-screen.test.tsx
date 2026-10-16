@@ -41,6 +41,11 @@ function detail(over: Partial<TaskDetail> = {}): TaskDetail {
     columnId: 'default:in_progress',
     columnName: 'В работе',
     assignees: [{ id: 'u1', name: 'Иван' }],
+    coAssignees: [],
+    tags: [],
+    result: null,
+    resultUpdatedAt: null,
+    resultFiles: [],
     links: [{ kind: 'order', id: 'ord1', title: 'Заказ №1' }],
     checklist: [],
     comments: [],
@@ -75,6 +80,34 @@ describe('TaskPageScreen', () => {
       })
     );
     expect(screen.getByRole('button', { name: 'Редактировать' })).toBeTruthy();
+  });
+
+  it('этап 5 ТЗ 13.10.2026 (`У-299`): постановщик, соисполнители, теги и результат', () => {
+    render(
+      React.createElement(TaskPageScreen, {
+        task: detail({
+          coAssignees: [{ id: 'u2', name: 'Мария' }],
+          tags: ['звонок'],
+          result: 'Отправили акт',
+        }),
+        cabinet: 'manager',
+      })
+    );
+    expect(screen.getByText('Постановщик')).toBeTruthy();
+    expect(screen.queryByText('Автор')).toBeNull();
+    expect(screen.getByText('Соисполнители')).toBeTruthy();
+    expect(screen.getByText('Мария')).toBeTruthy();
+    expect(screen.getByText('звонок')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Результат' })).toBeTruthy();
+    expect((screen.getByLabelText('Что получилось') as HTMLTextAreaElement).value).toBe(
+      'Отправили акт'
+    );
+  });
+
+  it('без соисполнителей и тегов — этих строк нет, а не «пусто»', () => {
+    render(React.createElement(TaskPageScreen, { task: detail(), cabinet: 'manager' }));
+    expect(screen.queryByText('Соисполнители')).toBeNull();
+    expect(screen.queryByText('Теги')).toBeNull();
   });
 
   it('ссылки связей ведут в СВОЙ кабинет (правило зеркала)', () => {
@@ -209,14 +242,28 @@ describe('TaskPageScreen', () => {
       React.createElement(TaskPageScreen, {
         task: detail({
           history: [
-            { id: 'a1', at: new Date('2026-09-02'), action: 'Перенос задачи', actorName: 'Пётр' },
-            { id: 'a2', at: new Date('2026-09-01'), action: 'Создание задачи', actorName: null },
+            {
+              id: 'a1',
+              at: new Date('2026-09-02'),
+              action: 'Перенос задачи',
+              details: 'срок, исполнители',
+              actorName: 'Пётр',
+            },
+            {
+              id: 'a2',
+              at: new Date('2026-09-01'),
+              action: 'Создание задачи',
+              details: null,
+              actorName: null,
+            },
           ],
         }),
         cabinet: 'manager',
       })
     );
-    expect(screen.getByText('Перенос задачи')).toBeTruthy();
+    expect(screen.getByText(/Перенос задачи/)).toBeTruthy();
+    // Этап 5 ТЗ 13.10.2026 (`У-302`): видно, что именно поменяли.
+    expect(screen.getByText(': срок, исполнители')).toBeTruthy();
     expect(screen.getByText(/· Пётр/)).toBeTruthy();
     expect(screen.getByText('Создание задачи')).toBeTruthy();
   });

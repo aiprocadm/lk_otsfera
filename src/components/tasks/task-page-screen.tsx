@@ -9,6 +9,7 @@ import { isPastDue } from '@/lib/tasks/due';
 import { fmtDate } from '@/lib/format';
 import { TaskChecklist } from './task-checklist';
 import { TaskComments } from './task-comments';
+import { TaskResultPanel } from './task-result-panel';
 
 /**
  * Карточка задачи (`У-218`) — один экран на два кабинета сотрудников.
@@ -89,6 +90,13 @@ export function TaskPageScreen({
             )}
           </section>
 
+          {/* Этап 5 ТЗ 13.10.2026 (`У-299`): что получилось — текст и файлы. */}
+          <TaskResultPanel
+            taskId={task.id}
+            result={task.result}
+            resultUpdatedAt={task.resultUpdatedAt}
+            files={task.resultFiles}
+          />
           <TaskChecklist taskId={task.id} items={task.checklist} />
           <TaskComments taskId={task.id} comments={task.comments} colleagues={task.colleagues} />
         </div>
@@ -124,10 +132,31 @@ export function TaskPageScreen({
                     : 'никто не назначен'}
                 </dd>
               </div>
+              {task.coAssignees.length > 0 && (
+                <div className="flex justify-between gap-2">
+                  <dt className="text-gray-500">Соисполнители</dt>
+                  <dd className="text-right text-[#111111]">
+                    {task.coAssignees.map((a) => a.name).join(', ')}
+                  </dd>
+                </div>
+              )}
+              {/* `У-299`: кто поставил задачу — тот, к кому идти с вопросом. */}
               <div className="flex justify-between gap-2">
-                <dt className="text-gray-500">Автор</dt>
+                <dt className="text-gray-500">Постановщик</dt>
                 <dd className="text-[#111111]">{task.createdByName}</dd>
               </div>
+              {task.tags.length > 0 && (
+                <div className="flex justify-between gap-2">
+                  <dt className="text-gray-500">Теги</dt>
+                  <dd className="flex flex-wrap justify-end gap-1">
+                    {task.tags.map((t) => (
+                      <Badge key={t} tone="neutral">
+                        {t}
+                      </Badge>
+                    ))}
+                  </dd>
+                </div>
+              )}
             </dl>
             {task.createdByRuleId && (
               <p className="text-xs text-gray-500">Задача создана правилом автоматизации.</p>
@@ -162,7 +191,11 @@ export function TaskPageScreen({
               <ul className="space-y-1.5 text-sm">
                 {task.history.map((h) => (
                   <li key={h.id} className="flex flex-col">
-                    <span className="text-[#111111]">{h.action}</span>
+                    <span className="text-[#111111]">
+                      {h.action}
+                      {/* `У-302`: что именно поменяли. */}
+                      {h.details && <span className="text-gray-500">: {h.details}</span>}
+                    </span>
                     <span className="text-xs text-gray-400">
                       {new Date(h.at).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}
                       {h.actorName ? ` · ${h.actorName}` : ''}

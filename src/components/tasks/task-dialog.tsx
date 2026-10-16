@@ -8,6 +8,7 @@ import { createTaskAction, updateTaskAction, deleteTaskAction } from '@/server-a
 import type { TaskColumnView } from '@/lib/tasks/columns';
 import type { TaskCard, TaskFormOptions } from '@/lib/services/tasks/board';
 import { startOfMoscowDay as moscowDayAsUtcMidnight } from '@/lib/documents/proposalExpiry';
+import { TAGS_MAX, TAG_MAX_LENGTH } from '@/lib/tasks/tags';
 import { AssigneePicker } from './assignee-picker';
 
 export type { TaskFormOptions };
@@ -305,14 +306,47 @@ export function TaskDialog({
         {options.users.length === 0 ? (
           <p className="text-xs text-gray-500">Нет доступных сотрудников.</p>
         ) : (
-          <AssigneePicker
-            users={options.users}
-            defaultSelected={target?.assigneeIds ?? []}
-            name="assigneeIds"
-            label="Исполнители"
-            idPrefix="tk-assignees"
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <AssigneePicker
+              users={options.users}
+              defaultSelected={target?.assigneeIds ?? []}
+              name="assigneeIds"
+              label="Исполнители"
+              idPrefix="tk-assignees"
+            />
+            {/* `У-299`, `Р-5-1`: соисполнители помогают; метка говорит серверу,
+                что список передан (пустой список скрытых полей не даёт). */}
+            <div>
+              <input type="hidden" name="coAssigneesPresent" value="1" />
+              <AssigneePicker
+                users={options.users}
+                defaultSelected={target?.coAssigneeIds ?? []}
+                name="coAssigneeIds"
+                label="Соисполнители"
+                idPrefix="tk-co-assignees"
+              />
+            </div>
+          </div>
         )}
+        {/* `У-299`, `Р-5-4`: теги для типизации — через запятую, с подсказками. */}
+        <Field
+          htmlFor="tk-tags"
+          label="Теги (необязательно)"
+          hint={`Через запятую, до ${TAGS_MAX} тегов по ${TAG_MAX_LENGTH} символов: «звонок, документы».`}
+        >
+          <Input
+            id="tk-tags"
+            name="tags"
+            list="tk-tags-known"
+            defaultValue={(target?.tags ?? []).join(', ')}
+            autoComplete="off"
+          />
+          <datalist id="tk-tags-known">
+            {options.knownTags.map((t) => (
+              <option key={t} value={t} />
+            ))}
+          </datalist>
+        </Field>
         {target?.recurrence && (
           <fieldset className="rounded-lg border border-gray-200 p-3 space-y-2">
             <legend className="px-1 text-sm font-medium text-[#111111]">

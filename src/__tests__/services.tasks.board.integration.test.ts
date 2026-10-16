@@ -8,6 +8,8 @@ import {
 } from '@/lib/services/tasks/board';
 import { createTask, updateTask, deleteTask, assignTask } from '@/lib/services/tasks/tasks';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { getTaskDetail } from '@/lib/services/tasks/detail';
+import { setTaskResult, listTaskResultFiles } from '@/lib/services/tasks/result';
 import type { SessionAccessProfile } from '@/lib/auth/accessProfile';
 
 /**
@@ -304,5 +306,162 @@ describe('этап 5 ТЗ 13.10.2026 (`У-302`): данные формы пра�
       ok: false,
       error: 'not_found',
     });
+  });
+});
+
+describe('этап 5 ТЗ 13.10.2026 (`У-299`): соисполнители, теги, результат, подробная история', () => {
+  it('соисполнители — отдельной ролью; один человек в обоих списках — исполнитель', async () => {
+    const r = await createTask(prisma, sA(), {
+      title: `t-co-${STAMP}`,
+      assigneeIds: [m1],
+      coAssigneeIds: [m2, m1],
+    });
+    if (!r.ok) throw new Error('create failed');
+    const rows = await prisma.taskAssignee.findMany({
+      where: { taskId: r.id },
+      select: { userId: true, role: true },
+      orderBy: { userId: 'asc' },
+    });
+    expect(Object.fromEntries(rows.map((x) => [x.userId, x.role]))).toEqual({
+      [m1]: 'executor',
+      [m2]: 'co_executor',
+    });
+    const d = await getTaskDetail(prisma, sA(), r.id);
+    if (!d.ok) throw new Error('detail');
+    expect(d.task.assignees.map((a) => a.id)).toEqual([m1]);
+    expect(d.task.coAssignees.map((a) => a.id)).toEqual([m2]);
+
+    // Соисполнителя повышаем до исполнителя: строка та же, роль меняется.
+    expect(
+      await updateTask(prisma, sA(), r.id, {
+        title: `t-co-${STAMP}`,
+        assigneeIds: [m1, m2],
+        coAssigneeIds: [],
+      })
+    ).toEqual({ ok: true });
+    const after = await prisma.taskAssignee.findMany({
+      where: { taskId: r.id },
+      select: { role: true },
+    });
+    expect(after.map((x) => x.role)).toEqual(['executor', 'executor']);
+    // Список соисполнителей не передан — их не трогаем.
+    await prisma.taskAssignee.update({
+      where: { taskId_userId: { taskId: r.id, userId: m2 } },
+      data: { role: 'co_executor' },
+    });
+    await updateTask(prisma, sA(), r.id, { title: `t-co-${STAMP}`, assigneeIds: [m1] });
+    const kept = await prisma.taskAssignee.findUnique({
+      where: { taskId_userId: { taskId: r.id, userId: m2 } },
+      select: { role: true },
+    });
+    expect(kept?.role).toBe('co_executor');
+    // Соисполнитель чужой компании — отказ.
+    expect(
+      await updateTask(prisma, sA(), r.id, { title: 'x', assigneeIds: [m1], coAssigneeIds: [mB] })
+    ).toEqual({ ok: false, error: 'validation' });
+  });
+
+  it('теги — строчными без повторов; фильтр доски по тегу; подсказки тегов компании', async () => {
+    const r = await createTask(prisma, sA(), {
+      title: `t-tag-${STAMP}`,
+      tags: ['Звонок', ' звонок ', 'Документы'],
+    });
+    if (!r.ok) throw new Error('create failed');
+    const row = await prisma.task.findUniqueOrThrow({
+      where: { id: r.id },
+      select: { tags: true },
+    });
+    expect(row.tags).toEqual(['звонок', 'документы']);
+
+    const byTag = await listTaskBoard(prisma, sA(), { tag: 'ЗВОНОК' });
+    const ids = byTag.board.flatMap((c) => c.cards.map((x) => x.id));
+    expect(ids).toContain(r.id);
+    expect(byTag.board.flatMap((c) => c.cards).every((x) => x.tags.includes('звонок'))).toBe(true);
+    const none = await listTaskBoard(prisma, sA(), { tag: `нет-${STAMP}` });
+    expect(none.total).toBe(0);
+
+    const options = await getTaskFormOptions(prisma, sA());
+    expect(options.knownTags).toEqual(expect.arrayContaining(['звонок', 'документы']));
+    // Чужая компания тегов этой не видит.
+    expect((await getTaskFormOptions(prisma, sB())).knownTags).not.toContain('документы');
+
+    // Тегов нет в правке — не стираются.
+    await updateTask(prisma, sA(), r.id, { title: `t-tag-${STAMP}` });
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: r.id }, select: { tags: true } })).tags
+    ).toEqual(['звонок', 'документы']);
+  });
+
+  it('`У-302`: в историю правки пишется, что именно поменяли', async () => {
+    const r = await createTask(prisma, sA(), { title: `t-hist-${STAMP}` });
+    if (!r.ok) throw new Error('create failed');
+    await updateTask(prisma, sA(), r.id, {
+      title: `t-hist-${STAMP}-2`,
+      dueDate: new Date('2026-12-01T00:00:00Z'),
+      assigneeIds: [m2],
+      tags: ['отчёт'],
+    });
+    const d = await getTaskDetail(prisma, sA(), r.id);
+    if (!d.ok) throw new Error('detail');
+    const edit = d.task.history.find((h) => h.details !== null);
+    expect(edit?.details).toBe('название, срок, исполнители, теги');
+    // Сохранили без изменений — правка в журнале есть, но перечень пуст.
+    await updateTask(prisma, sA(), r.id, {
+      title: `t-hist-${STAMP}-2`,
+      dueDate: new Date('2026-12-01T00:00:00Z'),
+      assigneeIds: [m2],
+      tags: ['отчёт'],
+    });
+    const d2 = await getTaskDetail(prisma, sA(), r.id);
+    if (!d2.ok) throw new Error('detail');
+    expect(d2.task.history[0]?.details).toBeNull();
+  });
+
+  it('результат задачи: пишет тот, кто видит задачу; чужая компания — not_found', async () => {
+    const r = await createTask(prisma, sA(), { title: `t-res-${STAMP}` });
+    if (!r.ok) throw new Error('create failed');
+    expect(await setTaskResult(prisma, sA(), { taskId: r.id, result: 'Акт подписан' })).toEqual({
+      ok: true,
+    });
+    const d = await getTaskDetail(prisma, sA(), r.id);
+    if (!d.ok) throw new Error('detail');
+    expect(d.task.result).toBe('Акт подписан');
+    expect(d.task.resultUpdatedAt).toBeInstanceOf(Date);
+    expect(await setTaskResult(prisma, sB(), { taskId: r.id, result: 'x' })).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+
+    // Файлы результата: заражённый не показывается; удалить — свой или постановщик.
+    await prisma.taskResultFile.createMany({
+      data: [
+        {
+          taskId: r.id,
+          createdByUserId: m2,
+          name: 'акт.pdf',
+          path: 'p1',
+          mimeType: 'application/pdf',
+          size: 10,
+          scanStatus: 'clean',
+        },
+        {
+          taskId: r.id,
+          createdByUserId: m2,
+          name: 'вирус.pdf',
+          path: 'p2',
+          mimeType: 'application/pdf',
+          size: 10,
+          scanStatus: 'infected',
+        },
+      ],
+    });
+    const asM2 = await listTaskResultFiles(prisma, sM2(), { id: r.id, createdById: m1 });
+    expect(asM2.map((f) => [f.name, f.canDelete, f.createdByName])).toEqual([
+      ['акт.pdf', true, 'M2'],
+    ]);
+    const asBoss = await listTaskResultFiles(prisma, sA(), { id: r.id, createdById: m1 });
+    expect(asBoss[0]?.canDelete).toBe(true);
+    const asOther = await listTaskResultFiles(prisma, sB(), { id: r.id, createdById: m1 });
+    expect(asOther[0]?.canDelete).toBe(false);
   });
 });

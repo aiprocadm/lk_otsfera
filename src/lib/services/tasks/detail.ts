@@ -7,6 +7,8 @@ import { parseRecurrence, type RecurrenceRule } from '@/lib/tasks/recurrence';
 import { listColleagues, type StaffColleague } from '@/lib/services/staffChat/mentions';
 import { listTaskComments, type TaskCommentView } from './comments';
 import { listChecklist, type ChecklistItemView } from './checklist';
+import { listTaskResultFiles, type TaskResultFileRow } from './result';
+import { taskChangedFieldsRu } from './tasks';
 
 /**
  * Карточка задачи (`У-218`) — всё, что показывает страница `/…/tasks/[id]`.
@@ -24,6 +26,8 @@ type TaskHistoryEntry = {
   id: string;
   at: Date;
   action: string;
+  /** Этап 5 ТЗ 13.10.2026 (`У-302`): что поменяли при правке — «срок, исполнители». */
+  details: string | null;
   actorName: string | null;
 };
 
@@ -44,7 +48,16 @@ export type TaskDetail = {
   recurrence: RecurrenceRule | null;
   columnId: string;
   columnName: string;
+  /** Ответственные исполнители. */
   assignees: { id: string; name: string }[];
+  /** Этап 5 ТЗ 13.10.2026 (`У-299`, `Р-5-1`): соисполнители. */
+  coAssignees: { id: string; name: string }[];
+  /** `Р-5-4`: теги. */
+  tags: string[];
+  /** `Р-5-3`: результат — текст и файлы. */
+  result: string | null;
+  resultUpdatedAt: Date | null;
+  resultFiles: TaskResultFileRow[];
   links: { kind: 'order' | 'organization' | 'lead' | 'deal'; id: string; title: string }[];
   checklist: ChecklistItemView[];
   comments: TaskCommentView[];
@@ -83,12 +96,15 @@ export async function getTaskDetail(
       recurrence: true,
       columnId: true,
       companyId: true,
+      tags: true,
+      result: true,
+      resultUpdatedAt: true,
       linkedOrderId: true,
       linkedOrganizationId: true,
       linkedLeadId: true,
       linkedDealId: true,
       createdBy: { select: { name: true } },
-      assignees: { select: { userId: true, user: { select: { name: true } } } },
+      assignees: { select: { userId: true, role: true, user: { select: { name: true } } } },
       linkedOrder: { select: { title: true } },
       linkedOrganization: { select: { name: true } },
       linkedLead: { select: { subject: true } },
@@ -108,16 +124,23 @@ export async function getTaskDetail(
   const columns = await resolveTaskColumns(prisma, row.companyId);
   const column = columnForTask(columns, row);
 
-  const [checklist, comments, colleagues, historyRows] = await Promise.all([
+  const [checklist, comments, colleagues, historyRows, resultFiles] = await Promise.all([
     listChecklist(prisma, row.id),
     listTaskComments(prisma, row.id),
     listColleagues(prisma, session),
     prisma.auditLog.findMany({
       where: { entity: 'task', entityId: row.id },
-      select: { id: true, action: true, createdAt: true, user: { select: { name: true } } },
+      select: {
+        id: true,
+        action: true,
+        createdAt: true,
+        meta: true,
+        user: { select: { name: true } },
+      },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: HISTORY_CAP,
     }),
+    listTaskResultFiles(prisma, session, row),
   ]);
 
   const links: TaskDetail['links'] = [];
@@ -157,18 +180,33 @@ export async function getTaskDetail(
       // задачи остался без якоря — показываем статус, а не пустоту.
       columnId: column?.id ?? row.status,
       columnName: column?.name ?? row.status,
-      assignees: row.assignees.map((a) => ({ id: a.userId, name: a.user.name })),
+      assignees: row.assignees
+        .filter((a) => a.role === 'executor')
+        .map((a) => ({ id: a.userId, name: a.user.name })),
+      coAssignees: row.assignees
+        .filter((a) => a.role === 'co_executor')
+        .map((a) => ({ id: a.userId, name: a.user.name })),
+      tags: row.tags,
+      result: row.result,
+      resultUpdatedAt: row.resultUpdatedAt,
+      resultFiles,
       links,
       checklist,
       comments,
       // Себя не зовут: упоминание самого себя сервер и так отбрасывает.
       colleagues: colleagues.rows.filter((c) => c.id !== session.sub),
-      history: historyRows.map((h) => ({
-        id: h.id,
-        at: h.createdAt,
-        action: auditActionLabel(h.action),
-        actorName: h.user?.name ?? null,
-      })),
+      history: historyRows.map((h) => {
+        // `У-302`: правка показывает, что поменяли (`after.changed` пишет `updateTask`).
+        const after = (h.meta as { after?: { changed?: unknown } } | null)?.after;
+        const fields = taskChangedFieldsRu(after?.changed);
+        return {
+          id: h.id,
+          at: h.createdAt,
+          action: auditActionLabel(h.action),
+          details: fields.length > 0 ? fields.join(', ') : null,
+          actorName: h.user?.name ?? null,
+        };
+      }),
     },
   };
 }

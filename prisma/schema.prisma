@@ -268,6 +268,13 @@ enum ThreadSide {
 // Трек G3 (§21): enum-якорь колонок канбана задач. Дефолтные колонки
 // (DEFAULT_TASK_COLUMNS) привязаны к этим значениям; кастомные TaskColumn несут
 // statusAnchor. Task.status re-derive колонку при columnId=null (как Lead.status).
+/// Этап 5 ТЗ 13.10.2026 (`У-299`, `Р-5-1`): ответственный исполнитель или
+/// соисполнитель. Права на задачу у обоих одинаковые; различается подпись.
+enum TaskAssigneeRole {
+  executor
+  co_executor
+}
+
 enum TaskStatus {
   todo
   in_progress
@@ -330,6 +337,8 @@ model User {
   /// Этап 2 ТЗ 13.10.2026 (`У-284`, `Р-2-1`): карточки справочника, к которым
   /// привязана учётка слушателя (одна на каждую организацию, где он работает).
   studentCards                 Student[]                    @relation("StudentAccount")
+  /// Этап 5 ТЗ 13.10.2026 (`У-299`): файлы результата задач, которые загрузил человек.
+  taskResultFiles              TaskResultFile[]             @relation("TaskResultFileAuthor")
   partnerMemberships           PartnerUser[]                @relation("PartnerMembership")
   leadsAuthored                Lead[]                       @relation("LeadAuthor")
   leadsManaged                 Lead[]                       @relation("LeadManager")
@@ -1255,6 +1264,13 @@ model Task {
   /// Этап 4 (`У-218`, `У-219`): обсуждение и чек-лист живут своими моделями.
   comments             TaskComment[]
   checklist            TaskChecklistItem[]
+  /// Этап 5 ТЗ 13.10.2026 (`У-299`, `Р-5-3`): что получилось — текст и файлы.
+  result               String?
+  resultUpdatedAt      DateTime?
+  resultFiles          TaskResultFile[]
+  /// Этап 5 ТЗ 13.10.2026 (`У-299`, `Р-5-4`): теги для типизации задач
+  /// («звонок», «документы»…), фильтр по тегу на доске и в списке.
+  tags                 String[]            @default([])
 
   /// Этап 2 ТЗ 12.09.2026 (`У-190`, `Р-Б-11`): ключ строки в Битрикс24; `externalId` остаётся за 1С.
   bitrixId String? @unique
@@ -1327,6 +1343,8 @@ model TaskAssignee {
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   userId    String
   user      User     @relation("TaskAssignee", fields: [userId], references: [id], onDelete: Cascade)
+  /// Этап 5 ТЗ 13.10.2026 (`Р-5-1`): прежние строки — исполнители.
+  role      TaskAssigneeRole @default(executor)
 
   @@unique([taskId, userId])
   @@index([userId])
@@ -3107,5 +3125,27 @@ model PartnerMaterialFile {
   supersededAt DateTime?
 
   @@index([materialId, supersededAt])
+  @@index([scanStatus])
+}
+
+/// Этап 5 ТЗ 13.10.2026 (`У-299`, `Р-5-3`): файл результата задачи — по образцу
+/// вложений обращений: проверка типа и размера, хранилище, антивирус
+/// (`pending → clean | infected`), скачивание по временной ссылке.
+model TaskResultFile {
+  id              String    @id @default(cuid())
+  createdAt       DateTime  @default(now())
+  taskId          String
+  task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdByUserId String?
+  createdByUser   User?     @relation("TaskResultFileAuthor", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  name            String
+  path            String
+  mimeType        String
+  size            Int
+  scanStatus      String    @default("pending")
+  scanReason      String?
+  scannedAt       DateTime?
+
+  @@index([taskId])
   @@index([scanStatus])
 }

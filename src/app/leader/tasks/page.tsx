@@ -30,6 +30,7 @@ export default async function LeaderTasksPage({
       scope: state.scope,
       overdue: state.overdue,
       assigneeId: state.assigneeId,
+      tag: state.tag,
     }),
     getTaskFormOptions(prisma, session),
   ]);
@@ -45,7 +46,7 @@ export default async function LeaderTasksPage({
       </div>
       {/* `У-232`: пришли по ссылке на удалённую или чужую задачу. */}
       {isMissingObjectRequested(sp) && <MissingObjectNotice what="Задача" feminine />}
-      <TasksToolbar state={state} assigneeOptions={options.users} />
+      <TasksToolbar state={state} assigneeOptions={options.users} tagOptions={options.knownTags} />
       {state.view === 'list' ? (
         <TaskList board={board} options={options} hrefBase="/leader/tasks" />
       ) : (

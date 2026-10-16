@@ -45,6 +45,7 @@ const emptyOptions: TaskFormOptions = {
   orders: [],
   organizationsTotal: 0,
   ordersTotal: 0,
+  knownTags: [],
 };
 
 const fullOptions: TaskFormOptions = {
@@ -56,6 +57,7 @@ const fullOptions: TaskFormOptions = {
   orders: [{ id: 'ord1', title: 'Заказ №1' }],
   organizationsTotal: 1,
   ordersTotal: 1,
+  knownTags: [],
 };
 
 const task: TaskCard = {
@@ -70,6 +72,9 @@ const task: TaskCard = {
   columnId: 'col-1',
   assigneeIds: ['u1'],
   assigneeNames: ['Иван Петров'],
+  coAssigneeIds: [],
+  coAssigneeNames: [],
+  tags: [],
   linkedOrderId: 'ord1',
   linkedOrderTitle: 'Заказ №1',
   linkedOrganizationId: 'org1',
@@ -182,7 +187,8 @@ describe('TaskDialog', () => {
     );
     expect(screen.queryByText('Нет доступных сотрудников.')).toBeNull();
     expect(container.querySelector('input[type="checkbox"][name="assigneeIds"]')).toBeNull();
-    expect(screen.getByText('Пока никто не выбран.')).toBeTruthy();
+    // Два списка — исполнители и соисполнители (`У-299`), оба пока пусты.
+    expect(screen.getAllByText('Пока никто не выбран.')).toHaveLength(2);
     const search = screen.getByLabelText('Исполнители');
     // По e-mail.
     fireEvent.change(search, { target: { value: 'MASHA@' } });
@@ -201,6 +207,31 @@ describe('TaskDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Убрать: Мария Сидорова' }));
     const hidden = [...container.querySelectorAll('input[type="hidden"][name="assigneeIds"]')];
     expect(hidden.map((i) => (i as HTMLInputElement).value)).toEqual(['u1']);
+  });
+
+  it('этап 5 ТЗ 13.10.2026 (`У-299`): соисполнители отдельным списком, метка «список передан», теги', () => {
+    const { container } = render(
+      renderDialog({
+        target: { ...task, coAssigneeIds: ['u2'], tags: ['звонок', 'документы'] },
+        columns,
+        options: { ...fullOptions, knownTags: ['звонок', 'отчёт'] },
+        onClose,
+        onSaved,
+      })
+    );
+    expect(screen.getByRole('button', { name: 'Убрать: Мария Сидорова' })).toBeTruthy();
+    expect(
+      (container.querySelector('input[type="hidden"][name="coAssigneeIds"]') as HTMLInputElement)
+        .value
+    ).toBe('u2');
+    // Метка есть всегда: без неё пустой список соисполнителей не отличить от «не трогать».
+    expect(container.querySelector('input[name="coAssigneesPresent"]')).not.toBeNull();
+    const tags = screen.getByLabelText('Теги (необязательно)') as HTMLInputElement;
+    expect(tags.value).toBe('звонок, документы');
+    const known = [...container.querySelectorAll('datalist#tk-tags-known option')].map(
+      (o) => (o as HTMLOptionElement).value
+    );
+    expect(known).toEqual(['звонок', 'отчёт']);
   });
 
   it('исполнитель, которого нет в списке (уволен), не теряется и подписан нейтрально', () => {
@@ -409,6 +440,7 @@ describe('TaskDialog', () => {
         orders: [{ id: 'ord-other', title: 'Другая заявка' }],
         organizationsTotal: 300,
         ordersTotal: 150,
+        knownTags: [],
       };
       const { container } = render(
         renderDialog({ target: task, columns, options, onClose, onSaved })
@@ -452,6 +484,7 @@ describe('TaskDialog', () => {
         ...fullOptions,
         organizationsTotal: 320,
         ordersTotal: 101,
+        knownTags: [],
       };
       render(renderDialog({ target: null, columns, options: truncated, onClose, onSaved }));
 

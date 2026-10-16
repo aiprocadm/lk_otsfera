@@ -33,6 +33,7 @@ function makeDb(
     clientRequestAttachmentPath?: string | null;
     brandingPath?: string | null;
     partnerMaterialPath?: string | null;
+    taskResultPath?: string | null;
     messengerAttachmentPath?: string | null;
   } = {}
 ) {
@@ -167,6 +168,17 @@ function makeDb(
               : { id: 'pmf-1', path: opts.partnerMaterialPath }
         ),
       update: partnerMaterialFileUpdate,
+    },
+    // Этап 5 ТЗ 13.10.2026 (`У-299`): файл результата задачи.
+    taskResultFile: {
+      findUnique: vi
+        .fn()
+        .mockResolvedValue(
+          opts.taskResultPath === null
+            ? null
+            : { id: 'trf-1', path: opts.taskResultPath ?? 'task-results/t1/act.pdf' }
+        ),
+      update: vi.fn().mockResolvedValue({}),
     },
     syncLog: { create: syncLogCreate },
   } as any;
@@ -613,6 +625,40 @@ describe('scanDocumentProcessor', () => {
       where: { id: 'pmf-1' },
       data: expect.objectContaining({ scanStatus: 'infected', scanReason: 'Eicar-Test-Signature' }),
     });
+  });
+
+  it('этап 5 ТЗ 13.10.2026 (`У-299`): файл результата задачи — clean и infected с причиной', async () => {
+    process.env.CLAMAV_HOST = 'clamav.local';
+    const db = makeDb();
+    const clean = await scanDocumentProcessor(
+      makeJob({ kind: 'task_result_file', id: 'trf-1' }),
+      db,
+      makeDeps({ scan: vi.fn().mockResolvedValue('stream: OK') })
+    );
+    expect(clean.scanStatus).toBe('clean');
+    expect(db.taskResultFile.update).toHaveBeenCalledWith({
+      where: { id: 'trf-1' },
+      data: { scanStatus: 'clean', scanReason: null, scannedAt: expect.any(Date) },
+    });
+    const infected = await scanDocumentProcessor(
+      makeJob({ kind: 'task_result_file', id: 'trf-1' }),
+      db,
+      makeDeps({ scan: vi.fn().mockResolvedValue('stream: Eicar-Test-Signature FOUND') })
+    );
+    expect(infected.scanStatus).toBe('infected');
+    expect(db.taskResultFile.update).toHaveBeenLastCalledWith({
+      where: { id: 'trf-1' },
+      data: expect.objectContaining({ scanStatus: 'infected', scanReason: 'Eicar-Test-Signature' }),
+    });
+    expect(db.document.update).not.toHaveBeenCalled();
+  });
+
+  it('throws NOT_FOUND when the TaskResultFile row is missing', async () => {
+    const db = makeDb({ taskResultPath: null });
+    await expect(
+      scanDocumentProcessor(makeJob({ kind: 'task_result_file', id: 'trf-1' }), db, makeDeps())
+    ).rejects.toThrow(/NOT_FOUND/);
+    expect(db.taskResultFile.update).not.toHaveBeenCalled();
   });
 
   it('throws NOT_FOUND when the PartnerMaterialFile row is missing', async () => {
