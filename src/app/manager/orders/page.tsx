@@ -8,6 +8,7 @@ import { ManagerOrdersFilter } from '@/components/manager/manager-orders-filter'
 import { ManagerOrdersTable } from '@/components/manager/manager-orders-table';
 import { ManagerOrdersCardList } from '@/components/manager/manager-orders-card-list';
 import { ExportLink } from '@/components/ui';
+import { CreateOrderButton } from '@/components/manager/create-order-button';
 import { getOrderedStatuses } from '@/lib/services/orderStatuses';
 
 import { PageHeader } from '@/components/ui/page-header';
@@ -57,18 +58,22 @@ export default async function ManagerOrdersPage({
         <div>
           <PageHeader title="Заказы" subtitle="Заказы ваших организаций" />
         </div>
-        {/* ФТ-12.2: выгрузка уважает активные фильтры экрана. */}
-        <ExportLink
-          base="/api/manager/orders/export"
-          params={{
-            search: sp.search,
-            executionStatus: sp.executionStatus,
-            financialStatus: sp.financialStatus,
-            organizationId: sp.organizationId,
-            unassigned: sp.unassigned,
-            focus,
-          }}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Этап 6 ТЗ 13.10.2026 (`У-306`): заказ без лида — рядом с выгрузкой. */}
+          <CreateOrderButton organizations={orgs.map((o) => ({ id: o.id, name: o.name }))} />
+          {/* ФТ-12.2: выгрузка уважает активные фильтры экрана. */}
+          <ExportLink
+            base="/api/manager/orders/export"
+            params={{
+              search: sp.search,
+              executionStatus: sp.executionStatus,
+              financialStatus: sp.financialStatus,
+              organizationId: sp.organizationId,
+              unassigned: sp.unassigned,
+              focus,
+            }}
+          />
+        </div>
       </div>
       {/* `Р-4-3`: человек пришёл с карточки главной — видно, что список
           отфильтрован и как вернуться ко всем заказам. */}

@@ -179,8 +179,10 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   {
     id: 'catalogs.applicationStatuses',
     group: 'catalogs',
-    title: 'Статусы заявок',
-    description: 'Справочник рабочих статусов: состав, порядок, деактивация.',
+    // Этап 6 ТЗ 13.10.2026 (`У-304`): статусы ЗАКАЗОВ — «заявка» по словарю
+    // это заявка на обучение, прежнее название путало.
+    title: 'Статусы заказов',
+    description: 'Этапы работы над заказом: состав, порядок, выключение.',
     icon: '🚦',
     path: 'catalogs/application-statuses',
     capability: 'settings.catalogs.manage',

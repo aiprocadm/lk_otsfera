@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db/prisma';
 import { listStatusDefinitions } from '@/lib/services/orderStatuses';
 import { OrderStatusesAdmin } from '@/components/admin/order-statuses-admin';
 
-export const metadata: Metadata = { title: 'Статусы заявок · Настройки' };
+export const metadata: Metadata = { title: 'Статусы заказов · Настройки' };
 
 export const dynamic = 'force-dynamic';
 

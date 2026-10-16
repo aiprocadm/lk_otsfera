@@ -93,6 +93,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   task_result_set: 'Записан результат задачи',
   task_result_file_uploaded: 'Приложен файл результата',
   task_result_file_deleted: 'Удалён файл результата',
+  order_created_directly: 'Создан заказ без лида',
   enrollment_provisioned: 'Зачисление на обучение',
   enrollment_rejected: 'Отклонение заявки на обучение',
   enrollment_submitted: 'Подача заявки на обучение',

@@ -9,6 +9,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
+import { createOrderDirect } from '@/lib/services/manager/orderCreate';
+import { getOrderStatusPanel } from '@/lib/services/orderStatuses/panel';
 import {
   listStatusDefinitions,
   getOrderedStatuses,
@@ -101,7 +103,9 @@ afterAll(async () => {
   await prisma.organization.deleteMany({ where: { name: { startsWith: 'OSS-' } } });
   await prisma.partner.deleteMany({ where: { name: { startsWith: 'OSS-' } } });
   await prisma.orderStatusDefinition.deleteMany({ where: { key: { startsWith: 'oss_test_' } } });
-  await prisma.auditLog.deleteMany({ where: { userId: { in: [adminId, managerId, leaderId] } } });
+  // Как и уведомления — по признаку тестового пользователя: остатки прерванного
+  // прогона (например, мутацией) иначе держат FK и роняют уборку.
+  await prisma.auditLog.deleteMany({ where: { user: { email: { contains: 'oss-' } } } });
   // Смена статуса теперь рассылает уведомления (§10, раздел 18) — их строки
   // держат пользователей по внешнему ключу, чистим до удаления юзеров.
   // Чистим по признаку пользователя, а не по списку id: остатки прошлых
@@ -115,27 +119,30 @@ afterAll(async () => {
 // ─── Миграция: главный регресс этапа ─────────────────────────────────────────
 
 describe('миграция §10 — сид семёрки и перенос заявок', () => {
-  it('в справочнике есть все семь статусов ТЗ, по порядку', async () => {
+  it('этап 6 ТЗ 13.10.2026 (`У-304`): воронка по умолчанию — четыре этапа в порядке работы', async () => {
     const all = await getOrderedStatuses(prisma);
     const system = all.filter((s) => s.isSystem);
     expect(system.map((s) => s.key)).toEqual([
       'draft',
       'accepted',
       'paid',
+      'closed',
       'documents_issued',
       'accounting_signed',
-      'closed',
       'cancelled',
     ]);
     expect(system.map((s) => s.label)).toEqual([
       'Черновик заявки',
       'Принято в работу',
       'Оплата поступила',
+      'Заказ закрыт',
       'Документы выданы',
       'Бухгалтерия подписана',
-      'Заявка закрыта',
       'Отменена',
     ]);
+    // `У-305`: «Документы выданы» и «Бухгалтерия подписана» — факты, а не этапы.
+    const pipeline = system.filter((s) => s.isActive && !s.isTerminal).map((s) => s.key);
+    expect(pipeline).toEqual(['draft', 'accepted', 'paid', 'closed']);
   });
 
   it('«Отменена» — терминальная и единственная такая', async () => {
@@ -146,8 +153,9 @@ describe('миграция §10 — сид семёрки и перенос за
 
   it('якоря расставлены и уникальны', async () => {
     expect((await findByAnchor(prisma, 'paid'))?.key).toBe('paid');
-    expect((await findByAnchor(prisma, 'documents_issued'))?.key).toBe('documents_issued');
-    expect((await findByAnchor(prisma, 'accounting_signed'))?.key).toBe('accounting_signed');
+    // Выключенные этапы-факты якорем не находятся: заказ на них не переводится.
+    expect(await findByAnchor(prisma, 'documents_issued')).toBeNull();
+    expect(await findByAnchor(prisma, 'accounting_signed')).toBeNull();
     expect((await findByAnchor(prisma, 'closed'))?.key).toBe('closed');
   });
 
@@ -520,15 +528,13 @@ describe('автоперевод по якорю', () => {
   });
 
   it('факт НЕ откатывает заявку назад', async () => {
-    // Заявка ушла дальше по порядку; пришедшая позже оплата не должна вернуть
-    // её на шаг назад. Берём «Бухгалтерия подписана», а не «Заявка закрыта»:
-    // закрытие теперь требует выполненных условий §5.6 (PR-3), и тест про
-    // якорь не должен зависеть от них.
-    const admin = sess(adminId, 'admin');
+    // Заказ ушёл дальше по порядку; пришедшая позже оплата не должна вернуть
+    // его на шаг назад. После `У-304` дальше «Оплаты» только «Заказ закрыт», а
+    // закрытие требует условий §5.6 — ставим статус прямо в базе: тест про
+    // якорь, а не про условия закрытия.
     const all = await getOrderedStatuses(prisma);
-    const signed = all.find((x) => x.key === 'accounting_signed')!.id;
-
-    await transitionOrderStatus(prisma, admin, { orderId: anchorOrderId, toId: signed });
+    const signed = all.find((x) => x.key === 'closed')!.id;
+    await prisma.order.update({ where: { id: anchorOrderId }, data: { statusId: signed } });
     const res = await applyStatusAnchor(prisma, anchorOrderId, 'paid');
     expect(res).toEqual({ ok: true, changed: false });
 
@@ -542,7 +548,7 @@ describe('автоперевод по якорю', () => {
   it('отменённую заявку факты не воскрешают', async () => {
     const admin = sess(adminId, 'admin');
     await transitionOrderStatus(prisma, admin, { orderId: anchorOrderId, toId: cancelled });
-    expect(await applyStatusAnchor(prisma, anchorOrderId, 'documents_issued')).toEqual({
+    expect(await applyStatusAnchor(prisma, anchorOrderId, 'paid')).toEqual({
       ok: true,
       changed: false,
     });
@@ -565,7 +571,7 @@ describe('автоперевод по якорю', () => {
         executionStatus: 'pending',
       },
     });
-    expect(await applyStatusAnchor(prisma, fresh.id, 'documents_issued')).toEqual({
+    expect(await applyStatusAnchor(prisma, fresh.id, 'paid')).toEqual({
       ok: true,
       changed: true,
     });
@@ -576,16 +582,10 @@ describe('автоперевод по якорю', () => {
     expect(history[0].reason).toContain('Автоматически');
   });
 
-  it('якорь без строки в справочнике — invalid_status', async () => {
-    const admin = sess(adminId, 'admin');
-    const target = (await getOrderedStatuses(prisma)).find(
-      (s) => s.anchor === 'accounting_signed'
-    )!;
-    // временно выключаем строку с якорем: findByAnchor ищет только активные
-    await prisma.orderStatusDefinition.update({
-      where: { id: target.id },
-      data: { isActive: false },
-    });
+  it('якорь выключенного этапа — invalid_status (`У-304`: «Бухгалтерия подписана» не этап)', async () => {
+    // Строку больше не включаем и не выключаем: после миграции этапа 6 она
+    // выключена сама. Прежний тест в конце ВКЛЮЧАЛ её — на общей базе это
+    // откатывало бы миграцию.
     const fresh = await prisma.order.create({
       data: {
         title: `OSS-NoAnchor-${S}`,
@@ -599,11 +599,10 @@ describe('автоперевод по якорю', () => {
       ok: false,
       error: 'invalid_status',
     });
-    await prisma.orderStatusDefinition.update({
-      where: { id: target.id },
-      data: { isActive: true },
+    expect(await applyStatusAnchor(prisma, fresh.id, 'documents_issued')).toEqual({
+      ok: false,
+      error: 'invalid_status',
     });
-    void admin;
   });
 });
 
@@ -840,5 +839,104 @@ describe('начальный статус новой заявки', () => {
       orderStatusDefinition: { findFirst: async () => null },
     } as unknown as PrismaClient;
     expect(await getInitialStatusId(empty)).toBeNull();
+  });
+});
+
+describe('этап 6 ТЗ 13.10.2026 (`У-306`): «Создать заказ» без лида', () => {
+  const mgr = () => sess(managerId, 'manager', { companyId, managedOrgIds: [orgId] });
+
+  it('своей организации — заказ в «Черновике», ответственный — создавший, партнёр с организации', async () => {
+    const res = await createOrderDirect(prisma, mgr(), {
+      organizationId: orgId,
+      title: `  OSS-Direct-${S}  `,
+      serviceType: 'document_development',
+    });
+    if (!res.ok) throw new Error(res.error);
+    const order = await prisma.order.findUniqueOrThrow({
+      where: { id: res.orderId },
+      select: {
+        title: true,
+        statusId: true,
+        managerId: true,
+        companyId: true,
+        partnerId: true,
+        serviceType: true,
+      },
+    });
+    expect(order).toMatchObject({
+      title: `OSS-Direct-${S}`,
+      statusId: draft,
+      managerId,
+      companyId,
+      serviceType: 'document_development',
+    });
+    expect(order.partnerId).not.toBeNull();
+    const audit = await prisma.auditLog.findFirst({
+      where: { action: 'order_created_directly', entityId: res.orderId },
+    });
+    expect(audit?.userId).toBe(managerId);
+  });
+
+  it('чужая, не своя и несуществующая организация — not_found; без названия — validation; не сотрудник — forbidden', async () => {
+    const otherCo = (await prisma.company.create({ data: { name: `OSS-Co-other-${S}` } })).id;
+    const foreign = await prisma.organization.create({
+      data: { name: `OSS-Org-foreign-${S}`, companyId: otherCo },
+    });
+    const notMine = await prisma.organization.create({
+      data: { name: `OSS-Org-notmine-${S}`, companyId },
+    });
+    for (const organizationId of [foreign.id, notMine.id, 'нет-такой']) {
+      expect(
+        await createOrderDirect(prisma, mgr(), {
+          organizationId,
+          title: `OSS-x-${S}`,
+          serviceType: 'training',
+        })
+      ).toEqual({ ok: false, error: 'not_found' });
+    }
+    expect(
+      await createOrderDirect(prisma, mgr(), {
+        organizationId: orgId,
+        title: '  ',
+        serviceType: 'training',
+      })
+    ).toEqual({ ok: false, error: 'validation' });
+    expect(
+      await createOrderDirect(prisma, mgr(), {
+        organizationId: orgId,
+        title: 'x'.repeat(201),
+        serviceType: 'training',
+      })
+    ).toEqual({ ok: false, error: 'validation' });
+    expect(
+      await createOrderDirect(prisma, sess(adminId, 'admin', { companyId }), {
+        organizationId: orgId,
+        title: `OSS-x-${S}`,
+        serviceType: 'training',
+      })
+    ).toEqual({ ok: false, error: 'forbidden' });
+    expect(
+      await createOrderDirect(prisma, sess(managerId, 'manager'), {
+        organizationId: orgId,
+        title: `OSS-x-${S}`,
+        serviceType: 'training',
+      })
+    ).toEqual({ ok: false, error: 'forbidden' });
+  });
+});
+
+describe('этап 6 ТЗ 13.10.2026 (`У-304`, `Р-6-3`): где настраивают статусы', () => {
+  it('администратору и руководителю — ссылка в свой справочник, менеджеру — нет', async () => {
+    expect((await getOrderStatusPanel(prisma, sess(adminId, 'admin'), orderId)).statusesHref).toBe(
+      '/admin/settings/catalogs/application-statuses'
+    );
+    expect(
+      (await getOrderStatusPanel(prisma, sess(leaderId, 'leader', { companyId }), orderId))
+        .statusesHref
+    ).toBe('/leader/settings/catalogs/application-statuses');
+    expect(
+      (await getOrderStatusPanel(prisma, sess(managerId, 'manager', { companyId }), orderId))
+        .statusesHref
+    ).toBeNull();
   });
 });

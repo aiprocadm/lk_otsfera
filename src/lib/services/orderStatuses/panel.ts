@@ -33,7 +33,20 @@ export type OrderStatusPanelData = {
     userName: string | null;
     reason: string | null;
   }[];
+  /**
+   * Этап 6 ТЗ 13.10.2026 (`У-304`, `Р-6-3`): где редактируют справочник
+   * статусов. Администратору и руководителю — ссылка в свой кабинет,
+   * менеджеру — `null`: панель скажет словами, кто и где их настраивает.
+   */
+  statusesHref: string | null;
 };
+
+/** Справочник статусов в «Настройках» — у тех, кто вправе его править. */
+function statusesHrefFor(session: SessionPayload): string | null {
+  if (session.role === 'admin') return '/admin/settings/catalogs/application-statuses';
+  if (isManagerLeader(session)) return '/leader/settings/catalogs/application-statuses';
+  return null;
+}
 
 function view(s: {
   id: string;
@@ -88,6 +101,7 @@ export async function getOrderStatusPanel(
     forward,
     backward,
     terminal: staff && terminalRow ? view(terminalRow) : null,
+    statusesHref: statusesHrefFor(session),
     history: historyRows.map((h) => ({
       id: h.id,
       createdAt: h.createdAt,
