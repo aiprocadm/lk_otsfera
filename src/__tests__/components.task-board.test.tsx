@@ -44,6 +44,7 @@ const options: TaskFormOptions = {
   orders: [],
   organizationsTotal: 0,
   ordersTotal: 0,
+  knownTags: [],
 };
 
 const board: TaskBoardData = {
@@ -90,6 +91,9 @@ const board: TaskBoardData = {
           columnId: 'col-1',
           assigneeIds: ['u1'],
           assigneeNames: ['Иван Петров'],
+          coAssigneeIds: [],
+          coAssigneeNames: [],
+          tags: [],
           linkedOrderId: 'ord1',
           linkedOrderTitle: 'Заказ №1',
           linkedOrganizationId: 'org1',
@@ -120,6 +124,9 @@ const board: TaskBoardData = {
           columnId: 'col-1',
           assigneeIds: [],
           assigneeNames: [],
+          coAssigneeIds: [],
+          coAssigneeNames: [],
+          tags: [],
           linkedOrderId: null,
           linkedOrderTitle: null,
           linkedOrganizationId: null,

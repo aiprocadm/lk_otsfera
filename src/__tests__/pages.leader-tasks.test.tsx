@@ -115,6 +115,7 @@ describe('LeaderTasksPage', () => {
       scope: 'all',
       overdue: false,
       assigneeId: null,
+      tag: null,
     });
     expect(getTaskFormOptions).toHaveBeenCalledWith({}, SESSION);
     expect(container.textContent).toContain('Задачи');
@@ -139,6 +140,7 @@ describe('LeaderTasksPage', () => {
       scope: 'mine',
       overdue: true,
       assigneeId: 'm2',
+      tag: null,
     });
   });
 

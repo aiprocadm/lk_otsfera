@@ -9,6 +9,8 @@ export type TasksToolbarState = {
   assigneeId: string | null;
   overdue: boolean;
   view: 'board' | 'list';
+  /** Этап 5 ТЗ 13.10.2026 (`Р-5-4`): фильтр по тегу; `null` — все. */
+  tag: string | null;
 };
 
 export function parseTasksSearchParams(
@@ -23,5 +25,6 @@ export function parseTasksSearchParams(
     assigneeId: one('assignee') || null,
     overdue: one('overdue') === '1',
     view: one('view') === 'list' ? 'list' : 'board',
+    tag: one('tag').trim().toLowerCase() || null,
   };
 }

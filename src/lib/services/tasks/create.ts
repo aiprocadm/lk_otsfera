@@ -31,6 +31,10 @@ export async function createTaskCore(
     linkedDialogId?: string | null;
     linkedDocumentId?: string | null;
     assigneeIds?: string[] | undefined;
+    /** Этап 5 ТЗ 13.10.2026 (`Р-5-1`): соисполнители — роль строки исполнителя. */
+    coAssigneeIds?: string[] | undefined;
+    /** `Р-5-4`: уже нормализованные теги. */
+    tags?: string[] | undefined;
     /** `У-223`: какое правило автоматизации породило задачу. */
     createdByRuleId?: string | null;
     /** `У-221`: правило повторения; `null`/пропуск — задача разовая. */
@@ -56,15 +60,27 @@ export async function createTaskCore(
       linkedDialogId: input.linkedDialogId ?? null,
       linkedDocumentId: input.linkedDocumentId ?? null,
       createdByRuleId: input.createdByRuleId ?? null,
+      tags: input.tags ?? [],
       // Json-поле: «нет значения» в Prisma — это `DbNull`, а не `null`.
       recurrence: input.recurrence ?? Prisma.DbNull,
     },
     select: { id: true, title: true, dueDate: true },
   });
   const assignees = [...new Set(input.assigneeIds ?? [])];
-  if (assignees.length > 0) {
+  // Один человек — одна строка: исполнитель важнее соисполнителя.
+  const coAssignees = [...new Set(input.coAssigneeIds ?? [])].filter(
+    (id) => !assignees.includes(id)
+  );
+  if (assignees.length + coAssignees.length > 0) {
     await tx.taskAssignee.createMany({
-      data: assignees.map((userId) => ({ taskId: task.id, userId })),
+      data: [
+        ...assignees.map((userId) => ({ taskId: task.id, userId })),
+        ...coAssignees.map((userId) => ({
+          taskId: task.id,
+          userId,
+          role: 'co_executor' as const,
+        })),
+      ],
     });
   }
   return task;

@@ -163,6 +163,10 @@ export const AUDIT_ACTIONS = [
   'enrollment_items_advanced',
   // Этап 2 ТЗ 13.10.2026 (`У-284`, `Р-2-3`): сроки обучения по позиции заявки.
   'enrollment_item_dates_set',
+  // Этап 5 ТЗ 13.10.2026 (`У-299`): результат задачи — текст и файлы.
+  'task_result_set',
+  'task_result_file_uploaded',
+  'task_result_file_deleted',
   'enrollment_provisioned',
   'enrollment_rejected',
   'enrollment_submitted',

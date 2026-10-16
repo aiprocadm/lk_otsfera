@@ -27,6 +27,8 @@ const prisma = {
   taskChecklistItem: { findMany: itemFindMany },
   auditLog: { findMany: auditFindMany },
   user: { findMany: userFindMany },
+  // Этап 5 ТЗ 13.10.2026 (`У-299`): файлы результата.
+  taskResultFile: { findMany: vi.fn().mockResolvedValue([]) },
 } as unknown as PrismaClient;
 
 const manager = { sub: 'u1', role: 'manager', companyId: 'co-1' } as SessionPayload;
@@ -49,7 +51,10 @@ const ROW = {
   linkedLeadId: null,
   linkedDealId: null,
   createdBy: { name: 'Пётр' },
-  assignees: [{ userId: 'u1', user: { name: 'Иван' } }],
+  assignees: [{ userId: 'u1', role: 'executor', user: { name: 'Иван' } }],
+  tags: [] as string[],
+  result: null as string | null,
+  resultUpdatedAt: null as Date | null,
   linkedOrder: { title: 'Заказ №1' },
   linkedOrganization: { name: 'ООО Ромашка' },
   linkedLead: null,
@@ -94,7 +99,7 @@ describe('getTaskDetail — доступ', () => {
     taskFindUnique.mockResolvedValue({
       ...ROW,
       createdById: 'someone',
-      assignees: [{ userId: 'someone', user: { name: 'Другой' } }],
+      assignees: [{ userId: 'someone', role: 'executor', user: { name: 'Другой' } }],
     });
     const scoped = {
       ...manager,
@@ -182,10 +187,55 @@ describe('getTaskDetail — что отдаёт', () => {
       id: 'a1',
       at: new Date('2026-09-01'),
       action: 'Создание задачи',
+      details: null,
       actorName: 'Пётр',
     });
     // Действие системы: имени нет, и выдумывать его нельзя.
     expect(res.task.history[1]?.actorName).toBeNull();
+  });
+
+  it('этап 5 ТЗ 13.10.2026 (`У-302`): правка показывает, что именно поменяли', async () => {
+    auditFindMany.mockResolvedValue([
+      {
+        id: 'a1',
+        action: 'task_updated',
+        createdAt: new Date('2026-09-03'),
+        meta: { after: { title: 'T', changed: ['dueDate', 'assignees', 'нет-такого'] } },
+        user: { name: 'Пётр' },
+      },
+      {
+        id: 'a2',
+        action: 'task_updated',
+        createdAt: new Date('2026-09-02'),
+        meta: null,
+        user: null,
+      },
+    ]);
+    const res = await getTaskDetail(prisma, manager, 't1');
+    if (!res.ok) throw new Error('ожидали успех');
+    expect(res.task.history[0]?.details).toBe('срок, исполнители');
+    // Старая запись без перечня — без подробностей, а не «undefined».
+    expect(res.task.history[1]?.details).toBeNull();
+  });
+
+  it('этап 5 ТЗ 13.10.2026 (`У-299`): исполнители и соисполнители — раздельно; теги и результат', async () => {
+    taskFindUnique.mockResolvedValue({
+      ...ROW,
+      assignees: [
+        { userId: 'u1', role: 'executor', user: { name: 'Иван' } },
+        { userId: 'u2', role: 'co_executor', user: { name: 'Мария' } },
+      ],
+      tags: ['звонок'],
+      result: 'Готово',
+      resultUpdatedAt: new Date('2026-09-04'),
+    });
+    const res = await getTaskDetail(prisma, manager, 't1');
+    if (!res.ok) throw new Error('ожидали успех');
+    expect(res.task.assignees).toEqual([{ id: 'u1', name: 'Иван' }]);
+    expect(res.task.coAssignees).toEqual([{ id: 'u2', name: 'Мария' }]);
+    expect(res.task.tags).toEqual(['звонок']);
+    expect(res.task.result).toBe('Готово');
+    expect(res.task.resultFiles).toEqual([]);
   });
 
   it('`У-223`: задача, созданная правилом, честно об этом говорит', async () => {

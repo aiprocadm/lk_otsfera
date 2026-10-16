@@ -21,6 +21,7 @@ import {
 } from '@/lib/services/tasks/tasks';
 import type { TaskLinkRef } from '@/lib/tasks/links';
 import { addTaskComment, type TaskCommentErrorCode } from '@/lib/services/tasks/comments';
+import { setTaskResult, type TaskResultError } from '@/lib/services/tasks/result';
 import {
   addChecklistItem,
   toggleChecklistItem,
@@ -91,6 +92,25 @@ function taskInput(fd: FormData): TaskInput {
     linkedDialogId: str(fd, 'linkedDialogId') || null,
     linkedDocumentId: str(fd, 'linkedDocumentId') || null,
     assigneeIds: fd.getAll('assigneeIds').filter((v): v is string => typeof v === 'string'),
+    // Этап 5 ТЗ 13.10.2026 (`У-299`): соисполнители и теги («звонок, документы»).
+    // Поля нет в форме — не трогаем: иначе любая форма без них стирала бы
+    // соисполнителей и теги. Пустой список соисполнителей форма помечает
+    // отдельным полем — скрытых значений у пустого списка нет.
+    ...(fd.has('coAssigneesPresent')
+      ? {
+          coAssigneeIds: fd
+            .getAll('coAssigneeIds')
+            .filter((v): v is string => typeof v === 'string'),
+        }
+      : {}),
+    ...(fd.has('tags')
+      ? {
+          tags: str(fd, 'tags')
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean),
+        }
+      : {}),
     recurrence: taskRecurrence(fd),
     ...(str(fd, 'recurrenceScope') === 'this' ? { recurrenceScope: 'this' as const } : {}),
   };
@@ -147,6 +167,21 @@ export async function updateTaskAction(fd: FormData): Promise<ActionResult<TaskE
   const id = str(fd, 'id');
   if (!id) return { ok: false, error: 'validation' };
   const res = await updateTask(prisma, session, id, taskInput(fd));
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidateTask(id);
+  return { ok: true };
+}
+
+/**
+ * Этап 5 ТЗ 13.10.2026 (`У-299`, `Р-5-3`): текст результата задачи. Файлы
+ * результата грузятся роутом (`/api/tasks/[id]/result-files`) — у server
+ * actions предел тела 25 МБ.
+ */
+export async function setTaskResultAction(fd: FormData): Promise<ActionResult<TaskResultError>> {
+  const session = await requireSession();
+  const id = str(fd, 'id');
+  if (!id) return { ok: false, error: 'validation' };
+  const res = await setTaskResult(prisma, session, { taskId: id, result: str(fd, 'result') });
   if (!res.ok) return { ok: false, error: res.error };
   revalidateTask(id);
   return { ok: true };

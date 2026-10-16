@@ -93,7 +93,11 @@ describe('ManagerTasksPage', () => {
 
     const { container } = await renderServerComponent(ManagerTasksPage(sp()));
 
-    expect(listTaskBoard).toHaveBeenCalledWith({}, SESSION, { scope: 'all', overdue: false });
+    expect(listTaskBoard).toHaveBeenCalledWith({}, SESSION, {
+      scope: 'all',
+      overdue: false,
+      tag: null,
+    });
     expect(getTaskFormOptions).toHaveBeenCalledWith({}, SESSION);
     expect(container.textContent).toContain('Задачи');
     expect(container.querySelector('[data-testid="task-board"]')).not.toBeNull();
@@ -109,7 +113,11 @@ describe('ManagerTasksPage', () => {
 
     await renderServerComponent(ManagerTasksPage(sp({ scope: 'mine', overdue: '1' })));
 
-    expect(listTaskBoard).toHaveBeenCalledWith({}, SESSION, { scope: 'mine', overdue: true });
+    expect(listTaskBoard).toHaveBeenCalledWith({}, SESSION, {
+      scope: 'mine',
+      overdue: true,
+      tag: null,
+    });
   });
 
   it('renders the list view when view=list (ФТ-7.4)', async () => {

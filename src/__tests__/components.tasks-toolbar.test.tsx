@@ -18,6 +18,7 @@ const DEFAULT: TasksToolbarState = {
   assigneeId: null,
   overdue: false,
   view: 'board',
+  tag: null,
 };
 
 describe('TasksToolbar (этап 7, ФТ-7.3/7.4)', () => {
@@ -83,7 +84,7 @@ describe('TasksToolbar (этап 7, ФТ-7.3/7.4)', () => {
   it('несколько активных фильтров комбинируются в query', () => {
     render(
       <TasksToolbar
-        state={{ scope: 'mine', assigneeId: 'm2', overdue: true, view: 'board' }}
+        state={{ scope: 'mine', assigneeId: 'm2', overdue: true, view: 'board', tag: null }}
         assigneeOptions={[{ id: 'm2', name: 'М' }]}
       />
     );
@@ -93,5 +94,30 @@ describe('TasksToolbar (этап 7, ФТ-7.3/7.4)', () => {
     expect(url).toContain('assignee=m2');
     expect(url).toContain('overdue=1');
     expect(url).toContain('view=list');
+  });
+
+  it('этап 5 ТЗ 13.10.2026 (`Р-5-4`): фильтр «Тег» — из тегов компании, пишет tag в адрес', () => {
+    const { rerender } = render(
+      <TasksToolbar state={DEFAULT} assigneeOptions={null} tagOptions={['звонок', 'отчёт']} />
+    );
+    const select = screen.getByLabelText('Тег') as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toEqual(['Все теги', 'звонок', 'отчёт']);
+    fireEvent.change(select, { target: { value: 'звонок' } });
+    expect(replace).toHaveBeenCalledWith(`/manager/tasks?tag=${encodeURIComponent('звонок')}`);
+    // Сброс тега — обратно все задачи.
+    rerender(
+      <TasksToolbar
+        state={{ ...DEFAULT, tag: 'звонок' }}
+        assigneeOptions={null}
+        tagOptions={['звонок']}
+      />
+    );
+    fireEvent.change(screen.getByLabelText('Тег'), { target: { value: '' } });
+    expect(replace).toHaveBeenLastCalledWith('/manager/tasks');
+  });
+
+  it('тегов в компании нет — фильтра нет', () => {
+    render(<TasksToolbar state={DEFAULT} assigneeOptions={null} />);
+    expect(screen.queryByLabelText('Тег')).toBeNull();
   });
 });

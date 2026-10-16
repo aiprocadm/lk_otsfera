@@ -196,7 +196,7 @@ describe('updateTask — dueSoonNotifiedAt и диф исполнителей (�
         create: vi.fn(),
       },
       taskAssignee: {
-        findMany: vi.fn().mockResolvedValue([{ userId: 'u-old' }]),
+        findMany: vi.fn().mockResolvedValue([{ userId: 'u-old', role: 'executor' }]),
         createMany: vi.fn(),
         deleteMany: vi.fn(),
       },
@@ -237,7 +237,7 @@ describe('assignTask — уведомление добавленным (ФТ-7.2
         create: vi.fn(),
       },
       taskAssignee: {
-        findMany: vi.fn().mockResolvedValue([{ userId: 'u-old' }]),
+        findMany: vi.fn().mockResolvedValue([{ userId: 'u-old', role: 'executor' }]),
         createMany: vi.fn(),
         deleteMany: vi.fn(),
       },

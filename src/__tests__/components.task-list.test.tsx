@@ -33,6 +33,7 @@ const options: TaskFormOptions = {
   orders: [],
   organizationsTotal: 0,
   ordersTotal: 0,
+  knownTags: [],
 };
 
 function card(over: Partial<TaskCard>): TaskCard {
@@ -48,6 +49,9 @@ function card(over: Partial<TaskCard>): TaskCard {
     columnId: 'col-1',
     assigneeIds: [],
     assigneeNames: [],
+    coAssigneeIds: [],
+    coAssigneeNames: [],
+    tags: [],
     linkedOrderId: null,
     linkedOrderTitle: null,
     linkedOrganizationId: null,
@@ -142,6 +146,9 @@ describe('TaskList', () => {
       priority: 'high',
       dueDate: new Date('2099-08-15'),
       assigneeNames: ['Иван'],
+      coAssigneeIds: [],
+      coAssigneeNames: [],
+      tags: [],
       linkedLeadSubject: 'Тема лида',
       linkedDealTitle: 'Сделка-1',
     });
@@ -284,5 +291,13 @@ describe('TaskList', () => {
     fireEvent.click(link);
 
     expect(taskDialogSpy).not.toHaveBeenCalled();
+  });
+
+  it('этап 5 ТЗ 13.10.2026 (`У-299`): в списке видны постановщик и теги', () => {
+    const c = card({ createdByName: 'Пётр Постановщиков', tags: ['звонок'] });
+    render(<TaskList board={makeBoard([c])} options={options} />);
+    expect(screen.getAllByText('Постановщик').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Пётр Постановщиков').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('звонок').length).toBeGreaterThan(0);
   });
 });

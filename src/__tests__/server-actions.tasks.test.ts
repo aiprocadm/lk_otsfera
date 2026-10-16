@@ -31,6 +31,8 @@ vi.mock('next/cache', () => ({ revalidatePath }));
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/tasks/board', () => ({ moveTask, listLinkedTasks }));
 vi.mock('@/lib/services/tasks/tasks', () => ({ createTask, updateTask, deleteTask, assignTask }));
+const { setTaskResult } = vi.hoisted(() => ({ setTaskResult: vi.fn() }));
+vi.mock('@/lib/services/tasks/result', () => ({ setTaskResult }));
 vi.mock('@/lib/services/tasks/columns', () => ({
   createTaskColumn,
   updateTaskColumn,
@@ -38,6 +40,7 @@ vi.mock('@/lib/services/tasks/columns', () => ({
 }));
 
 import {
+  setTaskResultAction,
   moveTaskAction,
   listLinkedTasksAction,
   createTaskAction,
@@ -321,5 +324,44 @@ describe('Обновление карточки-источника', () => {
 
     const paths = revalidatePath.mock.calls.map((c) => String(c[0]));
     expect(paths.every((p) => p.endsWith('/tasks') || p.includes('/tasks/'))).toBe(true);
+  });
+});
+
+describe('этап 5 ТЗ 13.10.2026 (`У-299`): соисполнители, теги и результат из формы', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireSession.mockResolvedValue(SESSION);
+    updateTask.mockResolvedValue({ ok: true });
+  });
+
+  it('метка «список передан» — соисполнители уходят, даже пустым списком', async () => {
+    const fd = form({ id: 't5', title: 'x', coAssigneesPresent: '1', tags: 'Звонок, , документы' });
+    fd.append('coAssigneeIds', 'u2');
+    await updateTaskAction(fd);
+    expect(updateTask.mock.calls[0][3]).toMatchObject({
+      coAssigneeIds: ['u2'],
+      tags: ['Звонок', 'документы'],
+    });
+    await updateTaskAction(form({ id: 't5', title: 'x', coAssigneesPresent: '1' }));
+    expect(updateTask.mock.calls[1][3].coAssigneeIds).toEqual([]);
+  });
+
+  it('полей нет в форме — их не трогаем (не стираем соисполнителей и теги)', async () => {
+    await updateTaskAction(form({ id: 't5', title: 'x' }));
+    expect(updateTask.mock.calls[0][3]).not.toHaveProperty('coAssigneeIds');
+    expect(updateTask.mock.calls[0][3]).not.toHaveProperty('tags');
+  });
+
+  it('результат: без id — validation; ошибка сервиса — как есть; успех — обновить задачу', async () => {
+    expect(await setTaskResultAction(new FormData())).toEqual({ ok: false, error: 'validation' });
+    setTaskResult.mockResolvedValue({ ok: false, error: 'not_found' });
+    expect(await setTaskResultAction(form({ id: 't5', result: 'x' }))).toEqual({
+      ok: false,
+      error: 'not_found',
+    });
+    setTaskResult.mockResolvedValue({ ok: true });
+    expect(await setTaskResultAction(form({ id: 't5', result: 'Готово' }))).toEqual({ ok: true });
+    expect(setTaskResult).toHaveBeenLastCalledWith({}, SESSION, { taskId: 't5', result: 'Готово' });
+    expect(revalidatePath).toHaveBeenCalled();
   });
 });

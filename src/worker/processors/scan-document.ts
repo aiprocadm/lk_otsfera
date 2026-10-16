@@ -133,6 +133,9 @@ async function loadTarget(
   if (kind === 'partner_material') {
     return db.partnerMaterialFile.findUnique({ where: { id }, select: { id: true, path: true } });
   }
+  if (kind === 'task_result_file') {
+    return db.taskResultFile.findUnique({ where: { id }, select: { id: true, path: true } });
+  }
   return db.leadAttachment.findUnique({ where: { id }, select: { id: true, path: true } });
 }
 
@@ -174,6 +177,12 @@ async function persistResult(
   } else if (kind === 'partner_material') {
     // Этап 6 (У-237): файл материала — полный набор колонок, как у оформления компании.
     await db.partnerMaterialFile.update({
+      where: { id },
+      data: { scanStatus, scanReason, scannedAt: new Date() },
+    });
+  } else if (kind === 'task_result_file') {
+    // Этап 5 ТЗ 13.10.2026 (`У-299`): файл результата задачи — полный набор колонок.
+    await db.taskResultFile.update({
       where: { id },
       data: { scanStatus, scanReason, scannedAt: new Date() },
     });

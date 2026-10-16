@@ -9,6 +9,7 @@ describe('parseTasksSearchParams', () => {
       assigneeId: null,
       overdue: false,
       view: 'board',
+      tag: null,
     });
   });
 
@@ -20,7 +21,14 @@ describe('parseTasksSearchParams', () => {
       assigneeId: 'u2',
       overdue: true,
       view: 'list',
+      tag: null,
     });
+  });
+
+  it('этап 5 ТЗ 13.10.2026 (`Р-5-4`): тег — строчными и без пробелов по краям', () => {
+    expect(parseTasksSearchParams({ tag: '  Звонок ' }).tag).toBe('звонок');
+    expect(parseTasksSearchParams({ tag: ['a', 'b'] }).tag).toBeNull();
+    expect(parseTasksSearchParams({ tag: '   ' }).tag).toBeNull();
   });
 
   it('мусор и массивы падают в дефолты (string[] от повторённых query-ключей)', () => {
@@ -31,7 +39,7 @@ describe('parseTasksSearchParams', () => {
         overdue: '2',
         view: ['list'],
       })
-    ).toEqual({ scope: 'all', assigneeId: null, overdue: false, view: 'board' });
+    ).toEqual({ scope: 'all', assigneeId: null, overdue: false, view: 'board', tag: null });
     expect(parseTasksSearchParams({ scope: 'everything', view: 'kanban' }).scope).toBe('all');
   });
 });

@@ -125,6 +125,8 @@ describe('getTaskFormOptions (Р-27)', () => {
       user: { findMany: vi.fn().mockResolvedValue([]) },
       organization: { findMany: orgFindMany, count: orgCount },
       order: { findMany: orderFindMany, count: orderCount },
+      // Этап 5 ТЗ 13.10.2026 (`Р-5-4`): подсказки тегов — из недавних задач компании.
+      task: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
     return { prisma, orgFindMany, orderFindMany, orgCount, orderCount };
   }
@@ -156,6 +158,7 @@ describe('getTaskFormOptions (Р-27)', () => {
       orders: [{ id: 'r1', title: 'Заявка' }],
       organizationsTotal: 350,
       ordersTotal: 120,
+      knownTags: [],
     });
   });
 });

@@ -28,8 +28,14 @@ export type TaskCard = {
   createdAt: Date;
   createdByName: string;
   columnId: string;
+  /** Ответственные исполнители (`role = executor`). */
   assigneeIds: string[];
   assigneeNames: string[];
+  /** Этап 5 ТЗ 13.10.2026 (`У-299`, `Р-5-1`): соисполнители. */
+  coAssigneeIds: string[];
+  coAssigneeNames: string[];
+  /** `Р-5-4`: теги задачи. */
+  tags: string[];
   linkedOrderId: string | null;
   linkedOrderTitle: string | null;
   linkedOrganizationId: string | null;
@@ -99,11 +105,13 @@ export type TaskBoardFilters = {
   scope?: 'mine' | 'all';
   assigneeId?: string | null;
   overdue?: boolean;
+  /** Этап 5 ТЗ 13.10.2026 (`Р-5-4`): только задачи с этим тегом. */
+  tag?: string | null;
 };
 
 const CARD_INCLUDE = {
   createdBy: { select: { name: true } },
-  assignees: { select: { userId: true, user: { select: { name: true } } } },
+  assignees: { select: { userId: true, role: true, user: { select: { name: true } } } },
   linkedOrder: { select: { title: true } },
   linkedOrganization: { select: { name: true } },
   linkedLead: { select: { subject: true } },
@@ -131,6 +139,7 @@ const CARD_SELECT = {
   linkedDialogId: true,
   linkedDocumentId: true,
   recurrence: true,
+  tags: true,
   ...CARD_INCLUDE,
 } as const;
 
@@ -151,8 +160,11 @@ function toCard(
     createdAt: t.createdAt,
     createdByName: t.createdBy.name,
     columnId,
-    assigneeIds: t.assignees.map((a) => a.userId),
-    assigneeNames: t.assignees.map((a) => a.user.name),
+    assigneeIds: t.assignees.filter((a) => a.role === 'executor').map((a) => a.userId),
+    assigneeNames: t.assignees.filter((a) => a.role === 'executor').map((a) => a.user.name),
+    coAssigneeIds: t.assignees.filter((a) => a.role === 'co_executor').map((a) => a.userId),
+    coAssigneeNames: t.assignees.filter((a) => a.role === 'co_executor').map((a) => a.user.name),
+    tags: t.tags,
     linkedOrderId: t.linkedOrderId,
     linkedOrderTitle: t.linkedOrder?.title ?? null,
     linkedOrganizationId: t.linkedOrganizationId,
@@ -194,6 +206,10 @@ export function taskFiltersWhere(
   }
   if (filters?.assigneeId) {
     and.push({ assignees: { some: { userId: filters.assigneeId } } });
+  }
+  if (filters?.tag) {
+    // Теги хранятся строчными (`normalizeTags`) — фильтр тоже.
+    and.push({ tags: { has: filters.tag.trim().toLowerCase() } });
   }
   if (filters?.overdue) {
     // Прогон сопровождения №36 (`Р-М-3`): просрочена, когда закончился
@@ -290,7 +306,12 @@ export type TaskFormOptions = {
   /** `Р-27`: полные счётчики — диалог подписывает усечённый селект «показаны N из M». */
   organizationsTotal: number;
   ordersTotal: number;
+  /** Этап 5 ТЗ 13.10.2026 (`Р-5-4`): теги, уже встречавшиеся в задачах компании. */
+  knownTags: string[];
 };
+
+/** Сколько недавних задач смотрим, собирая подсказки тегов. */
+const KNOWN_TAGS_SCAN = 500;
 
 /** Пределы селектов диалога задачи (`Р-27`: организации — по последней активности). */
 export const FORM_ORGANIZATIONS_CAP = 200;
@@ -301,31 +322,42 @@ export async function getTaskFormOptions(
   session: SessionPayload
 ): Promise<TaskFormOptions> {
   const companyId = session.companyId ?? NO_COMPANY_SENTINEL; // нет компании → пустые списки (fail-safe)
-  const [users, organizations, orders, organizationsTotal, ordersTotal] = await Promise.all([
-    prisma.user.findMany({
-      where: { companyId, role: { in: ['manager', 'leader'] }, isActive: true },
-      select: { id: true, name: true, email: true },
-      orderBy: { name: 'asc' },
-      take: 200,
-    }),
-    // `Р-27`: по последней активности, а не по алфавиту — в 200 попадают
-    // организации, с которыми сейчас работают, а не 200 на «А…».
-    prisma.organization.findMany({
-      where: { companyId },
-      select: { id: true, name: true },
-      orderBy: { updatedAt: 'desc' },
-      take: FORM_ORGANIZATIONS_CAP,
-    }),
-    prisma.order.findMany({
-      where: { companyId },
-      select: { id: true, title: true },
-      orderBy: { createdAt: 'desc' },
-      take: FORM_ORDERS_CAP,
-    }),
-    prisma.organization.count({ where: { companyId } }),
-    prisma.order.count({ where: { companyId } }),
-  ]);
-  return { users, organizations, orders, organizationsTotal, ordersTotal };
+  const [users, organizations, orders, organizationsTotal, ordersTotal, tagged] = await Promise.all(
+    [
+      prisma.user.findMany({
+        where: { companyId, role: { in: ['manager', 'leader'] }, isActive: true },
+        select: { id: true, name: true, email: true },
+        orderBy: { name: 'asc' },
+        take: 200,
+      }),
+      // `Р-27`: по последней активности, а не по алфавиту — в 200 попадают
+      // организации, с которыми сейчас работают, а не 200 на «А…».
+      prisma.organization.findMany({
+        where: { companyId },
+        select: { id: true, name: true },
+        orderBy: { updatedAt: 'desc' },
+        take: FORM_ORGANIZATIONS_CAP,
+      }),
+      prisma.order.findMany({
+        where: { companyId },
+        select: { id: true, title: true },
+        orderBy: { createdAt: 'desc' },
+        take: FORM_ORDERS_CAP,
+      }),
+      prisma.organization.count({ where: { companyId } }),
+      prisma.order.count({ where: { companyId } }),
+      prisma.task.findMany({
+        where: { companyId, NOT: { tags: { isEmpty: true } } },
+        select: { tags: true },
+        orderBy: { updatedAt: 'desc' },
+        take: KNOWN_TAGS_SCAN,
+      }),
+    ]
+  );
+  const knownTags = [...new Set(tagged.flatMap((t) => t.tags))].sort((a, b) =>
+    a.localeCompare(b, 'ru')
+  );
+  return { users, organizations, orders, organizationsTotal, ordersTotal, knownTags };
 }
 
 /**

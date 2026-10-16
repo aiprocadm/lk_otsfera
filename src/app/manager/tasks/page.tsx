@@ -25,7 +25,11 @@ export default async function ManagerTasksPage({
   const sp = await searchParams;
   const state = parseTasksSearchParams(sp);
   const [board, options] = await Promise.all([
-    listTaskBoard(prisma, session, { scope: state.scope, overdue: state.overdue }),
+    listTaskBoard(prisma, session, {
+      scope: state.scope,
+      overdue: state.overdue,
+      tag: state.tag,
+    }),
     getTaskFormOptions(prisma, session),
   ]);
 
@@ -39,7 +43,7 @@ export default async function ManagerTasksPage({
       </div>
       {/* `У-232`: пришли по ссылке на удалённую или чужую задачу. */}
       {isMissingObjectRequested(sp) && <MissingObjectNotice what="Задача" feminine />}
-      <TasksToolbar state={state} assigneeOptions={null} />
+      <TasksToolbar state={state} assigneeOptions={null} tagOptions={options.knownTags} />
       {state.view === 'list' ? (
         <TaskList board={board} options={options} />
       ) : (

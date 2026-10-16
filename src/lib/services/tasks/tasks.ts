@@ -6,6 +6,7 @@ import { recordAudit } from '@/lib/auth/audit';
 import { resolveTaskColumns } from '@/lib/tasks/columns';
 import { canSeeTask } from '@/lib/auth/accessProfile';
 import { recurrenceSchema } from '@/lib/tasks/recurrence';
+import { TAGS_MAX, TAG_MAX_LENGTH } from '@/lib/tasks/tags';
 import { notifyTaskAssigned } from './notify';
 import { createTaskCore } from './create';
 import { materializeNextOccurrenceSafely } from './recurrence';
@@ -37,6 +38,9 @@ const inputSchema = z.object({
   linkedDialogId: z.string().trim().min(1).nullish(),
   linkedDocumentId: z.string().trim().min(1).nullish(),
   assigneeIds: z.array(z.string()).optional(),
+  // Этап 5 ТЗ 13.10.2026 (`У-299`, `Р-5-1`, `Р-5-4`): соисполнители и теги.
+  coAssigneeIds: z.array(z.string()).optional(),
+  tags: z.array(z.string().trim().min(1).max(TAG_MAX_LENGTH)).max(TAGS_MAX).optional(),
   /// `У-221`: правило повторения. `null` — «больше не повторять».
   recurrence: recurrenceSchema.nullish(),
   /**
@@ -49,6 +53,15 @@ const inputSchema = z.object({
   recurrenceScope: z.enum(['this', 'future']).optional(),
 });
 export type TaskInput = z.input<typeof inputSchema>;
+
+/**
+ * Теги — строчными буквами и без повторов (`Р-5-4`): «Звонок» и «звонок» —
+ * один тег, иначе фильтр по тегу находил бы половину задач.
+ */
+function normalizeTags(tags: string[] | undefined): string[] | undefined {
+  if (tags === undefined) return undefined;
+  return [...new Set(tags.map((t) => t.trim().toLowerCase()).filter(Boolean))];
+}
 
 class TaskError extends Error {
   readonly code: TaskErrorCode;
@@ -129,29 +142,81 @@ async function validateRefs(
     });
     if (!doc || doc.companyId !== companyId) throw new TaskError('validation');
   }
-  if (data.assigneeIds && data.assigneeIds.length > 0) {
-    const ids = [...new Set(data.assigneeIds)];
+  const people = [...(data.assigneeIds ?? []), ...(data.coAssigneeIds ?? [])];
+  if (people.length > 0) {
+    const ids = [...new Set(people)];
     const count = await tx.user.count({ where: { id: { in: ids }, companyId } });
     if (count !== ids.length) throw new TaskError('validation');
   }
 }
 
-/** Синхронизирует множество исполнителей задачи (set-разница). Возвращает добавленных (ФТ-7.2). */
+/**
+ * Синхронизирует исполнителей задачи (set-разница). Возвращает добавленных
+ * (ФТ-7.2) и признак «состав или роли поменялись» — для истории (`У-302`).
+ *
+ * Этап 5 ТЗ 13.10.2026 (`Р-5-1`): у строки есть роль. `coAssigneeIds` не
+ * передан — соисполнители не трогаются (старые вызовы, назначение с доски).
+ * Один человек в обоих списках — исполнитель.
+ */
 async function syncAssignees(
   tx: Prisma.TransactionClient,
   taskId: string,
-  assigneeIds: string[]
-): Promise<{ added: string[] }> {
-  const desired = new Set(assigneeIds);
-  const existing = await tx.taskAssignee.findMany({ where: { taskId }, select: { userId: true } });
-  const existingIds = new Set(existing.map((e) => e.userId));
-  const toRemove = [...existingIds].filter((id) => !desired.has(id));
-  const toAdd = [...desired].filter((id) => !existingIds.has(id));
+  assigneeIds: string[],
+  coAssigneeIds?: string[]
+): Promise<{ added: string[]; changed: boolean }> {
+  const existing = await tx.taskAssignee.findMany({
+    where: { taskId },
+    select: { userId: true, role: true },
+  });
+  const desired = new Map<string, 'executor' | 'co_executor'>();
+  if (coAssigneeIds === undefined) {
+    for (const e of existing) if (e.role === 'co_executor') desired.set(e.userId, 'co_executor');
+  } else {
+    for (const id of coAssigneeIds) desired.set(id, 'co_executor');
+  }
+  for (const id of assigneeIds) desired.set(id, 'executor');
+
+  const existingRole = new Map(existing.map((e) => [e.userId, e.role]));
+  const toRemove = [...existingRole.keys()].filter((id) => !desired.has(id));
+  const toAdd = [...desired.keys()].filter((id) => !existingRole.has(id));
+  const toRetag = [...desired].filter(
+    ([id, role]) => existingRole.has(id) && existingRole.get(id) !== role
+  );
   if (toRemove.length > 0)
     await tx.taskAssignee.deleteMany({ where: { taskId, userId: { in: toRemove } } });
   if (toAdd.length > 0)
-    await tx.taskAssignee.createMany({ data: toAdd.map((userId) => ({ taskId, userId })) });
-  return { added: toAdd };
+    await tx.taskAssignee.createMany({
+      data: toAdd.map((userId) => ({ taskId, userId, role: desired.get(userId)! })),
+    });
+  for (const [userId, role] of toRetag) {
+    await tx.taskAssignee.update({ where: { taskId_userId: { taskId, userId } }, data: { role } });
+  }
+  return {
+    added: toAdd,
+    changed: toRemove.length + toAdd.length + toRetag.length > 0,
+  };
+}
+
+/** Подписи полей для истории (`У-302`): что именно поменяли. */
+const CHANGED_FIELD_LABEL = {
+  title: 'название',
+  description: 'описание',
+  priority: 'приоритет',
+  dueDate: 'срок',
+  links: 'привязки',
+  recurrence: 'повторение',
+  assignees: 'исполнители',
+  tags: 'теги',
+} as const;
+type TaskChangedField = keyof typeof CHANGED_FIELD_LABEL;
+
+export function taskChangedFieldsRu(fields: unknown): string[] {
+  if (!Array.isArray(fields)) return [];
+  return fields.flatMap((f) =>
+    typeof f === 'string' && f in CHANGED_FIELD_LABEL
+      ? [CHANGED_FIELD_LABEL[f as TaskChangedField]]
+      : []
+  );
 }
 
 const SCOPE_SELECT = {
@@ -230,6 +295,8 @@ export async function createTask(
         linkedDialogId: data.linkedDialogId ?? null,
         linkedDocumentId: data.linkedDocumentId ?? null,
         assigneeIds: data.assigneeIds,
+        coAssigneeIds: data.coAssigneeIds,
+        tags: normalizeTags(data.tags),
         recurrence: data.recurrence ?? null,
       });
       await recordAudit(tx, {
@@ -247,7 +314,7 @@ export async function createTask(
       taskTitle: created.title,
       dueDate: created.dueDate,
       actorUserId: session.sub,
-      assigneeUserIds: data.assigneeIds ?? [],
+      assigneeUserIds: [...new Set([...(data.assigneeIds ?? []), ...(data.coAssigneeIds ?? [])])],
     });
     return { ok: true, id: created.id };
   } catch (e) {
@@ -309,13 +376,28 @@ export async function updateTask(
     const notifyAdded = await prisma.$transaction(async (tx) => {
       const before = await tx.task.findUnique({
         where: { id },
-        select: { ...SCOPE_SELECT, title: true, dueDate: true },
+        select: {
+          ...SCOPE_SELECT,
+          title: true,
+          dueDate: true,
+          description: true,
+          priority: true,
+          recurrence: true,
+          tags: true,
+          linkedOrderId: true,
+          linkedLeadId: true,
+          linkedDealId: true,
+          linkedContactId: true,
+          linkedDialogId: true,
+          linkedDocumentId: true,
+        },
       });
       if (!before) throw new TaskError('not_found');
       if (!canSeeTask(session, scopeArg(before))) throw new TaskError('not_found');
       await validateRefs(tx, before.companyId, data);
       const nextDue = data.dueDate ?? null;
       const dueChanged = (before.dueDate?.getTime() ?? null) !== (nextDue?.getTime() ?? null);
+      const nextTags = normalizeTags(data.tags);
       await tx.task.update({
         where: { id },
         data: {
@@ -330,6 +412,7 @@ export async function updateTask(
           linkedContactId: data.linkedContactId ?? null,
           linkedDialogId: data.linkedDialogId ?? null,
           linkedDocumentId: data.linkedDocumentId ?? null,
+          ...(nextTags !== undefined ? { tags: nextTags } : {}),
           // ФТ-7.2: перенос срока → джоб «скоро срок» уведомит заново.
           // `У-225`: и отметки просрочки тоже. Схема обещала это с самого
           // начала, а код сбрасывал только первое поле: у задачи, которую
@@ -346,17 +429,41 @@ export async function updateTask(
                   Prisma.InputJsonValue | typeof Prisma.DbNull),
         },
       });
-      const added =
-        data.assigneeIds !== undefined ? (await syncAssignees(tx, id, data.assigneeIds)).added : [];
+      const sync =
+        data.assigneeIds !== undefined
+          ? await syncAssignees(tx, id, data.assigneeIds, data.coAssigneeIds)
+          : { added: [], changed: false };
+      // `У-302`: в историю — какие поля поменялись, а не только «задача изменена».
+      const same = (a: unknown, b: unknown) =>
+        JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+      const changed: TaskChangedField[] = [];
+      if (before.title !== data.title.trim()) changed.push('title');
+      if (!same(before.description, data.description)) changed.push('description');
+      if (!same(before.priority, data.priority)) changed.push('priority');
+      if (dueChanged) changed.push('dueDate');
+      const linkKeys = [
+        'linkedOrderId',
+        'linkedOrganizationId',
+        'linkedLeadId',
+        'linkedDealId',
+        'linkedContactId',
+        'linkedDialogId',
+        'linkedDocumentId',
+      ] as const;
+      if (linkKeys.some((k) => !same(before[k], data[k]))) changed.push('links');
+      const nextRecurrence = detached === 'detached' ? null : (data.recurrence ?? null);
+      if (!same(before.recurrence, nextRecurrence)) changed.push('recurrence');
+      if (sync.changed) changed.push('assignees');
+      if (nextTags !== undefined && !same(before.tags, nextTags)) changed.push('tags');
       await recordAudit(tx, {
         userId: session.sub,
         action: 'task_updated',
         entity: 'task',
         entityId: id,
         before: { title: before.title },
-        after: { title: data.title.trim() },
+        after: { title: data.title.trim(), changed },
       });
-      return added;
+      return sync.added;
     });
     await notifyTaskAssigned({
       taskId: id,

@@ -25,8 +25,11 @@ function segmented(active: boolean): string {
 export function TasksToolbar({
   state,
   assigneeOptions,
+  tagOptions = [],
 }: {
   state: TasksToolbarState;
+  /** Этап 5 ТЗ 13.10.2026 (`Р-5-4`): теги задач компании; пусто — фильтр скрыт. */
+  tagOptions?: string[];
   /** Список для фильтра по исполнителю (ФТ-7.3, только руководитель); null — фильтр скрыт. */
   assigneeOptions: { id: string; name: string }[] | null;
 }) {
@@ -44,6 +47,7 @@ export function TasksToolbar({
     setOrDelete('assignee', next.assigneeId);
     setOrDelete('overdue', next.overdue ? '1' : null);
     setOrDelete('view', next.view === 'list' ? 'list' : null);
+    setOrDelete('tag', next.tag);
     const qs = q.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname);
   }
@@ -88,6 +92,22 @@ export function TasksToolbar({
           {assigneeOptions.map((u) => (
             <option key={u.id} value={u.id}>
               {u.name}
+            </option>
+          ))}
+        </Select>
+      )}
+
+      {tagOptions.length > 0 && (
+        <Select
+          aria-label="Тег"
+          value={state.tag ?? ''}
+          onChange={(e) => apply({ tag: e.target.value || null })}
+          className="w-44"
+        >
+          <option value="">Все теги</option>
+          {tagOptions.map((t) => (
+            <option key={t} value={t}>
+              {t}
             </option>
           ))}
         </Select>

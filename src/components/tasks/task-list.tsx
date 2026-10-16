@@ -132,6 +132,9 @@ export function TaskList({
                 <CardRow label="Исполнители">
                   {row.assigneeNames.length > 0 ? row.assigneeNames.join(', ') : 'без исполнителя'}
                 </CardRow>
+                {/* Этап 5 ТЗ 13.10.2026 (`У-299`): постановщик и теги видны в списке. */}
+                <CardRow label="Постановщик">{row.createdByName}</CardRow>
+                {row.tags.length > 0 && <CardRow label="Теги">{row.tags.join(', ')}</CardRow>}
                 <CardRow label="Связи">
                   {[
                     row.linkedOrganizationName,
@@ -155,6 +158,7 @@ export function TaskList({
                   <th className="px-4 py-2 font-medium">Приоритет</th>
                   <th className="px-4 py-2 font-medium">Срок</th>
                   <th className="px-4 py-2 font-medium">Исполнители</th>
+                  <th className="px-4 py-2 font-medium">Постановщик</th>
                   <th className="px-4 py-2 font-medium">Связи</th>
                 </tr>
               </thead>
@@ -175,6 +179,15 @@ export function TaskList({
                       >
                         {row.title}
                       </Link>
+                      {row.tags.length > 0 && (
+                        <span className="mt-1 flex flex-wrap gap-1">
+                          {row.tags.map((tag) => (
+                            <Badge key={tag} tone="neutral">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-gray-600">{row.columnName}</td>
                     <td className="px-4 py-2.5">
@@ -197,6 +210,7 @@ export function TaskList({
                         ? row.assigneeNames.join(', ')
                         : 'без исполнителя'}
                     </td>
+                    <td className="px-4 py-2.5 text-gray-600">{row.createdByName}</td>
                     <td className="px-4 py-2.5 text-xs text-gray-500">
                       {[
                         row.linkedOrganizationName,

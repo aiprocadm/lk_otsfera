@@ -54,7 +54,9 @@ export type ScanDocumentTarget =
   | 'messenger_attachment'
   // Этап 6 (У-237): файл материала для партнёров — id строки PartnerMaterialFile.
   // Пока не `clean`, партнёр материал не видит и не скачивает.
-  | 'partner_material';
+  | 'partner_material'
+  // Этап 5 ТЗ 13.10.2026 (`У-299`): файл результата задачи — id строки TaskResultFile.
+  | 'task_result_file';
 
 export type ScanDocumentPayload = {
   kind: ScanDocumentTarget;

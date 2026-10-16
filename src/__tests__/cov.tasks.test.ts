@@ -488,6 +488,7 @@ describe('board.ts — getTaskFormOptions', () => {
         count: vi.fn().mockResolvedValue(0),
       },
       order: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) },
+      task: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient;
     const opt = await getTaskFormOptions(prisma, noCompany());
     expect(opt).toEqual({
@@ -496,6 +497,7 @@ describe('board.ts — getTaskFormOptions', () => {
       orders: [],
       organizationsTotal: 0,
       ordersTotal: 0,
+      knownTags: [],
     });
     // companyId fell back to the never-match sentinel.
     expect(userFindMany.mock.calls[0][0].where.companyId).toBe('__no_company__');
