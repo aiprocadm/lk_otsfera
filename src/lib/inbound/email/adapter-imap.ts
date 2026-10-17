@@ -116,10 +116,15 @@ export class ImapInboundEmailAdapter implements InboundEmailAdapter {
           // Письмо без адреса отправителя резолвить не во что — пропускаем,
           // курсор всё равно продвигается (иначе оно вечно блокирует хвост).
           if (!from) continue;
+          // `У-316`: «Копия» письма — одна группа адресов или несколько.
+          const cc = (Array.isArray(parsed.cc) ? parsed.cc : parsed.cc ? [parsed.cc] : [])
+            .flatMap((group) => group.value.map((v) => v.address?.trim() ?? ''))
+            .filter((address) => address.length > 0);
           messages.push({
             externalId: `${uidValidity}-${uid}`,
             from,
             subject: parsed.subject ?? undefined,
+            ...(cc.length > 0 ? { cc } : {}),
             text: bodyTextFrom(parsed.text, parsed.html),
             // `У-205`: по нему ответ менеджера встанет в ту же ветку у
             // клиента. Сервер может его не прислать — тогда null.

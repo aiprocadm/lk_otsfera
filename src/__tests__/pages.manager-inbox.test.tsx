@@ -5,6 +5,11 @@ import ManagerInboxPage from '@/app/manager/inbox/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
 
 const { requireManager } = vi.hoisted(() => ({ requireManager: vi.fn() }));
+// `У-316`: подпись письма собирает свой модуль — здесь он подменён.
+const { emailSignatureFor } = vi.hoisted(() => ({
+  emailSignatureFor: vi.fn(async () => '-- \nС уважением,\nМенеджер'),
+}));
+vi.mock('@/lib/services/inbound/emailSignature', () => ({ emailSignatureFor }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManager }));
 
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));

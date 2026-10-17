@@ -228,3 +228,24 @@ describe('ImapInboundEmailAdapter.fetchNewMessages', () => {
     expect(state.lastOptions).toMatchObject({ port: 143, secure: false });
   });
 });
+
+describe('ImapInboundEmailAdapter — «Копия» (`У-316`)', () => {
+  it('одна группа и несколько групп адресов; пустые адреса отбрасываются; без копии — поля нет', async () => {
+    state.searchResult = [50, 51, 52];
+    seed(50, {
+      ...makeParsed('a@x.ru', 'Т', 'т'),
+      cc: { value: [{ address: ' c1@x.ru ' }, { address: '' }] },
+    });
+    seed(51, {
+      ...makeParsed('b@x.ru', 'Т', 'т'),
+      cc: [
+        { value: [{ address: 'c2@x.ru' }] },
+        { value: [{ name: 'Без адреса' }, { address: 'c3@x.ru' }] },
+      ],
+    });
+    seed(52, { ...makeParsed('d@x.ru', 'Т', 'т'), cc: { value: [{ address: '  ' }] } });
+    const res = await new ImapInboundEmailAdapter(CFG).fetchNewMessages('7:49');
+    expect(res.messages.map((m) => m.cc)).toEqual([['c1@x.ru'], ['c2@x.ru', 'c3@x.ru'], undefined]);
+    expect(Object.keys(res.messages[2]!)).not.toContain('cc');
+  });
+});

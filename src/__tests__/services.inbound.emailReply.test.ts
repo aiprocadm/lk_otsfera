@@ -204,3 +204,32 @@ describe('sendEmailReply — разметка письма', () => {
     expect(html).toContain('первая строка\nвторая строка');
   });
 });
+
+describe('sendEmailReply — подпись и «Копия» (`У-316`)', () => {
+  it('подпись — под текстом и в тексте, и в разметке; копия уходит в send', async () => {
+    await sendEmailReply({
+      to: 'client@mail.ru',
+      subject: 'Вопрос',
+      text: 'Добрый день!',
+      inReplyTo: null,
+      cc: ['boss@mail.ru'],
+      signature: '-- \nС уважением,\nАнна',
+    });
+    const call = lastSend();
+    expect(call.text).toBe('Добрый день!\n\n-- \nС уважением,\nАнна');
+    expect(call.html).toContain('С уважением,');
+    expect(call.cc).toEqual(['boss@mail.ru']);
+  });
+  it('без подписи и копии — как раньше', async () => {
+    await sendEmailReply({
+      to: 'client@mail.ru',
+      subject: 'В',
+      text: 'Текст',
+      inReplyTo: null,
+      cc: [],
+    });
+    const call = lastSend();
+    expect(call.text).toBe('Текст');
+    expect(Object.keys(call)).not.toContain('cc');
+  });
+});

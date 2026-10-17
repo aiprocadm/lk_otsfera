@@ -26,6 +26,8 @@ export type EmailTransport = {
   send(input: {
     from: string;
     to: string;
+    /** `У-316`: «Копия» ответа на письмо. */
+    cc?: string[] | undefined;
     subject: string;
     html: string;
     text?: string | undefined;
@@ -95,6 +97,7 @@ export async function defaultTransport(): Promise<EmailTransport | null> {
       const result = await client.emails.send({
         from: input.from,
         to: input.to,
+        ...(input.cc && input.cc.length > 0 ? { cc: input.cc } : {}),
         subject: input.subject,
         html: input.html,
         // Resend SDK различает «поля нет» и «поле = undefined» (CreateEmailOptions

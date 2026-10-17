@@ -2499,6 +2499,8 @@ model InboundMessage {
   senderRef         String
   senderDisplay     String?
   subject           String?
+  /// `У-316`: адреса из «Копии» (CC) письма; у мессенджеров — пусто.
+  ccRecipients      String[]          @default([])
   body              String
   attachmentPath    String?
   attachmentName    String?

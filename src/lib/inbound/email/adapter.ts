@@ -2,6 +2,8 @@ export type InboundEmailDto = {
   externalId: string;
   from: string;
   subject?: string | undefined;
+  /** `У-316`: адреса «Копии» (CC); нет копии — поля нет. */
+  cc?: string[] | undefined;
   text: string;
   /**
    * `Message-ID` письма (`У-205`). По нему ответ менеджера сшивается с

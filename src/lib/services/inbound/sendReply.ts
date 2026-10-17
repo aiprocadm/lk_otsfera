@@ -3,6 +3,8 @@ import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { notifyOrgUsers } from '@/lib/notifications';
 import { replyToInbound } from '@/lib/services/inbound/reply';
+import { emailSignatureFor } from '@/lib/services/inbound/emailSignature';
+import { looksLikeEmail } from '@/lib/services/inbound/emailReply';
 import { writeSyncLog } from '@/lib/services/oneCSync/log';
 import { isDialogChannel } from '@/lib/services/messengers/channels';
 import { normalizeChannelValue } from '@/lib/services/contacts/resolveContactByChannel';
@@ -12,6 +14,8 @@ import { log } from '@/lib/logging';
 export type SendInboundReplyArgs = {
   inboundMessageId: string;
   text: string;
+  /** `У-316`: «Копия» ответа на письмо; у мессенджеров не применяется. */
+  cc?: string[] | undefined;
 };
 
 export type SendInboundReplyResult =
@@ -33,6 +37,9 @@ export type SendInboundReplyResult =
  * виден в диалоге) → best-effort thread mirror (message + thread bump + org
  * notification) → audit → 1С sync log.
  */
+/** Сколько адресов можно поставить в «Копию» ответа. */
+const CC_MAX = 10;
+
 export async function sendInboundReply(
   prisma: PrismaClient,
   session: SessionPayload,
@@ -62,7 +69,19 @@ export async function sendInboundReply(
   const text = args.text.trim();
   if (!text) return { ok: false, error: 'invalid' };
 
-  const result = await replyToInbound(message, text);
+  // `У-316`: у письма — «Копия» (кривой адрес — отказ формы) и подпись из
+  // профиля; у мессенджеров ни того ни другого нет.
+  let email: { cc?: string[]; signature?: string } = {};
+  if (message.channel === 'email') {
+    const cc = [...new Set((args.cc ?? []).map((a) => a.trim().toLowerCase()).filter(Boolean))];
+    if (cc.length > CC_MAX || cc.some((a) => !looksLikeEmail(a))) {
+      return { ok: false, error: 'invalid' };
+    }
+    const signature = await emailSignatureFor(prisma, session.sub);
+    email = { ...(cc.length > 0 ? { cc } : {}), ...(signature ? { signature } : {}) };
+  }
+
+  const result = await replyToInbound(message, text, email);
   if (!result.ok) {
     // Один код на все каналы: почта больше не «не поддерживается» — она
     // отвечает так же, как мессенджеры, и отказ у неё такой же обычный.

@@ -319,4 +319,30 @@ describe('ingestInboundMessage', () => {
       })
     ).rejects.toThrow('db exploded');
   });
+
+  it('`У-316`: «Копия» письма сохраняется в нижнем регистре; у мессенджера — пусто', async () => {
+    const r = await ingestInboundMessage(prisma, {
+      channel: 'telegram',
+      externalId: 'tg:test:cc',
+      senderRef: '333',
+      body: 'x',
+      cc: [' Boss@Mail.RU '],
+    });
+    const plain = await ingestInboundMessage(prisma, {
+      channel: 'telegram',
+      externalId: 'tg:test:nocc',
+      senderRef: '333',
+      body: 'y',
+    });
+    expect(r.ok && plain.ok).toBe(true);
+    const rows = await prisma.inboundMessage.findMany({
+      where: { externalId: { in: ['tg:test:cc', 'tg:test:nocc'] } },
+      select: { externalId: true, ccRecipients: true },
+      orderBy: { externalId: 'asc' },
+    });
+    expect(rows).toEqual([
+      { externalId: 'tg:test:cc', ccRecipients: ['boss@mail.ru'] },
+      { externalId: 'tg:test:nocc', ccRecipients: [] },
+    ]);
+  });
 });

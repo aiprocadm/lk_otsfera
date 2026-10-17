@@ -160,3 +160,27 @@ describe('replyToInbound — незнакомый канал', () => {
     expect(m.recordNotification).not.toHaveBeenCalled();
   });
 });
+
+describe('replyToInbound — «Копия» и подпись (`У-316`)', () => {
+  it('у письма уходят в sendEmailReply; без них — ключей нет', async () => {
+    const { replyToInbound } = await import('@/lib/services/inbound/reply');
+    await replyToInbound(
+      { id: 'i', channel: 'email', senderRef: 'c@x.ru', subject: 'Т', externalMessageId: null },
+      'текст',
+      { cc: ['b@x.ru'], signature: 'подпись' }
+    );
+    expect(m.sendEmailReply).toHaveBeenLastCalledWith({
+      to: 'c@x.ru',
+      subject: 'Т',
+      text: 'текст',
+      inReplyTo: null,
+      cc: ['b@x.ru'],
+      signature: 'подпись',
+    });
+    await replyToInbound(
+      { id: 'i', channel: 'email', senderRef: 'c@x.ru', subject: 'Т', externalMessageId: null },
+      'текст'
+    );
+    expect(Object.keys(m.sendEmailReply.mock.calls.at(-1)![0])).not.toContain('cc');
+  });
+});

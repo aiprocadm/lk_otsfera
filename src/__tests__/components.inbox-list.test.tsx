@@ -16,8 +16,13 @@ vi.mock('@/components/manager/inbox-bind-form', () => ({
     ),
 }));
 vi.mock('@/components/manager/inbox-reply-form', () => ({
-  InboxReplyForm: (props: { inboundMessageId: string }) =>
-    React.createElement('div', { 'data-testid': 'reply-form' }, `reply:${props.inboundMessageId}`),
+  InboxReplyForm: (props: { inboundMessageId: string; email?: { signature: string } }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'reply-form' },
+      `reply:${props.inboundMessageId}`,
+      props.email ? `|email:${props.email.signature}` : ''
+    ),
 }));
 vi.mock('@/components/intake/source-intake-actions', () => ({
   SourceIntakeActions: (props: {
@@ -50,6 +55,7 @@ const base: InboxItem = {
   channel: 'telegram',
   senderRef: '@vasya',
   senderDisplay: 'Вася',
+  ccRecipients: [],
   subject: null,
   body: 'Добрый день, нужна консультация',
   createdAt: new Date('2026-07-01T09:00:00Z'),
@@ -275,5 +281,44 @@ describe('InboxFiltersBar', () => {
     expect(html).toContain('channel=email&amp;status=unresolved');
     // сброс канала («Все») оставляет только status
     expect(html).toContain('href="/manager/inbox?status=bound"');
+  });
+});
+
+describe('InboxList — почтовый вид (`У-316`)', () => {
+  const mail: InboxItem = {
+    ...base,
+    id: 'em-1',
+    channel: 'email',
+    senderRef: 'client@mail.ru',
+    senderDisplay: null,
+    subject: 'Счёт за обучение',
+    ccRecipients: ['boss@mail.ru', 'acc@mail.ru'],
+    status: 'bound',
+    resolvedOrgId: 'org-1',
+  };
+
+  it('тема крупно и «Копия» — в обеих раскладках', () => {
+    const html = renderToString(<InboxList items={[mail]} organizations={ORGS} />);
+    expect(count(html, 'Копия: <!-- -->boss@mail.ru, acc@mail.ru')).toBe(2);
+    expect(count(html, 'font-semibold text-[#111111]">Счёт за обучение')).toBe(2);
+  });
+
+  it('ответ на письмо — форма с подписью; мессенджер — без почтовых полей', () => {
+    const html = renderToString(
+      <InboxList
+        items={[mail, { ...base, id: 'tg-1', status: 'bound', resolvedOrgId: 'org-1' }]}
+        organizations={ORGS}
+        emailSignature="-- Анна"
+      />
+    );
+    expect(count(html, 'reply:em-1<!-- -->|email:-- Анна')).toBe(2);
+    expect(html).not.toContain('reply:tg-1<!-- -->|email');
+  });
+
+  it('без копии строки «Копия» нет', () => {
+    const html = renderToString(
+      <InboxList items={[{ ...mail, ccRecipients: [] }]} organizations={ORGS} />
+    );
+    expect(html).not.toContain('Копия:');
   });
 });

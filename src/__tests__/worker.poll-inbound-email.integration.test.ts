@@ -179,4 +179,20 @@ describe('pollInboundEmailProcessor', () => {
     );
     warn.mockRestore();
   });
+
+  it('`У-316`: «Копия» письма доезжает до входящего; без копии — ключа нет', async () => {
+    fetchNewMessages.mockResolvedValue({
+      messages: [
+        { externalId: 'uid-80', from: 'c@mail.ru', subject: 'Т', text: 'т', cc: ['b@mail.ru'] },
+        { externalId: 'uid-81', from: 'c@mail.ru', subject: 'Т', text: 'т', cc: [] },
+      ],
+      cursor: '8',
+    });
+    ingestInboundMessage.mockResolvedValue({ ok: true, id: 'im3', deduped: false });
+
+    await pollInboundEmailProcessor(job, prisma);
+
+    expect(ingestInboundMessage.mock.calls[0]![1]).toMatchObject({ cc: ['b@mail.ru'] });
+    expect(ingestInboundMessage.mock.calls[1]![1]).not.toHaveProperty('cc');
+  });
 });

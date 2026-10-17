@@ -55,6 +55,10 @@ export type SendEmailReplyArgs = {
   text: string;
   /** `Message-ID` письма клиента — сшивка ветки; null, если он неизвестен. */
   inReplyTo: string | null | undefined;
+  /** `У-316`: «Копия» ответа. */
+  cc?: string[] | undefined;
+  /** `У-316`: подпись сотрудника — под текстом письма. */
+  signature?: string | undefined;
 };
 
 /**
@@ -79,11 +83,14 @@ export async function sendEmailReply(args: SendEmailReplyArgs): Promise<{ ok: bo
       return { ok: false };
     }
 
+    // `У-316`: подпись — под текстом, после стандартного разделителя.
+    const text = args.signature ? `${args.text}\n\n${args.signature}` : args.text;
     const result = await send({
       to: args.to,
+      ...(args.cc && args.cc.length > 0 ? { cc: args.cc } : {}),
       subject: replySubject(args.subject),
-      html: htmlOf(args.text),
-      text: args.text,
+      html: htmlOf(text),
+      text,
       replyTo: inbox,
       ...(args.inReplyTo
         ? { headers: { inReplyTo: args.inReplyTo, references: [args.inReplyTo] } }

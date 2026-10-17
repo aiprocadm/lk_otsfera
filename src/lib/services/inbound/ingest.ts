@@ -15,6 +15,8 @@ export type InboundDto = {
   senderRef: string;
   senderDisplay?: string | null | undefined;
   subject?: string | undefined;
+  /** `У-316`: адреса «Копии» письма. */
+  cc?: string[] | undefined;
   body: string;
   attachmentPath?: string | undefined;
   attachmentName?: string | undefined;
@@ -89,6 +91,7 @@ export async function ingestInboundMessage(
         senderRef,
         senderDisplay: dto.senderDisplay ?? null,
         subject: dto.subject ?? null,
+        ccRecipients: (dto.cc ?? []).map((a) => a.trim().toLowerCase()),
         body: dto.body,
         attachmentPath: dto.attachmentPath ?? null,
         attachmentName: dto.attachmentName ?? null,

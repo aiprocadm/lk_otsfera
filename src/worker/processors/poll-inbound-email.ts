@@ -32,6 +32,8 @@ export async function pollInboundEmailProcessor(
       senderRef: m.from.trim().toLowerCase(),
       // exactOptionalPropertyTypes: InboundDto различает «ключа нет» и «ключ = undefined».
       ...(m.subject !== undefined ? { subject: m.subject } : {}),
+      // `У-316`: копия письма — в карточку письма.
+      ...(m.cc?.length ? { cc: m.cc } : {}),
       body: m.text,
       // `У-205`: сшивка будущего ответа с перепиской клиента.
       ...(m.messageId ? { externalMessageId: m.messageId } : {}),

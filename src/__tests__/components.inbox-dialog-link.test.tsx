@@ -38,6 +38,7 @@ const base: InboxItem = {
   channel: 'telegram',
   senderRef: '@vasya',
   senderDisplay: 'Вася',
+  ccRecipients: [],
   subject: null,
   body: 'Добрый день, нужна консультация',
   createdAt: new Date('2026-09-10T09:00:00Z'),
