@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { EmptyState } from '@/components/ui';
 import type { ManagerInboxItem } from '@/lib/services/manager/messages';
-import { fmtDateTime } from '@/lib/format';
+import { fmtDateTime, pluralizeRu } from '@/lib/format';
 
 const EXCERPT_LEN = 200;
 
@@ -100,11 +100,14 @@ export function ManagerMessagesInbox({ rows, nextCursor }: Props) {
   return (
     <div className="space-y-4">
       {groups.map((g) => (
-        <div
+        // `У-314`: блок заказа сворачивается заголовком — нативный <details>,
+        // без скриптов; по умолчанию раскрыт.
+        <details
           key={`${g.orderId}-${g.items[0]!.id}`}
-          className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm"
+          open
+          className="group bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm"
         >
-          <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-gray-100 bg-gray-50">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-2.5 border-b border-gray-100 bg-gray-50">
             <div className="flex items-baseline gap-2 min-w-0">
               <span className="text-xs text-gray-500 whitespace-nowrap">
                 {g.orderNumber ?? '—'}
@@ -115,6 +118,10 @@ export function ManagerMessagesInbox({ rows, nextCursor }: Props) {
               >
                 {g.orderTitle}
               </Link>
+              <span className="text-xs text-gray-500 whitespace-nowrap">
+                · {g.items.length}{' '}
+                {pluralizeRu(g.items.length, 'сообщение', 'сообщения', 'сообщений')}
+              </span>
             </div>
             <Link
               href={`/manager/orders/${g.orderId}`}
@@ -122,7 +129,13 @@ export function ManagerMessagesInbox({ rows, nextCursor }: Props) {
             >
               Открыть заказ →
             </Link>
-          </div>
+            <span
+              aria-hidden="true"
+              className="text-xs text-gray-400 transition-transform group-open:rotate-180"
+            >
+              ▾
+            </span>
+          </summary>
           <ul className="divide-y divide-gray-50">
             {g.items.map((c) => {
               const tone = authorTone(c.author.role);
@@ -159,7 +172,7 @@ export function ManagerMessagesInbox({ rows, nextCursor }: Props) {
               );
             })}
           </ul>
-        </div>
+        </details>
       ))}
 
       {nextCursor && (

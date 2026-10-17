@@ -1,78 +1,93 @@
 import React from 'react';
+import Link from 'next/link';
 import type { ManagerInboxItem } from '@/lib/services/manager/messages';
 import { ManagerMessagesInbox } from '@/components/manager/manager-messages-inbox';
-import { isFeatureEnabled } from '@/lib/featureFlags';
 import type { ListThreadsResult } from '@/lib/services/chat/threads';
 import { OrderThreadInbox } from '@/components/chat/order-thread-inbox';
 import { UnreadBadge } from '@/components/chat/unread-badge';
 import { StaffChatSection } from '@/components/staff-chat/staff-chat-section';
 import { StaffUnreadBadge } from '@/components/staff-chat/staff-unread-badge';
 import { sectionLabel } from '@/lib/navigation/sectionLabels';
+import type { MessagesTab, MessagesTabKey } from '@/lib/navigation/messagesTabs';
 import type { SessionPayload } from '@/lib/auth/jwt';
-
 import { PageHeader } from '@/components/ui/page-header';
+
 /**
  * Экран «Сообщения» сотрудников ЦО — один на кабинет менеджера и кабинет
  * руководителя (`У-110`).
  *
- * У руководителя пункт меню вёл **в чужой кабинет** (`/manager/messages`):
- * человек нажимал раздел своего меню и оказывался в другом кабинете, с чужой
- * подсветкой и чужим охватом. Теперь раздел свой, а переписка — по всей
- * компании (`teamModeOverride` на странице руководителя).
+ * Этап 7 ТЗ 13.10.2026 (`У-313`, `Р-7-1`): раньше три блока стояли друг под
+ * другом, и до «Чата команды» надо было прокрутить все комментарии. Теперь
+ * каждый подраздел — своя страница (`view`), подпункт бокового меню и вкладка
+ * над экраном; свежее — сразу сверху.
  *
  * Компонент **презентационный**: данные приходят пропсами, в базу он не ходит
  * (правило `components-no-db`). Выборку делает страница своей роли — она же
- * решает охват (менеджер — свой скоуп, руководитель — вся компания).
- *
- * Гейтинг флага `chat` не выравниваем (§5 CLAUDE.md): комментарии к заказам —
- * до-`chat` фича и видны всегда, чат-секции — только при флаге.
+ * решает охват (менеджер — свой скоуп, руководитель — вся компания) и флаги
+ * (`chat`, `staff_chat`): страница подраздела без флага отвечает 404.
  */
+const SUBTITLE: Record<MessagesTabKey, string> = {
+  comments: 'Комментарии клиентов к заказам и ваши ответы — свежие сверху',
+  chats: 'Чат с клиентами по заказам',
+  team: 'Переписка сотрудников: общий чат и личные сообщения',
+};
+
+export type StaffMessagesView =
+  | { view: 'comments'; rows: ManagerInboxItem[]; nextCursor: string | null }
+  | { view: 'chats'; chat: ListThreadsResult }
+  | { view: 'team' };
+
 export function StaffMessages({
   session,
-  rows,
-  nextCursor,
-  chat,
+  tabs,
+  data,
 }: {
   session: SessionPayload;
-  rows: ManagerInboxItem[];
-  nextCursor: string | null;
-  /** Треды чата; `null` — флаг `chat` выключен, чат-секция не рендерится. */
-  chat: ListThreadsResult | null;
+  /** Подразделы с учётом флагов — из `messagesTabsFor`. */
+  tabs: MessagesTab[];
+  data: StaffMessagesView;
 }) {
-  const chatEnabled = chat !== null;
-  const staffChatEnabled = isFeatureEnabled('staff_chat');
-
   return (
     <>
       <PageHeader
         title={
           <>
-            {sectionLabel('messages')} {chatEnabled && <UnreadBadge />}
+            {sectionLabel('messages')} {data.view === 'chats' && <UnreadBadge />}
+            {data.view === 'team' && <StaffUnreadBadge />}
           </>
         }
-        subtitle="Переписка с клиентами по заказам"
+        subtitle={SUBTITLE[data.view]}
       />
-      <h2 className="mb-3 text-lg font-medium text-gray-700">Комментарии к заказам</h2>
-      <ManagerMessagesInbox rows={rows} nextCursor={nextCursor} />
-      {chat && (
-        <section className="mt-8">
-          <h2 className="mb-3 text-lg font-medium text-gray-700">Чат</h2>
-          <OrderThreadInbox
-            threads={chat.ok ? chat.rows : []}
-            total={chat.ok ? chat.total : 0}
-            currentUserId={session.sub}
-            variant="team"
-          />
-        </section>
+      {tabs.length > 1 && (
+        <nav aria-label="Подразделы сообщений" className="mb-4 flex flex-wrap gap-1">
+          {tabs.map((t) => (
+            <Link
+              key={t.key}
+              href={t.href}
+              aria-current={t.key === data.view ? 'page' : undefined}
+              className={`rounded-lg border px-3 py-1.5 text-sm ${
+                t.key === data.view
+                  ? 'border-[#F97316] bg-[#F97316] text-white'
+                  : 'border-gray-200 bg-white text-[#111111] hover:border-[#F97316]'
+              }`}
+            >
+              {t.label}
+            </Link>
+          ))}
+        </nav>
       )}
-      {staffChatEnabled && (
-        <section className="mt-8">
-          <h2 className="mb-3 text-lg font-medium text-gray-700">
-            Чат команды <StaffUnreadBadge />
-          </h2>
-          <StaffChatSection currentUserId={session.sub} />
-        </section>
+      {data.view === 'comments' && (
+        <ManagerMessagesInbox rows={data.rows} nextCursor={data.nextCursor} />
       )}
+      {data.view === 'chats' && (
+        <OrderThreadInbox
+          threads={data.chat.ok ? data.chat.rows : []}
+          total={data.chat.ok ? data.chat.total : 0}
+          currentUserId={session.sub}
+          variant="team"
+        />
+      )}
+      {data.view === 'team' && <StaffChatSection currentUserId={session.sub} />}
     </>
   );
 }

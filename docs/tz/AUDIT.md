@@ -185,8 +185,8 @@
 
 | Вердикт | Кол-во |
 |---|---|
-| `✅` соответствует | **309** |
-| `⏳` запланировано | **11** |
+| `✅` соответствует | **311** |
+| `⏳` запланировано | **9** |
 | `❌` расхождение | 0 |
 | `⚠` вне объёма | 1 (см. раздел ниже) — расхождение в тексте ТЗ понятности (чинить нечего); карточка организации у администратора мимо реестра вкладок закрыта 05.09.2026 (этап 9, PR-1) |
 
@@ -295,8 +295,8 @@
 
 | Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
 |---|---|---|---|---|
-| `У-313` | «Сообщения» — подменю из трёх подразделов | [messages/page.tsx](../../src/app/manager/messages/page.tsx) | ⏳ этап 7 | — |
-| `У-314` | Блоки комментариев по заказам сворачиваются | [messages/page.tsx](../../src/app/manager/messages/page.tsx) | ⏳ этап 7 | — |
+| `У-313` | «Сообщения» — подменю из трёх подразделов | Подпункты «Сообщений» — один список [messagesTabs.ts](../../src/lib/navigation/messagesTabs.ts) для меню и вкладок над экраном: «Комментарии по заказам» (`/…/messages`), «Чаты с клиентами» (`/…/messages/chats`, флаг `chat`), «Чаты команды» (`/…/messages/team`, флаг `staff_chat`); у менеджера и руководителя одинаково. Меню умеет подпункты: `childrenOf` в реестре [cabinet.ts](../../src/lib/navigation/cabinet.ts) → готовый `children` в `navItemsFor` (флаги свежие, в браузер — данные), [sidebar.tsx](../../src/components/shell/sidebar.tsx) рисует их под разделом с подсветкой точного адреса. Каждый подраздел — своя страница, свежее сверху; без флага — 404 до входа. Стражи — [navigation.messages-children](../../src/__tests__/navigation.messages-children.test.ts) (мутация «подпункты без флагов» поймана), [components.shell-sidebar-children](../../src/__tests__/components.shell-sidebar-children.test.tsx), [pages.manager-messages](../../src/__tests__/pages.manager-messages.test.tsx) | ✅ соответствует (этап 7 ПМ, PR-1) | 17.10.2026 · [спека этапа 7](../superpowers/specs/2026-10-17-pm-stage7-messages-mail-notifications-design.md) |
+| `У-314` | Блоки комментариев по заказам сворачиваются | Блок заказа в «Комментариях по заказам» — `<details open>` с заголовком-`<summary>` (номер, название, «N сообщений», стрелка) — сворачивается без скриптов ([manager-messages-inbox.tsx](../../src/components/manager/manager-messages-inbox.tsx)). Страж — [components.manager-messages-inbox](../../src/__tests__/components.manager-messages-inbox.test.tsx) | ✅ соответствует (этап 7 ПМ, PR-1) | 17.10.2026 · [спека этапа 7](../superpowers/specs/2026-10-17-pm-stage7-messages-mail-notifications-design.md) |
 | `У-315` | «Чат команды» — только сотрудники; свои чаты и личные сообщения любому сотруднику | [ТЗ §4](2026-10-13-tz-pm-review-student-manager.md) | ⏳ этап 7 | — |
 | `У-316` | «Входящие письма»: тема, копия, подпись; разделы писем и мессенджеров не сливаются | [ТЗ §4](2026-10-13-tz-pm-review-student-manager.md) | ⏳ этап 7 | — |
 | `У-317` | Настройки уведомлений сгруппированы в пять групп с раскрывающимися списками | [ТЗ §4](2026-10-13-tz-pm-review-student-manager.md) | ⏳ этап 7 | — |

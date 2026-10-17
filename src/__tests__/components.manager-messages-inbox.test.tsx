@@ -182,3 +182,24 @@ describe('ManagerMessagesInbox', () => {
     expect(html).not.toContain('Дальше');
   });
 });
+
+describe('ManagerMessagesInbox — блок заказа сворачивается (`У-314`)', () => {
+  it('блок — <details open> с заголовком-<summary> и числом сообщений', () => {
+    const rows = [
+      makeItem({ id: 'a' }),
+      makeItem({ id: 'b' }),
+      makeItem({ id: 'c', order: { id: 'o2', orderNumber: 'A-2', title: 'Заказ Y' } }),
+    ];
+    const html = renderToString(<ManagerMessagesInbox rows={rows} nextCursor={null} />);
+    expect(html.match(/<details open=""/g)).toHaveLength(2);
+    expect(html.match(/<summary/g)).toHaveLength(2);
+    expect(html).toContain('· <!-- -->2<!-- --> <!-- -->сообщения');
+    expect(html).toContain('· <!-- -->1<!-- --> <!-- -->сообщение');
+  });
+
+  it('пять сообщений в заказе — «сообщений»', () => {
+    const rows = ['1', '2', '3', '4', '5'].map((id) => makeItem({ id }));
+    const html = renderToString(<ManagerMessagesInbox rows={rows} nextCursor={null} />);
+    expect(html).toContain('<!-- -->5<!-- --> <!-- -->сообщений');
+  });
+});

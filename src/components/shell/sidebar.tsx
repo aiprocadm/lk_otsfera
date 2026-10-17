@@ -64,6 +64,7 @@ export function Sidebar(props: {
     }
 
     const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+    const children = item.children ?? [];
     return (
       <li key={item.href}>
         <Link
@@ -78,6 +79,31 @@ export function Sidebar(props: {
           <span>{item.label}</span>
           {item.badgeKey && <NavBadge badgeKey={item.badgeKey} />}
         </Link>
+        {/* `У-313`: подпункты раздела — под ним, с отступом; активный — по
+            точному адресу (первый подпункт совпадает с адресом раздела). */}
+        {children.length > 1 && (
+          <ul className="mt-0.5 ml-7 space-y-0.5" aria-label={`Подразделы: ${item.label}`}>
+            {children.map((c) => {
+              const childActive = pathname === c.href;
+              return (
+                <li key={c.href}>
+                  <Link
+                    href={props.linkHref ? props.linkHref(c.href) : c.href}
+                    className={`block rounded px-2 py-1 text-xs transition-colors ${
+                      childActive
+                        ? 'bg-orange-50 font-semibold text-[#EA580C]'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                    data-testid={`${props.testIdPrefix}-nav-${c.href.replace(/\//g, '-')}`}
+                    data-active={childActive ? 'true' : 'false'}
+                  >
+                    {c.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </li>
     );
   };

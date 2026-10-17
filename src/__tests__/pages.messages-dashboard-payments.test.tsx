@@ -65,7 +65,7 @@ vi.mock('@/lib/services/tasks/overdue', () => ({ listOverdueTasks: mocks.listOve
 
 vi.mock('@/components/manager/staff-messages', () => ({
   StaffMessages: (p: Record<string, unknown>) => (
-    <div data-testid="staff-messages" data-chat={p.chat === null ? 'off' : 'on'}>
+    <div data-testid="staff-messages" data-view={(p.data as { view: string }).view}>
       сообщения
     </div>
   ),
@@ -124,13 +124,13 @@ describe('«Сообщения» руководителя', () => {
     });
   });
 
-  it('чат выключен — треды не грузим вовсе', async () => {
-    mocks.isFeatureEnabled.mockReturnValue(false);
+  it('`У-313`: подраздел по умолчанию — комментарии; треды чата здесь не грузим вовсе', async () => {
+    mocks.isFeatureEnabled.mockReturnValue(true);
 
     await renderServerComponent(LeaderMessagesPage({ searchParams: Promise.resolve({}) }));
 
     expect(mocks.listThreads).not.toHaveBeenCalled();
-    expect(screen.getByTestId('staff-messages').dataset.chat).toBe('off');
+    expect(screen.getByTestId('staff-messages').dataset.view).toBe('comments');
   });
 });
 

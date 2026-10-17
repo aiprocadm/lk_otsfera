@@ -2,17 +2,16 @@ import React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { listIncomingComments } from '@/lib/services/manager/messages';
-import { listThreads } from '@/lib/services/chat/threads';
-import { isFeatureEnabled } from '@/lib/featureFlags';
+import { messagesTabsFor } from '@/lib/navigation/messagesTabs';
 import { StaffMessages } from '@/components/manager/staff-messages';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * «Сообщения» руководителя (`У-110`). Пункт меню вёл в кабинет менеджера —
- * человек нажимал свой раздел и оказывался в чужом кабинете. Теперь раздел
- * свой, а переписка — по всей компании (`teamModeOverride`); база — здесь,
- * в слое app: компонент презентационный (`components-no-db`).
+ * «Сообщения» руководителя → «Комментарии по заказам» (`У-110`; этап 7 ТЗ
+ * 13.10.2026, `У-313`): подраздел по умолчанию. Охват — вся компания (`teamModeOverride`); база — здесь,
+ * в слое app: компонент презентационный (`components-no-db`). Комментарии —
+ * до-`chat` фича и видны всегда (§5 CLAUDE.md).
  */
 export default async function LeaderMessagesPage({
   searchParams,
@@ -27,8 +26,11 @@ export default async function LeaderMessagesPage({
     teamModeOverride: true,
     ...(sp.cursor ? { cursor: sp.cursor } : {}),
   });
-  // Комментарии видны всегда; треды чата грузим только при флаге `chat`.
-  const chat = isFeatureEnabled('chat') ? await listThreads(prisma, session) : null;
-
-  return <StaffMessages session={session} rows={rows} nextCursor={nextCursor} chat={chat} />;
+  return (
+    <StaffMessages
+      session={session}
+      tabs={messagesTabsFor('/leader/messages')}
+      data={{ view: 'comments', rows, nextCursor }}
+    />
+  );
 }
