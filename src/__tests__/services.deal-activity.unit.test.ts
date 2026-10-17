@@ -182,7 +182,13 @@ it('handles an order with no threads (skips thread-scoped queries)', async () =>
           id: 'cm1',
           body: 'привет',
           createdAt: new Date('2026-07-13T08:00:00Z'),
-          author: { name: 'Клиент' },
+          author: { name: 'Клиент', role: 'organization' },
+        },
+        {
+          id: 'cm2',
+          body: 'ответ',
+          createdAt: new Date('2026-07-13T09:00:00Z'),
+          author: { name: 'Менеджер', role: 'manager' },
         },
       ]),
     },
@@ -190,7 +196,9 @@ it('handles an order with no threads (skips thread-scoped queries)', async () =>
   const res = await getDealActivity(prisma, session, 'o1', { view: 'all' });
   expect(res.ok).toBe(true);
   if (!res.ok) return;
-  expect(res.items.map((i) => i.kind)).toEqual(['comment']);
+  expect(res.items.map((i) => i.kind)).toEqual(['comment', 'comment']);
+  // `У-310`: заметку из сообщения делают только из слов клиента.
+  expect(res.items.map((i) => (i.kind === 'comment' ? i.fromClient : null))).toEqual([true, false]);
   // thread-scoped queries must NOT run when there are no threads
   expect(message.findMany).not.toHaveBeenCalled();
   expect(inboundMessage.findMany).not.toHaveBeenCalled();

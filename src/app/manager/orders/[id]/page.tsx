@@ -217,6 +217,7 @@ export default async function ManagerOrderDetailPage({
                 : null
             }
             hasContact={data.order.primaryContactId !== null}
+            embedded
           />
         ) : null
       }

@@ -149,12 +149,8 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       sectionKey: 'intake',
       badgeKey: 'intake',
     },
-    {
-      href: '/manager/funnel',
-      group: 'Продажи',
-      sectionKey: 'funnel',
-      flag: 'sales_funnel',
-    },
+    // Этап 6 ТЗ 13.10.2026 (`У-312`): «Воронка продаж» менеджера — вид внутри
+    // «Лидов» (`/manager/leads?view=funnel`); старый адрес говорит «раздел переехал».
     {
       href: '/manager/deals',
       group: 'Продажи',

@@ -886,7 +886,8 @@ describe('server-actions — error-mapping branches', () => {
       );
       expect(res).toEqual({ ok: true });
       expect(revalidatePath).toHaveBeenCalledWith('/leader/funnel');
-      expect(revalidatePath).toHaveBeenCalledWith('/manager/funnel');
+      // `У-312`: воронка менеджера живёт в «Лидах».
+      expect(revalidatePath).toHaveBeenCalledWith('/manager/leads');
     } finally {
       await prisma.lead.deleteMany({ where: { partnerId } });
       await prisma.partner.deleteMany({ where: { id: partnerId } });

@@ -121,8 +121,9 @@ export const MIRROR_EXCEPTIONS: MirrorException[] = [
   {
     pair: 'staff',
     sectionKey: 'funnel',
-    cabinets: ['leader', 'manager'],
-    reason: 'Воронка продаж — работа продающего контура; администратор в ней не работает (Model A)',
+    cabinets: ['leader'],
+    reason:
+      'Воронка продаж — работа продающего контура, администратор в ней не работает (Model A); у менеджера воронка — вид внутри «Лидов» (`У-312`), а у руководителя раздела «Лиды» нет — воронка остаётся его пунктом меню',
   },
   {
     pair: 'staff',

@@ -13,6 +13,7 @@ import { DealsManagerFilter } from '@/components/deals/deals-manager-filter';
 import { NewDealButton } from '@/components/deals/deal-dialog';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { SALES_STAGE_LINE } from '@/lib/help/salesStages';
 import { ListCapNotice } from '@/components/ui';
 export const dynamic = 'force-dynamic';
 
@@ -58,8 +59,13 @@ export default async function LeaderDealsPage({
         <div>
           <PageHeader
             title="Сделки"
-            subtitle="Перетаскивайте карточки между стадиями. «Проиграна» требует причину, «Выиграна» завершает сделку."
+            // `У-311`: чем сделка отличается от лида и заказа (зеркало менеджера).
+            subtitle={SALES_STAGE_LINE.deals}
           />
+          <p className="mt-1 text-xs text-gray-500">
+            Перетаскивайте карточки между стадиями. «Проиграна» требует причину, «Выиграна»
+            завершает сделку.
+          </p>
         </div>
         <NewDealButton
           organizations={organizations}

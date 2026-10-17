@@ -23,7 +23,7 @@ import {
 
 function revalidate(): void {
   revalidatePath('/leader/funnel');
-  revalidatePath('/manager/funnel');
+  revalidatePath('/manager/leads');
 }
 
 /**

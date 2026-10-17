@@ -237,3 +237,23 @@ describe('OrderDialogsPanel — «показаны не все» (С-6)', () => 
     ).toBeNull();
   });
 });
+
+describe('OrderDialogsPanel — внутри «Переписки с клиентом» (`У-310`)', () => {
+  it('без своей рамки и с подзаголовком «Диалоги в мессенджерах» — двух «Переписок» на экране нет', () => {
+    const { container } = render(
+      <OrderDialogsPanel
+        dialogs={[]}
+        total={0}
+        dialogHref={null}
+        writeFirstHref={null}
+        allHref={null}
+        hasContact={false}
+        embedded
+      />
+    );
+    expect(container.querySelector('h3')?.textContent).toBe('Диалоги в мессенджерах');
+    expect(container.querySelector('h2')).toBeNull();
+    expect(container.textContent).not.toContain('Переписка с клиентом');
+    expect((container.firstChild as HTMLElement).className).not.toContain('border');
+  });
+});

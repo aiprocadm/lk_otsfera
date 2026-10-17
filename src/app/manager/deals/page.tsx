@@ -11,6 +11,7 @@ import { DealBoard } from '@/components/deals/deal-board';
 import { NewDealButton } from '@/components/deals/deal-dialog';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { SALES_STAGE_LINE } from '@/lib/help/salesStages';
 import { ListCapNotice } from '@/components/ui';
 export const dynamic = 'force-dynamic';
 
@@ -47,8 +48,12 @@ export default async function ManagerDealsPage() {
         <div>
           <PageHeader
             title="Сделки"
-            subtitle="Перетаскивайте карточки между стадиями. «Проиграна» требует причину."
+            // `У-311`: чем сделка отличается от лида и заказа.
+            subtitle={SALES_STAGE_LINE.deals}
           />
+          <p className="mt-1 text-xs text-gray-500">
+            Перетаскивайте карточки между стадиями. «Проиграна» требует причину.
+          </p>
         </div>
         <NewDealButton
           organizations={organizations}

@@ -43,7 +43,14 @@ function fmtDuration(sec: number | null): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export function ActivityItemView({ item }: { item: ActivityItem }) {
+export function ActivityItemView({
+  item,
+  footer = null,
+}: {
+  item: ActivityItem;
+  /** `У-310`: действие под сообщением клиента («Создать заметку из этого сообщения»). */
+  footer?: React.ReactNode;
+}) {
   switch (item.kind) {
     case 'message_in':
       return (
@@ -58,6 +65,7 @@ export function ActivityItemView({ item }: { item: ActivityItem }) {
             {item.attachmentName && (
               <p className="mt-1 text-xs text-gray-500">📎 {item.attachmentName}</p>
             )}
+            {footer}
           </div>
         </li>
       );
@@ -91,6 +99,7 @@ export function ActivityItemView({ item }: { item: ActivityItem }) {
               <span className="text-xs text-gray-400">{fmtDate(item.at)}</span>
             </div>
             <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">{item.body}</p>
+            {footer}
           </div>
         </li>
       );

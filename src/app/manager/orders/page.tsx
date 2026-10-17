@@ -13,6 +13,7 @@ import { CreateOrderButton } from '@/components/manager/create-order-button';
 import { getOrderedStatuses } from '@/lib/services/orderStatuses';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { SALES_STAGE_LINE } from '@/lib/help/salesStages';
 import { MissingObjectNotice } from '@/components/ui/missing-object-notice';
 import { isMissingObjectRequested } from '@/lib/navigation/missingObject';
 import { ORDER_FOCUS_LABEL, isOrderFocus } from '@/lib/orders/focus';
@@ -74,7 +75,8 @@ export default async function ManagerOrdersPage({
     <>
       <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <PageHeader title="Заказы" subtitle="Заказы ваших организаций" />
+          {/* `У-311`: чем заказ отличается от лида и сделки. */}
+          <PageHeader title="Заказы" subtitle={SALES_STAGE_LINE.orders} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {/* Этап 6 ТЗ 13.10.2026 (`У-306`): заказ без лида — рядом с выгрузкой. */}
