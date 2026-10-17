@@ -10,6 +10,7 @@ const {
   notFoundIfDisabledMock,
   listConversationsMock,
   openDmMock,
+  createGroupChatMock,
   staffUnreadCountMock,
   markStaffReadMock,
   sendStaffMessageMock,
@@ -24,6 +25,7 @@ const {
   notFoundIfDisabledMock: vi.fn(),
   listConversationsMock: vi.fn(),
   openDmMock: vi.fn(),
+  createGroupChatMock: vi.fn(),
   staffUnreadCountMock: vi.fn(),
   markStaffReadMock: vi.fn(),
   sendStaffMessageMock: vi.fn(),
@@ -45,6 +47,7 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/staffChat/conversations', () => ({
   listConversations: listConversationsMock,
   openDm: openDmMock,
+  createGroupChat: createGroupChatMock,
   staffUnreadCount: staffUnreadCountMock,
   markStaffRead: markStaffReadMock,
 }));
@@ -64,7 +67,10 @@ vi.mock('@/lib/services/staffChat/attachments', () => ({
 // ---------------------------------------------------------------------------
 // Route imports (after mocks are registered)
 // ---------------------------------------------------------------------------
-import { GET as conversationsGet } from '@/app/api/staff-chat/conversations/route';
+import {
+  GET as conversationsGet,
+  POST as conversationsPost,
+} from '@/app/api/staff-chat/conversations/route';
 import { GET as messagesGet, POST as messagesPost } from '@/app/api/staff-chat/messages/route';
 import { POST as readPost } from '@/app/api/staff-chat/read/route';
 import { POST as reactionsPost } from '@/app/api/staff-chat/reactions/route';
@@ -155,6 +161,17 @@ const allHandlers: Array<{ name: string; call: () => Promise<Response> }> = [
     call: () =>
       reactionsPost(
         jsonReq('https://app.local/api/staff-chat/reactions', { messageId: 'm1', emoji: '👍' }),
+        routeCtx
+      ),
+  },
+  {
+    name: 'POST conversations (свой чат)',
+    call: () =>
+      conversationsPost(
+        jsonReq('https://app.local/api/staff-chat/conversations', {
+          title: 'Отдел',
+          participantIds: ['u2'],
+        }),
         routeCtx
       ),
   },
@@ -928,5 +945,48 @@ describe('GET /api/staff-chat/attachment', () => {
     getStaffAttachmentSignedUrlMock.mockResolvedValue({ ok: false, error: 'storage' });
     const res = await attachmentGet(attachmentGetReq('m1'));
     expect(res.status).toBe(502);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/staff-chat/conversations — свой чат команды (`У-315`)
+// ---------------------------------------------------------------------------
+describe('POST /api/staff-chat/conversations', () => {
+  const call = (body: unknown) =>
+    conversationsPost(jsonReq('https://app.local/api/staff-chat/conversations', body), routeCtx);
+
+  it('не сотрудник → 403, сервис не зовётся', async () => {
+    requireRoleMock.mockReturnValue(forbiddenResult());
+    const res = await call({ title: 'X', participantIds: ['u2'] });
+    expect(res.status).toBe(403);
+    expect(createGroupChatMock).not.toHaveBeenCalled();
+  });
+
+  it('кривая форма → 400 invalid_request, сервис не зовётся', async () => {
+    const res = await call({ title: 'X', participantIds: 'u2' });
+    expect(res.status).toBe(400);
+    expect(createGroupChatMock).not.toHaveBeenCalled();
+  });
+
+  it('создан → 201 с id беседы', async () => {
+    createGroupChatMock.mockResolvedValue({ ok: true, conversationId: 'g1' });
+    const res = await call({ title: 'Отдел', participantIds: ['u2', 'u3'] });
+    expect(res.status).toBe(201);
+    expect(await res.json()).toEqual({ ok: true, conversationId: 'g1' });
+    expect(createGroupChatMock).toHaveBeenCalledWith({}, managerSession(), {
+      title: 'Отдел',
+      participantIds: ['u2', 'u3'],
+    });
+  });
+
+  it.each([
+    ['forbidden', 403],
+    ['validation', 400],
+    ['target_not_found', 404],
+  ])('отказ сервиса %s → %i с кодом', async (error, status) => {
+    createGroupChatMock.mockResolvedValue({ ok: false, error });
+    const res = await call({ title: 'Отдел', participantIds: ['u2'] });
+    expect(res.status).toBe(status);
+    expect(await res.json()).toEqual({ ok: false, error });
   });
 });

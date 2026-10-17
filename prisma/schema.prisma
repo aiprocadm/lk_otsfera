@@ -299,6 +299,8 @@ enum ContactChannelType {
 enum StaffConversationKind {
   dm
   general
+  /// Этап 7 ТЗ 13.10.2026 (`У-315`): свой чат команды — название и участники.
+  group
 }
 
 model User {
@@ -2864,6 +2866,8 @@ model StaffConversation {
   company       Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   kind          StaffConversationKind
   dmKey         String?               @unique
+  /// Название своего чата (`group`); у «# Общий» и личных — пусто.
+  title         String?
   lastMessageAt DateTime              @default(now())
   participants  StaffParticipant[]
   messages      StaffMessage[]
