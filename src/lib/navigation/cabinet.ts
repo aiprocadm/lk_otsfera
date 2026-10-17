@@ -3,6 +3,7 @@ import { isFeatureEnabled, type FeatureFlag } from '@/lib/featureFlags';
 import type { IconKey } from './icons';
 import { SECTIONS, type SectionKey } from './sectionLabels';
 import type { MenuGroup } from './menuGroups';
+import { messagesTabsFor } from './messagesTabs';
 
 /**
  * Пункт меню как он записан в реестре (`У-106`).
@@ -37,6 +38,13 @@ type NavItemSpec = {
    * Сайдбар рисует такие пункты последним блоком с отчерком.
    */
   pinnedBottom?: boolean;
+  /**
+   * Подпункты под пунктом (этап 7 ТЗ 13.10.2026, `У-313`, `Р-7-1`). Функция,
+   * а не список: флаги подпунктов читаются в момент сборки меню — так же
+   * свежо, как флаги самих пунктов. `navItemsFor` превращает её в готовый
+   * `children`: меню уходит в браузер, а функцию туда не передать.
+   */
+  childrenOf?: () => NavChild[];
   /** Этап 7 (ФТ-8.4): ключ живого счётчика из GET /api/staff/badges (рендерит NavBadge). */
   badgeKey?: 'intake' | 'tasksOverdue' | 'clientRequestsNew' | 'messagesUnread' | 'dialogsWaiting';
 };
@@ -46,7 +54,15 @@ type NavItemSpec = {
  * название и значок. Потребители (сайдбар, крошки, мобильная панель) работают
  * с ним и о словаре не знают.
  */
-export type NavItem = NavItemSpec & { label: string; iconKey: IconKey };
+/** Подпункт меню: свой адрес и подпись, значка нет. */
+type NavChild = { href: string; label: string };
+
+export type NavItem = NavItemSpec & {
+  label: string;
+  iconKey: IconKey;
+  /** Подпункты, уже отфильтрованные по флагам (`У-313`). */
+  children?: NavChild[];
+};
 
 function withSection(spec: NavItemSpec): NavItem {
   return { ...spec, ...SECTIONS[spec.sectionKey] };
@@ -216,6 +232,7 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       group: 'Коммуникации',
       sectionKey: 'messages',
       badgeKey: 'messagesUnread',
+      childrenOf: () => messagesTabsFor('/manager/messages'),
     },
     {
       // У-8: было «Обращения» — путалось с обращениями клиентов, хотя это
@@ -340,7 +357,13 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     },
     // `У-110`: раздел свой, а не мост в кабинет менеджера — раньше человек
     // нажимал пункт своего меню и оказывался в чужом кабинете.
-    { href: '/leader/messages', group: 'Коммуникации', sectionKey: 'messages' },
+    {
+      href: '/leader/messages',
+      group: 'Коммуникации',
+      sectionKey: 'messages',
+      // `У-313`: те же подпункты, что у менеджера (правило зеркала).
+      childrenOf: () => messagesTabsFor('/leader/messages'),
+    },
     { href: '/leader/documents', group: 'Документы', sectionKey: 'documents' },
     // `У-111`: пункта «Мои заказы» больше нет — кабинет переключается одним
     // переключателем в шапке, а не пунктом меню, спрятанным среди разделов.
@@ -512,9 +535,11 @@ export const navByRole: Record<Role | 'leader', NavItem[]> = Object.fromEntries(
  * shape; `navItemsFor` is what the app shell renders.
  */
 export function navItemsFor(role: Role | 'leader'): NavItem[] {
-  return navByRole[role].filter((item) => {
-    if (item.flag && !isFeatureEnabled(item.flag)) return false;
-    if (item.anyFlags && !item.anyFlags.some((f) => isFeatureEnabled(f))) return false;
-    return true;
-  });
+  return navByRole[role]
+    .filter((item) => {
+      if (item.flag && !isFeatureEnabled(item.flag)) return false;
+      if (item.anyFlags && !item.anyFlags.some((f) => isFeatureEnabled(f))) return false;
+      return true;
+    })
+    .map(({ childrenOf, ...item }) => (childrenOf ? { ...item, children: childrenOf() } : item));
 }

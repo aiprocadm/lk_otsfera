@@ -2,13 +2,16 @@ import React from 'react';
 import { prisma } from '@/lib/db/prisma';
 import { requireManager } from '@/lib/auth/requireRole';
 import { listIncomingComments } from '@/lib/services/manager/messages';
-import { listThreads } from '@/lib/services/chat/threads';
-import { isFeatureEnabled } from '@/lib/featureFlags';
+import { messagesTabsFor } from '@/lib/navigation/messagesTabs';
 import { StaffMessages } from '@/components/manager/staff-messages';
 
+export const dynamic = 'force-dynamic';
+
 /**
- * «Сообщения» менеджера. Экран общий с кабинетом руководителя (`У-110`);
- * база — здесь, в слое app: компонент презентационный (`components-no-db`).
+ * «Сообщения» менеджера → «Комментарии по заказам» (`У-110`; этап 7 ТЗ
+ * 13.10.2026, `У-313`): подраздел по умолчанию. Охват — свой охват; база — здесь,
+ * в слое app: компонент презентационный (`components-no-db`). Комментарии —
+ * до-`chat` фича и видны всегда (§5 CLAUDE.md).
  */
 export default async function ManagerMessagesPage({
   searchParams,
@@ -22,8 +25,11 @@ export default async function ManagerMessagesPage({
     withOutgoing: true,
     ...(sp.cursor ? { cursor: sp.cursor } : {}),
   });
-  // Комментарии видны всегда; треды чата грузим только при флаге `chat`.
-  const chat = isFeatureEnabled('chat') ? await listThreads(prisma, session) : null;
-
-  return <StaffMessages session={session} rows={rows} nextCursor={nextCursor} chat={chat} />;
+  return (
+    <StaffMessages
+      session={session}
+      tabs={messagesTabsFor('/manager/messages')}
+      data={{ view: 'comments', rows, nextCursor }}
+    />
+  );
 }

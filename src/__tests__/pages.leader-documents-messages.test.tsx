@@ -133,14 +133,19 @@ describe('«Сообщения» руководителя (У-110)', () => {
     );
   });
 
-  it('комментарии к заказам видны без флага chat, чат — только с ним', async () => {
+  it('`У-313`: «Комментарии по заказам» видны без флага chat; чат — свой подраздел', async () => {
     const off = await render();
     expect(off.container.querySelector('[data-testid="messages-inbox"]')).not.toBeNull();
     expect(off.container.querySelector('[data-testid="thread-inbox"]')).toBeNull();
 
+    // С флагом chat комментарии остаются на месте, а чат — во вкладке «Чаты с клиентами».
     isFeatureEnabled.mockImplementation((f: string) => f === 'chat');
     const on = await render();
-    expect(on.container.querySelector('[data-testid="thread-inbox"]')).not.toBeNull();
+    expect(on.container.querySelector('[data-testid="thread-inbox"]')).toBeNull();
+    const tab = [...on.container.querySelectorAll('a')].find(
+      (a) => a.textContent === 'Чаты с клиентами'
+    );
+    expect(tab?.getAttribute('href')).toBe('/leader/messages/chats');
   });
 
   it('§15: заголовок равен пункту меню', async () => {
