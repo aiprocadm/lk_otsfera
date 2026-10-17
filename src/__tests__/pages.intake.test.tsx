@@ -92,12 +92,14 @@ describe('ManagerIntakePage', () => {
     expect(listIntake).toHaveBeenCalledWith({ user: { findMany: userFindMany } }, SESSION, {
       page: 2,
       pageSize: 50,
+      onlyImportant: false,
     });
     expect(container.querySelector('[data-testid="intake-table"]')?.textContent).toContain(
       '/manager'
     );
     expect(container.querySelector('[data-testid="intake-filters"]')).toBeNull();
-    expect(container.textContent).toContain('Входящие в работу');
+    // `У-318`: раздел переименован.
+    expect(container.querySelector('h1')?.textContent).toBe('Входящие обращения');
   });
 });
 
@@ -111,7 +113,11 @@ describe('пагинация и фильтры из адреса — крайн�
     // Адрес правят руками и присылают в мессенджерах. Любой мусор в ?skip=
     // должен означать «первая страница», а не ошибку и не отрицательный сдвиг.
     await renderServerComponent(ManagerIntakePage(sp(params)));
-    expect(listIntake).toHaveBeenCalledWith(expect.anything(), SESSION, { page: 1, pageSize: 50 });
+    expect(listIntake).toHaveBeenCalledWith(expect.anything(), SESSION, {
+      page: 1,
+      pageSize: 50,
+      onlyImportant: false,
+    });
   });
 
   it.each([
@@ -217,5 +223,54 @@ describe('отказ сервиса в остальных кабинетах', (
   it('руководитель: forbidden → notFound', async () => {
     listIntake.mockResolvedValue({ ok: false, error: 'forbidden' });
     await expect(renderServerComponent(LeaderIntakePage(sp()))).rejects.toThrow('NOT_FOUND');
+  });
+});
+
+describe('«Входящие обращения» — канал и «Только важные» (`У-318`)', () => {
+  it.each([
+    ['менеджер', ManagerIntakePage, '/manager/intake'],
+    ['руководитель', LeaderIntakePage, '/leader/intake'],
+    ['админ', AdminIntakePage, '/admin/intake'],
+  ] as const)(
+    '%s: ?channel и ?important уходят в сервис; фильтр на экране',
+    async (_l, page, base) => {
+      const { container } = await renderServerComponent(
+        page(sp({ channel: 'telegram', important: '1' }))
+      );
+      expect(listIntake).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining({ channel: 'telegram', onlyImportant: true })
+      );
+      expect(container.querySelector('h1')?.textContent).toBe('Входящие обращения');
+      const nav = container.querySelector('nav[aria-label="Фильтр входящих обращений"]')!;
+      expect(nav).not.toBeNull();
+      const links = [...nav.querySelectorAll('a')];
+      expect(links.find((a) => a.textContent === 'Telegram')?.getAttribute('aria-current')).toBe(
+        'page'
+      );
+      // «Все каналы» сохраняет «Только важные», а снятие «важного» — канал.
+      expect(links.find((a) => a.textContent === 'Все каналы')?.getAttribute('href')).toBe(
+        `${base}?important=1`
+      );
+      expect(links.find((a) => a.textContent === '★ Только важные')?.getAttribute('href')).toBe(
+        `${base}?channel=telegram`
+      );
+    }
+  );
+
+  it('незнакомый канал — как будто его нет; страница списка при смене фильтра сбрасывается', async () => {
+    const { container } = await renderServerComponent(
+      ManagerIntakePage(sp({ channel: 'pigeon', skip: '50' }))
+    );
+    const call = listIntake.mock.calls.at(-1)![2];
+    expect(call).not.toHaveProperty('channel');
+    const links = [...container.querySelectorAll('nav[aria-label="Фильтр входящих обращений"] a')];
+    expect(links.find((a) => a.textContent === 'Звонки')?.getAttribute('href')).toBe(
+      '/manager/intake?channel=call'
+    );
+    expect(links.find((a) => a.textContent === 'Все каналы')?.getAttribute('aria-current')).toBe(
+      'page'
+    );
   });
 });

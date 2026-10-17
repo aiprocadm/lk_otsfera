@@ -6,7 +6,11 @@ import { useRouter } from 'next/navigation';
 import { Badge, Button } from '@/components/ui';
 import { CardList, Card, CardRow } from '@/components/ui/card-list';
 import { toast } from '@/lib/ui/toast';
-import { claimIntakeAction, closeCallIntakeAction } from '@/server-actions/intake';
+import {
+  claimIntakeAction,
+  closeCallIntakeAction,
+  setIntakeImportantAction,
+} from '@/server-actions/intake';
 import type { IntakeItem, IntakeSlaLevel, IntakeType } from '@/lib/services/intake/list';
 import {
   CreateLeadFromSourceDialog,
@@ -102,6 +106,20 @@ export function IntakeTable({
     void run(claimIntakeAction, fd, 'Взято в работу.', item.id);
   }
 
+  /** `У-318`: «Важное» — сообщение или звонок остаётся на виду первым. */
+  function toggleImportant(item: IntakeItem) {
+    const fd = new FormData();
+    fd.set('type', item.type);
+    fd.set('id', item.id);
+    fd.set('important', item.important ? '0' : '1');
+    void run(
+      setIntakeImportantAction,
+      fd,
+      item.important ? 'Пометка снята.' : 'Помечено как важное.',
+      item.id
+    );
+  }
+
   function closeCall(item: IntakeItem) {
     const fd = new FormData();
     fd.set('id', item.id);
@@ -132,7 +150,7 @@ export function IntakeTable({
       <div className="rounded-xl border border-gray-200 p-8 text-center">
         <p className="text-sm font-medium text-[#111111]">Всё разобрано</p>
         <p className="text-sm text-gray-500 mt-1">
-          Новые заявки, обращения и звонки появятся здесь автоматически.
+          Новые сообщения из мессенджеров, письма и звонки появятся здесь автоматически.
         </p>
       </div>
     );
@@ -144,6 +162,17 @@ export function IntakeTable({
     const busy = busyId === item.id;
     return (
       <div className="flex flex-wrap gap-1.5">
+        {(item.type === 'inbound' || item.type === 'call') && (
+          <Button
+            size="sm"
+            variant={item.important ? 'primary' : 'secondary'}
+            disabled={busy}
+            aria-pressed={item.important}
+            onClick={() => toggleImportant(item)}
+          >
+            {item.important ? '★ Важное' : '☆ Важное'}
+          </Button>
+        )}
         {!item.responsibleUserId && (
           <Button size="sm" variant="secondary" disabled={busy} onClick={() => claim(item)}>
             Взять в работу

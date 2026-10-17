@@ -6,11 +6,16 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 const { refresh, push } = vi.hoisted(() => ({ refresh: vi.fn(), push: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh, push }) }));
 
-const { claimIntakeAction, closeCallIntakeAction } = vi.hoisted(() => ({
+const { claimIntakeAction, closeCallIntakeAction, setIntakeImportantAction } = vi.hoisted(() => ({
   claimIntakeAction: vi.fn(),
   closeCallIntakeAction: vi.fn(),
+  setIntakeImportantAction: vi.fn(),
 }));
-vi.mock('@/server-actions/intake', () => ({ claimIntakeAction, closeCallIntakeAction }));
+vi.mock('@/server-actions/intake', () => ({
+  claimIntakeAction,
+  closeCallIntakeAction,
+  setIntakeImportantAction,
+}));
 
 const { toastSuccess, toastError } = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
@@ -53,6 +58,8 @@ function item(over: Partial<IntakeItem>): IntakeItem {
     leadPrefill: null,
     taskTitle: 'Обращение клиента: Обучение',
     organizationId: null,
+    channel: 'email',
+    important: false,
     ...over,
   };
 }
@@ -304,5 +311,49 @@ describe('IntakeTable', () => {
   it('у не-звонков кнопки «Закрыть» нет', () => {
     render(<IntakeTable items={[item({})]} viewerPrefix="/manager" currentUserId="m1" />);
     expect(screen.queryByRole('button', { name: 'Закрыть' })).toBeNull();
+  });
+});
+
+describe('IntakeTable — «Важное» (`У-318`)', () => {
+  it('у сообщения и звонка — кнопка; нажатие ставит пометку, повторное — снимает', async () => {
+    setIntakeImportantAction.mockResolvedValue({ ok: true });
+    const { rerender } = render(
+      <IntakeTable
+        items={[item({ type: 'inbound', id: 'i1', important: false })]}
+        viewerPrefix="/manager"
+        currentUserId="m1"
+      />
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: '☆ Важное' })[0]!);
+    await waitFor(() => expect(setIntakeImportantAction).toHaveBeenCalled());
+    const fd = setIntakeImportantAction.mock.calls[0]![0] as FormData;
+    expect([fd.get('type'), fd.get('id'), fd.get('important')]).toEqual(['inbound', 'i1', '1']);
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Помечено как важное.'));
+
+    rerender(
+      <IntakeTable
+        items={[item({ type: 'call', id: 'c1', important: true })]}
+        viewerPrefix="/manager"
+        currentUserId="m1"
+      />
+    );
+    const pressed = screen.getAllByRole('button', { name: '★ Важное' })[0]!;
+    expect(pressed.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(pressed);
+    await waitFor(() => expect(setIntakeImportantAction).toHaveBeenCalledTimes(2));
+    const fd2 = setIntakeImportantAction.mock.calls[1]![0] as FormData;
+    expect([fd2.get('type'), fd2.get('important')]).toEqual(['call', '0']);
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith('Пометка снята.'));
+  });
+
+  it('у заявки на обучение кнопки нет', () => {
+    render(
+      <IntakeTable
+        items={[item({ type: 'enrollment' })]}
+        viewerPrefix="/manager"
+        currentUserId="m1"
+      />
+    );
+    expect(screen.queryByRole('button', { name: /Важное/ })).toBeNull();
   });
 });

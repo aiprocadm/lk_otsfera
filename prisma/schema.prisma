@@ -2518,6 +2518,9 @@ model InboundMessage {
   // Этап 7 (ФТ-8.2): ответственный триажа Intake (плоский id — образец boundById).
   claimedByUserId   String?
   claimedAt         DateTime?
+  /// `У-318`: пометка «Важное» во «Входящих обращениях» — когда и кем.
+  importantAt       DateTime?
+  importantById     String?
   // Этап 7 (ФТ-1.6): лид, созданный из этого обращения.
   lead              Lead?             @relation("LeadFromInbound")
   // Мессенджеры (спека 2026-09-12, Р-М-1): реплика этого письма в диалоге.
@@ -2569,6 +2572,9 @@ model Call {
   // Этап 7 (ФТ-8.1/8.2): триаж Intake — ответственный и закрытие нецелевого звонка.
   claimedByUserId  String?
   claimedAt        DateTime?
+  /// `У-318`: пометка «Важное» во «Входящих обращениях».
+  importantAt     DateTime?
+  importantById   String?
   intakeClosedAt   DateTime?
   intakeClosedById String?
   lead             Lead?         @relation("LeadFromCall")

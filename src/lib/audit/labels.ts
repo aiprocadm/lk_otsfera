@@ -106,6 +106,8 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   inbound_message_restored: 'Возврат сообщения из архива',
   intake_call_closed: 'Закрытие входящего звонка',
   intake_claimed: 'Взятие входящего в работу',
+  intake_marked_important: 'Пометка «Важное» во входящих',
+  intake_unmarked_important: 'Снятие пометки «Важное» во входящих',
   integration_settings_updated: 'Изменение настроек интеграции',
   invite_resent: 'Повторная отправка приглашения',
   kpi_metrics_changed: 'Изменение набора показателей компании',

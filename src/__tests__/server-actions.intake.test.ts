@@ -14,6 +14,7 @@ const {
   createLeadFromInbound,
   createLeadFromCall,
   takeInTriage,
+  setIntakeImportant,
 } = vi.hoisted(() => ({
   requireSession: vi.fn(),
   revalidatePath: vi.fn(),
@@ -24,6 +25,7 @@ const {
   createLeadFromInbound: vi.fn(),
   createLeadFromCall: vi.fn(),
   takeInTriage: vi.fn(),
+  setIntakeImportant: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireSession }));
@@ -37,12 +39,14 @@ vi.mock('@/lib/services/intake/claim', () => ({
 }));
 vi.mock('@/lib/services/intake/convert', () => ({ createLeadFromInbound, createLeadFromCall }));
 vi.mock('@/lib/services/clientRequests/triage', () => ({ takeInTriage }));
+vi.mock('@/lib/services/intake/important', () => ({ setIntakeImportant }));
 
 import {
   claimIntakeAction,
   closeCallIntakeAction,
   createLeadFromInboundAction,
   createLeadFromCallAction,
+  setIntakeImportantAction,
 } from '@/server-actions/intake';
 
 const SESSION = { sub: 'm1', role: 'manager', companyId: 'c1' };
@@ -221,5 +225,46 @@ describe('createLeadFrom*Action', () => {
       leadId: 'lead-2',
     });
     expect(revalidatePath).toHaveBeenCalledWith('/manager/calls');
+  });
+});
+
+describe('setIntakeImportantAction (`У-318`)', () => {
+  it('кривая форма — validation, сервис не зовётся', async () => {
+    expect(await setIntakeImportantAction(form({ type: 'inbound' }))).toEqual({
+      ok: false,
+      error: 'validation',
+    });
+    expect(await setIntakeImportantAction(form({ type: 'enrollment', id: 'e1' }))).toEqual({
+      ok: false,
+      error: 'validation',
+    });
+    expect(setIntakeImportant).not.toHaveBeenCalled();
+  });
+
+  it('ставит и снимает пометку; успех — обновляются три кабинета', async () => {
+    setIntakeImportant.mockResolvedValue({ ok: true });
+    expect(
+      await setIntakeImportantAction(form({ type: 'inbound', id: 'i1', important: '1' }))
+    ).toEqual({ ok: true });
+    expect(setIntakeImportant).toHaveBeenLastCalledWith({}, SESSION, {
+      type: 'inbound',
+      id: 'i1',
+      important: true,
+    });
+    await setIntakeImportantAction(form({ type: 'call', id: 'c1', important: '0' }));
+    expect(setIntakeImportant).toHaveBeenLastCalledWith({}, SESSION, {
+      type: 'call',
+      id: 'c1',
+      important: false,
+    });
+    expect(revalidatePath).toHaveBeenCalledWith('/manager/intake');
+  });
+
+  it('отказ сервиса — как есть, без обновления', async () => {
+    setIntakeImportant.mockResolvedValue({ ok: false, error: 'not_found' });
+    expect(
+      await setIntakeImportantAction(form({ type: 'inbound', id: 'x', important: '1' }))
+    ).toEqual({ ok: false, error: 'not_found' });
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });

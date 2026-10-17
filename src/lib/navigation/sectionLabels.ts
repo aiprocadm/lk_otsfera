@@ -87,7 +87,8 @@ export const SECTIONS: Record<SectionKey, SectionMeta> = {
   // этапа 3 (`У-111`) вместе с появлением переключателя кабинетов в шапке.
   leads: { label: 'Лиды', iconKey: 'leads' },
   requests: { label: 'Обращения', iconKey: 'requests' },
-  intake: { label: 'Входящие в работу', iconKey: 'intake' },
+  // `У-318`: было «Входящие в работу»; теперь только внешние каналы.
+  intake: { label: 'Входящие обращения', iconKey: 'intake' },
   // `У-107`: было «Воронка» — не сказано, воронка чего.
   funnel: { label: 'Воронка продаж', iconKey: 'funnel' },
   deals: { label: 'Сделки', iconKey: 'deals' },

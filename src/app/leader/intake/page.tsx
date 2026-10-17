@@ -9,6 +9,8 @@ import { IntakeFilters } from '@/components/intake/intake-filters';
 import { Paginator } from '@/components/ui';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { IntakeChannelFilter } from '@/components/intake/intake-channel-filter';
+import { parseIntakeView } from '@/lib/intake/intakeView';
 export const dynamic = 'force-dynamic';
 
 const TAKE = 50;
@@ -21,12 +23,15 @@ export default async function LeaderIntakePage({
   const session = await requireManagerLeader();
   const sp = await searchParams;
   const skip = Math.max(Number(typeof sp.skip === 'string' ? sp.skip : 0) || 0, 0);
+  const view = parseIntakeView(sp);
   const assigneeId = typeof sp.assignee === 'string' && sp.assignee ? sp.assignee : null;
   const onlyUnassigned = sp.unassigned === '1';
 
   const [res, managers] = await Promise.all([
     listIntake(prisma, session, {
       page: Math.floor(skip / TAKE) + 1,
+      ...(view.channel ? { channel: view.channel } : {}),
+      onlyImportant: view.onlyImportant,
       pageSize: TAKE,
       assigneeId,
       onlyUnassigned,
@@ -38,15 +43,22 @@ export default async function LeaderIntakePage({
   return (
     <div className="space-y-6">
       <div>
+        {/* `У-318`: «Входящие обращения» — только внешние каналы. */}
         <PageHeader
-          title="Входящие в работу"
-          subtitle="Неразобранные единицы всей команды. Фильтруйте по ответственному; «залежавшееся» подсвечивается."
+          title="Входящие обращения"
+          subtitle="Неразобранные сообщения, письма и звонки всей команды. Важное и залежавшееся — сверху."
         />
       </div>
       <IntakeFilters
         managers={managers.filter((m) => m.isActive).map((m) => ({ id: m.id, name: m.name }))}
         assigneeId={assigneeId}
         onlyUnassigned={onlyUnassigned}
+      />
+      <IntakeChannelFilter
+        basePath="/leader/intake"
+        searchParams={sp}
+        channel={view.channel}
+        onlyImportant={view.onlyImportant}
       />
       <IntakeTable items={res.result.items} viewerPrefix="/leader" currentUserId={session.sub} />
       <Paginator
