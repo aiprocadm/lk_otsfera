@@ -9,6 +9,8 @@ import { IntakeFilters } from '@/components/intake/intake-filters';
 import { Paginator } from '@/components/ui';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { IntakeChannelFilter } from '@/components/intake/intake-channel-filter';
+import { parseIntakeView } from '@/lib/intake/intakeView';
 export const dynamic = 'force-dynamic';
 
 const TAKE = 50;
@@ -22,12 +24,15 @@ export default async function AdminIntakePage({
   const session = await requireAdmin();
   const sp = await searchParams;
   const skip = Math.max(Number(typeof sp.skip === 'string' ? sp.skip : 0) || 0, 0);
+  const view = parseIntakeView(sp);
   const assigneeId = typeof sp.assignee === 'string' && sp.assignee ? sp.assignee : null;
   const onlyUnassigned = sp.unassigned === '1';
 
   const [res, staff] = await Promise.all([
     listIntake(prisma, session, {
       page: Math.floor(skip / TAKE) + 1,
+      ...(view.channel ? { channel: view.channel } : {}),
+      onlyImportant: view.onlyImportant,
       pageSize: TAKE,
       assigneeId,
       onlyUnassigned,
@@ -39,9 +44,19 @@ export default async function AdminIntakePage({
   return (
     <div className="space-y-6">
       <div>
-        <PageHeader title="Входящие в работу" subtitle="Неразобранные единицы по всей платформе." />
+        {/* `У-318`: «Входящие обращения» — только внешние каналы. */}
+        <PageHeader
+          title="Входящие обращения"
+          subtitle="Неразобранные сообщения, письма и звонки по всей платформе."
+        />
       </div>
       <IntakeFilters managers={staff} assigneeId={assigneeId} onlyUnassigned={onlyUnassigned} />
+      <IntakeChannelFilter
+        basePath="/admin/intake"
+        searchParams={sp}
+        channel={view.channel}
+        onlyImportant={view.onlyImportant}
+      />
       <IntakeTable items={res.result.items} viewerPrefix="/admin" currentUserId={session.sub} />
       <Paginator
         basePath="/admin/intake"

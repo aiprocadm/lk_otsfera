@@ -18,6 +18,7 @@ import {
   type ConvertSourceInput,
 } from '@/lib/services/intake/convert';
 import { takeInTriage } from '@/lib/services/clientRequests/triage';
+import { setIntakeImportant } from '@/lib/services/intake/important';
 
 /**
  * Этап 7 (ФТ-8.2) — server-actions «Входящих в работу». Тонкие адаптеры (§3):
@@ -57,6 +58,24 @@ export async function claimIntakeAction(
     return { ok: false, error: 'validation' };
   }
 
+  if (!res.ok) return res;
+  revalidate();
+  return { ok: true };
+}
+
+/** `У-318`: «Важное» — поставить или снять; права и охват — в сервисе. */
+export async function setIntakeImportantAction(
+  fd: FormData
+): Promise<ActionResult<'forbidden' | 'not_found' | 'validation'>> {
+  const session = await requireSession();
+  const type = str(fd, 'type');
+  const id = str(fd, 'id');
+  if (!id || (type !== 'inbound' && type !== 'call')) return { ok: false, error: 'validation' };
+  const res = await setIntakeImportant(prisma, session, {
+    type,
+    id,
+    important: str(fd, 'important') === '1',
+  });
   if (!res.ok) return res;
   revalidate();
   return { ok: true };

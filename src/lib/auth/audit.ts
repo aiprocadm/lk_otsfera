@@ -181,6 +181,8 @@ export const AUDIT_ACTIONS = [
   'inbound_message_restored',
   'intake_call_closed',
   'intake_claimed',
+  'intake_marked_important',
+  'intake_unmarked_important',
   'integration_settings_updated',
   'invite_resent',
   // Этап 7 (`У-242`): настройка показателей компании и планов по ним.

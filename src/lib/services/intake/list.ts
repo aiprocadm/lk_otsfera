@@ -1,9 +1,9 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { canTriageClientRequests } from '@/lib/services/clientRequests/policy';
-import { clientRequestScopeWhere } from '@/lib/services/clientRequests/list';
 import { inboxScopeWhere } from '@/lib/services/inbound/scope';
 import { recordPiiAccess } from '@/lib/pii/record';
+import type { IntakeChannel } from '@/lib/intake/intakeView';
 
 /**
  * Этап 7 (ФТ-8.1) — union-ридер «Входящие в работу»: 4 источника без новой
@@ -46,11 +46,19 @@ export type IntakeItem = {
   /** Префилл быстрой задачи. */
   taskTitle: string;
   organizationId: string | null;
+  /** `У-318`: канал — telegram/max/whatsapp/email или call. */
+  channel: string;
+  /** `У-318`: помечено «Важное» — идёт первым. */
+  important: boolean;
 };
 
 export type IntakeFilters = {
   assigneeId?: string | null;
   onlyUnassigned?: boolean;
+  /** `У-318`: только этот канал (`call` — только звонки). */
+  channel?: IntakeChannel | undefined;
+  /** `У-318`: только помеченные «Важное». */
+  onlyImportant?: boolean | undefined;
   page?: number;
   pageSize?: number;
 };
@@ -84,18 +92,9 @@ export function intakeCallWhere(session: SessionPayload): Prisma.CallWhereInput 
   };
 }
 
-export function intakeClientRequestWhere(session: SessionPayload): Prisma.ClientRequestWhereInput {
-  return {
-    AND: [clientRequestScopeWhere(session), { status: { in: ['submitted', 'in_triage'] } }],
-  };
-}
-
-export function intakeEnrollmentWhere(): Prisma.EnrollmentRequestWhereInput {
-  // Reviewer-очередь team-wide (зеркало enrollments scopeWhere для staff).
-  return { status: 'pending' };
-}
-
 export function intakeInboundWhere(session: SessionPayload): Prisma.InboundMessageWhereInput {
+  // `У-318`: вопрос из кабинета остаётся в очереди (ФТ-11.1) — это сообщение
+  // клиента, и выбросить его значило бы рискнуть неотвеченным вопросом.
   return { AND: [inboxScopeWhere(session), { status: 'unresolved' }] };
 }
 
@@ -117,111 +116,52 @@ export async function listIntake(
   const breachHours = thresholds?.slaResponseHours ?? INTAKE_BREACH_HOURS;
 
   const now = Date.now();
-  const [requests, enrollments, inbound, calls] = await Promise.all([
-    prisma.clientRequest.findMany({
-      where: intakeClientRequestWhere(session),
-      orderBy: { createdAt: 'asc' },
-      take: SOURCE_CAP,
-      select: {
-        id: true,
-        createdAt: true,
-        companyName: true,
-        subject: true,
-        status: true,
-        triagedByUserId: true,
-        organizationId: true,
-      },
-    }),
-    prisma.enrollmentRequest.findMany({
-      where: intakeEnrollmentWhere(),
-      orderBy: { createdAt: 'asc' },
-      take: SOURCE_CAP,
-      select: {
-        id: true,
-        createdAt: true,
-        claimedByUserId: true,
-        organizationId: true,
-        legacyCourseTitle: true,
-        organization: { select: { name: true } },
-        partner: { select: { name: true } },
-        // `У-36`: направление живёт в позициях — берём его оттуда.
-        items: { select: { id: true, direction: { select: { name: true } } }, take: 100 },
-      },
-    }),
-    prisma.inboundMessage.findMany({
-      where: intakeInboundWhere(session),
-      orderBy: { createdAt: 'asc' },
-      take: SOURCE_CAP,
-      select: {
-        id: true,
-        createdAt: true,
-        channel: true,
-        senderDisplay: true,
-        senderRef: true,
-        subject: true,
-        body: true,
-        claimedByUserId: true,
-        resolvedOrgId: true,
-      },
-    }),
-    prisma.call.findMany({
-      where: intakeCallWhere(session),
-      orderBy: { createdAt: 'asc' },
-      take: SOURCE_CAP,
-      select: {
-        id: true,
-        createdAt: true,
-        callerNumber: true,
-        durationSec: true,
-        status: true,
-        claimedByUserId: true,
-      },
-    }),
+  // `У-318`: только внешние каналы — сообщения и звонки. Обращения из кабинета
+  // и заявки на обучение — в своих разделах («Обращения», «Заявки на обучение»).
+  const important = filters.onlyImportant ? { importantAt: { not: null } } : {};
+  const wantInbound = filters.channel !== 'call';
+  const wantCalls = !filters.channel || filters.channel === 'call';
+  const inboundChannel =
+    filters.channel && filters.channel !== 'call' ? { channel: filters.channel } : {};
+  const [inbound, calls] = await Promise.all([
+    wantInbound
+      ? prisma.inboundMessage.findMany({
+          where: { AND: [intakeInboundWhere(session), inboundChannel, important] },
+          orderBy: { createdAt: 'asc' },
+          take: SOURCE_CAP,
+          select: {
+            id: true,
+            createdAt: true,
+            channel: true,
+            senderDisplay: true,
+            senderRef: true,
+            subject: true,
+            body: true,
+            claimedByUserId: true,
+            resolvedOrgId: true,
+            importantAt: true,
+          },
+        })
+      : Promise.resolve([]),
+    wantCalls
+      ? prisma.call.findMany({
+          where: { AND: [intakeCallWhere(session), important] },
+          orderBy: { createdAt: 'asc' },
+          take: SOURCE_CAP,
+          select: {
+            id: true,
+            createdAt: true,
+            callerNumber: true,
+            durationSec: true,
+            status: true,
+            claimedByUserId: true,
+            importantAt: true,
+          },
+        })
+      : Promise.resolve([]),
   ]);
 
   const items: IntakeItem[] = [];
-
-  for (const r of requests) {
-    items.push({
-      type: 'client_request',
-      id: r.id,
-      from: r.companyName,
-      essence: r.subject,
-      createdAt: r.createdAt,
-      waitingMs: now - r.createdAt.getTime(),
-      slaLevel: 'ok',
-      responsibleUserId: r.status === 'in_triage' ? r.triagedByUserId : null,
-      responsibleName: null,
-      href: '/requests',
-      leadPrefill: null,
-      taskTitle: `Обращение клиента: ${r.subject}`,
-      organizationId: r.organizationId,
-    });
-  }
-
-  for (const e of enrollments) {
-    // `У-36`: направление берётся из позиций (шапочного поля больше нет);
-    // текстовый курс старых заявок остаётся резервом.
-    const direction =
-      e.items.find((i) => i.direction?.name)?.direction?.name ??
-      e.legacyCourseTitle ??
-      'Заявка на обучение';
-    items.push({
-      type: 'enrollment',
-      id: e.id,
-      from: e.organization?.name ?? e.partner?.name ?? '—',
-      essence: `${direction} · слушателей: ${e.items.length}`,
-      createdAt: e.createdAt,
-      waitingMs: now - e.createdAt.getTime(),
-      slaLevel: 'ok',
-      responsibleUserId: e.claimedByUserId,
-      responsibleName: null,
-      href: '/enrollments',
-      leadPrefill: null,
-      taskTitle: `Заявка на обучение: ${direction}`,
-      organizationId: e.organizationId,
-    });
-  }
 
   const CHANNEL_LABEL: Record<string, string> = {
     email: 'письмо',
@@ -253,6 +193,8 @@ export async function listIntake(
       },
       taskTitle: `Обращение: ${essence}`,
       organizationId: m.resolvedOrgId,
+      channel: m.channel,
+      important: m.importantAt !== null,
     });
   }
 
@@ -280,6 +222,8 @@ export async function listIntake(
       },
       taskTitle: `Перезвонить: ${c.callerNumber}`,
       organizationId: null,
+      channel: 'call',
+      important: c.importantAt !== null,
     });
   }
 
@@ -305,7 +249,11 @@ export async function listIntake(
   else if (filters.assigneeId)
     filtered = filtered.filter((i) => i.responsibleUserId === filters.assigneeId);
 
-  filtered.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  // `У-318`: важные — первыми, внутри — самое залежавшееся сверху.
+  filtered.sort(
+    (a, b) =>
+      Number(b.important) - Number(a.important) || a.createdAt.getTime() - b.createdAt.getTime()
+  );
 
   const pageSize = Math.min(Math.max(filters.pageSize ?? 50, 1), 100);
   const page = Math.max(filters.page ?? 1, 1);
@@ -324,13 +272,11 @@ export async function listIntake(
 /** Счётчик для бейджа меню (ФТ-8.4) — те же критерии, только count'ы. */
 export async function countIntake(prisma: PrismaClient, session: SessionPayload): Promise<number> {
   if (!canTriageClientRequests(session)) return 0;
-  const [a, b, c, d] = await Promise.all([
-    prisma.clientRequest.count({ where: intakeClientRequestWhere(session) }),
-    prisma.enrollmentRequest.count({ where: intakeEnrollmentWhere() }),
+  const [inbound, calls] = await Promise.all([
     prisma.inboundMessage.count({ where: intakeInboundWhere(session) }),
     prisma.call.count({ where: intakeCallWhere(session) }),
   ]);
-  return a + b + c + d;
+  return inbound + calls;
 }
 
 const HOUR_MS = 3_600_000;
@@ -362,15 +308,11 @@ export async function countIntakeSla(
   const late = { lt: deadlineEdge };
 
   const count = async (createdAt: Prisma.DateTimeFilter): Promise<number> => {
-    const [a, b, c, d] = await Promise.all([
-      prisma.clientRequest.count({
-        where: { AND: [intakeClientRequestWhere(session), { createdAt }] },
-      }),
-      prisma.enrollmentRequest.count({ where: { AND: [intakeEnrollmentWhere(), { createdAt }] } }),
+    const [inbound, calls] = await Promise.all([
       prisma.inboundMessage.count({ where: { AND: [intakeInboundWhere(session), { createdAt }] } }),
       prisma.call.count({ where: { AND: [intakeCallWhere(session), { createdAt }] } }),
     ]);
-    return a + b + c + d;
+    return inbound + calls;
   };
   const [dueWithinHour, overdue] = await Promise.all([count(soon), count(late)]);
   return { dueWithinHour, overdue };

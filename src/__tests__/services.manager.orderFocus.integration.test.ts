@@ -63,6 +63,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await prisma.clientRequest.deleteMany({ where: { companyName: { startsWith: T } } });
+  await prisma.inboundMessage.deleteMany({ where: { senderRef: { startsWith: T } } });
   await prisma.order.deleteMany({ where: { companyId } });
   await prisma.user.deleteMany({ where: { id: managerId } });
   await prisma.organization.deleteMany({ where: { id: orgId } });
@@ -100,18 +101,19 @@ describe('число на карточке = число строк после п
   });
 });
 
-describe('сроки ответа по очереди «Входящие в работу» (`У-294`, `Р-4-2`)', () => {
+// `У-318`: очередь — «Входящие обращения» (сообщения каналов и звонки), сроки — по ней.
+describe('сроки ответа по очереди «Входящие обращения» (`У-294`, `Р-4-2`)', () => {
   it('«остался час» и «просрочено» — по настройке компании «ответить за N часов»', async () => {
     const now = new Date();
     const before = await countIntakeSla(prisma, session, now);
     const request = (suffix: string, ageMs: number) =>
-      prisma.clientRequest.create({
+      prisma.inboundMessage.create({
         data: {
-          source: 'organization_cabinet',
-          organizationId: orgId,
-          companyName: `${T}-${suffix}`,
-          contactName: 'Клиент',
-          subject: `${T}-${suffix}`,
+          channel: 'telegram',
+          externalId: `${T}-${suffix}`,
+          senderRef: `${T}-${suffix}`,
+          body: 'вопрос',
+          companyId,
           createdAt: new Date(now.getTime() - ageMs),
         },
       });
@@ -134,13 +136,13 @@ describe('сроки ответа по очереди «Входящие в ра
     const now = new Date();
     const noCo = { sub: 'x', role: 'manager' } as SessionPayload;
     const before = await countIntakeSla(prisma, noCo, now);
-    // Обращение без организации видно и без компании (`organizationId: null`).
-    await prisma.clientRequest.create({
+    // Неразобранное сообщение видно и сотруднику без компании (общая очередь).
+    await prisma.inboundMessage.create({
       data: {
-        source: 'website',
-        companyName: `${T}-noorg`,
-        contactName: 'Клиент',
-        subject: `${T}-noorg`,
+        channel: 'email',
+        externalId: `${T}-noorg`,
+        senderRef: `${T}-noorg`,
+        body: 'вопрос',
         createdAt: new Date(now.getTime() - 23.5 * HOUR),
       },
     });

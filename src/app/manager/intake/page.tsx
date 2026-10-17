@@ -7,6 +7,8 @@ import { IntakeTable } from '@/components/intake/intake-table';
 import { Paginator } from '@/components/ui';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { IntakeChannelFilter } from '@/components/intake/intake-channel-filter';
+import { parseIntakeView } from '@/lib/intake/intakeView';
 export const dynamic = 'force-dynamic';
 
 const TAKE = 50;
@@ -19,9 +21,12 @@ export default async function ManagerIntakePage({
   const session = await requireManager();
   const sp = await searchParams;
   const skip = Math.max(Number(typeof sp.skip === 'string' ? sp.skip : 0) || 0, 0);
+  const view = parseIntakeView(sp);
 
   const res = await listIntake(prisma, session, {
     page: Math.floor(skip / TAKE) + 1,
+    ...(view.channel ? { channel: view.channel } : {}),
+    onlyImportant: view.onlyImportant,
     pageSize: TAKE,
   });
   if (!res.ok) notFound();
@@ -29,11 +34,18 @@ export default async function ManagerIntakePage({
   return (
     <div className="space-y-6">
       <div>
+        {/* `У-318`: «Входящие обращения» — только внешние каналы. */}
         <PageHeader
-          title="Входящие в работу"
-          subtitle="Всё неразобранное в одном месте: заявки, обращения и звонки. Самое залежавшееся — сверху."
+          title="Входящие обращения"
+          subtitle="Сообщения из мессенджеров, письма и звонки, которые ещё не разобраны. Самое важное и залежавшееся — сверху."
         />
       </div>
+      <IntakeChannelFilter
+        basePath="/manager/intake"
+        searchParams={sp}
+        channel={view.channel}
+        onlyImportant={view.onlyImportant}
+      />
       <IntakeTable items={res.result.items} viewerPrefix="/manager" currentUserId={session.sub} />
       <Paginator
         basePath="/manager/intake"
