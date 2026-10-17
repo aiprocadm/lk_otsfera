@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { NOTIFICATION_TYPE_GROUP, type NotificationGroupKey } from '@/lib/notifications/groups';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { isStaffManagerSide } from '@/lib/auth/roleModel';
@@ -47,6 +48,8 @@ export type PreferenceRow = {
   eventType: NotificationTypeKey;
   label: string;
   icon: string;
+  /** `У-317`: группа на экране — «Системные», «Коммуникация», … */
+  group: NotificationGroupKey;
   channels: PreferenceChannelCell[];
 };
 
@@ -143,6 +146,7 @@ export async function getNotificationPreferenceMatrix(
       eventType,
       label: spec.label,
       icon: spec.icon,
+      group: NOTIFICATION_TYPE_GROUP[eventType],
       channels: columns.map((key) => {
         const allowedByCompany = ceiling.has(key);
         // Своя строка — её значение; нет строки — как решила компания.

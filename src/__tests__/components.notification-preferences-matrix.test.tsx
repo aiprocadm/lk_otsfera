@@ -33,6 +33,7 @@ const matrix: NotificationPreferenceMatrix = {
       eventType: 'document_published' as never,
       label: 'Опубликован документ',
       icon: '📄',
+      group: 'orders',
       channels: [
         { key: 'email', allowedByCompany: true, enabled: true },
         { key: 'telegram', allowedByCompany: true, enabled: false },
@@ -42,6 +43,7 @@ const matrix: NotificationPreferenceMatrix = {
       eventType: 'payment_received' as never,
       label: 'Поступила оплата',
       icon: '💰',
+      group: 'orders',
       channels: [
         { key: 'email', allowedByCompany: true, enabled: true },
         { key: 'telegram', allowedByCompany: false, enabled: false },
@@ -109,5 +111,40 @@ describe('NotificationPreferencesMatrix', () => {
   it('нет событий — объясняет, что настраивать нечего', () => {
     render(<NotificationPreferencesMatrix matrix={{ columns: ['email'], rows: [] }} />);
     expect(screen.getByText(/не адресовано ни одно событие/)).toBeTruthy();
+  });
+});
+
+describe('NotificationPreferencesMatrix — группы (`У-317`)', () => {
+  const grouped: NotificationPreferenceMatrix = {
+    columns: ['email'],
+    rows: [
+      ...matrix.rows.map((r) => ({ ...r, channels: r.channels.slice(0, 1) })),
+      {
+        eventType: 'task_assigned' as never,
+        label: 'Назначена задача',
+        icon: '✅',
+        group: 'tasks',
+        channels: [{ key: 'email', allowedByCompany: true, enabled: true }],
+      },
+    ],
+  };
+
+  it('группы в порядке реестра, у каждой — число уведомлений; пустые группы не рисуются', () => {
+    const { container } = render(<NotificationPreferencesMatrix matrix={grouped} />);
+    const summaries = [...container.querySelectorAll('details > summary')].map(
+      (s) => s.textContent
+    );
+    expect(summaries).toEqual(['Задачи1 уведомление', 'Заказы2 уведомления']);
+  });
+
+  it('внутри группы — её события; группа раскрывающаяся', () => {
+    const { container } = render(<NotificationPreferencesMatrix matrix={grouped} />);
+    const orders = [...container.querySelectorAll('details')].find((d) =>
+      d.querySelector('summary')?.textContent?.startsWith('Заказы')
+    )!;
+    expect(orders.textContent).toContain('Опубликован документ');
+    expect(orders.textContent).toContain('Поступила оплата');
+    expect(orders.textContent).not.toContain('Назначена задача');
+    expect(orders.hasAttribute('open')).toBe(false);
   });
 });
