@@ -23,7 +23,15 @@ export type ActivityItem =
       body: string;
       hasAttachment: boolean;
     }
-  | { kind: 'comment'; id: string; at: Date; author: string; body: string }
+  | {
+      kind: 'comment';
+      id: string;
+      at: Date;
+      author: string;
+      body: string;
+      /** `У-310`: написал клиент (не сотрудник) — из этого можно сделать заметку. */
+      fromClient: boolean;
+    }
   | {
       kind: 'call';
       id: string;
@@ -36,6 +44,9 @@ export type ActivityItem =
     }
   | { kind: 'note'; id: string; at: Date; author: string; body: string }
   | { kind: 'event'; id: string; at: Date; label: string };
+
+/** Сотрудники учебного центра; всё остальное в комментариях — сторона клиента. */
+const STAFF_ROLES = new Set<string>(['admin', 'manager', 'leader']);
 
 export type GetDealActivityResult =
   { ok: true; items: ActivityItem[] } | { ok: false; error: 'not_found' };
@@ -66,7 +77,12 @@ export async function getDealActivity(
   const [comments, messages, inbound, calls, notes, events] = await Promise.all([
     prisma.comment.findMany({
       where: { orderId },
-      select: { id: true, body: true, createdAt: true, author: { select: { name: true } } },
+      select: {
+        id: true,
+        body: true,
+        createdAt: true,
+        author: { select: { name: true, role: true } },
+      },
       orderBy: { createdAt: 'desc' },
       take: ACTIVITY_SOURCE_CAP,
     }),
@@ -140,6 +156,7 @@ export async function getDealActivity(
       at: c.createdAt,
       author: c.author.name,
       body: c.body,
+      fromClient: !STAFF_ROLES.has(c.author.role),
     })),
     ...messages.map((m): ActivityItem => ({
       kind: 'message_out',

@@ -43,6 +43,16 @@ vi.mock('@/components/manager/manager-leads-table', () => ({
     ),
 }));
 
+// `У-312`: воронка — вид внутри «Лидов», за прежним флагом `sales_funnel`.
+const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn(() => true) }));
+vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
+const { getFunnelBoard } = vi.hoisted(() => ({ getFunnelBoard: vi.fn() }));
+vi.mock('@/lib/services/funnel/board', () => ({ getFunnelBoard }));
+vi.mock('@/components/funnel/funnel-board', () => ({
+  FunnelBoard: (props: { board: unknown }) =>
+    React.createElement('div', { 'data-testid': 'funnel-board' }, JSON.stringify(props.board)),
+}));
+
 const SESSION = {
   sub: 'u1',
   role: 'manager' as const,
@@ -65,9 +75,10 @@ describe('ManagerLeadsPage', () => {
       ManagerLeadsPage({ searchParams: Promise.resolve({ status: 'bogus' }) })
     );
 
-    // `У-288`: нейтральный подзаголовок (`Р-3-1`), без «клиент их не видит».
+    // `У-288`: нейтральный подзаголовок, без «клиент их не видит»;
+    // `У-311`: он же объясняет, чем лид отличается от сделки и заказа.
     expect(document.body.textContent).toContain(
-      'Возможные продажи: входящие запросы, которые ещё не стали заказом.'
+      'Лид — возможная продажа: клиент проявил интерес, договорённости ещё нет.'
     );
     expect(document.body.textContent).not.toContain('клиент их не видит');
     expect(listManagerLeads).toHaveBeenCalledWith(
@@ -127,5 +138,56 @@ describe('ManagerLeadsPage', () => {
       expect.anything(),
       expect.objectContaining({ assignedToUserId: undefined })
     );
+  });
+});
+
+describe('ManagerLeadsPage — «Список / Воронка» (`У-312`)', () => {
+  beforeEach(() => {
+    requireManager.mockReset();
+    listManagerLeads.mockReset();
+    getFunnelBoard.mockReset();
+    isFeatureEnabled.mockReset();
+    isFeatureEnabled.mockReturnValue(true);
+    requireManager.mockResolvedValue(SESSION);
+    listCompanyOrgOptions.mockResolvedValue([]);
+  });
+
+  const link = (container: HTMLElement, text: string) =>
+    [...container.querySelectorAll('a')].find((a) => a.textContent === text);
+
+  it('по умолчанию — список; воронка не грузится; переключатель ведёт в воронку', async () => {
+    listManagerLeads.mockResolvedValue({ rows: [], nextCursor: null });
+    const { container } = await renderServerComponent(
+      ManagerLeadsPage({ searchParams: Promise.resolve({}) })
+    );
+    expect(getFunnelBoard).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="leads-table"]')).not.toBeNull();
+    expect(link(container, 'Список')?.getAttribute('aria-current')).toBe('page');
+    expect(link(container, 'Воронка')?.getAttribute('href')).toBe('/manager/leads?view=funnel');
+  });
+
+  it('?view=funnel — доска воронки с подсказкой и пределом; список и фильтр не грузятся', async () => {
+    getFunnelBoard.mockResolvedValue({ stages: [], columns: [], shown: 300, total: 450 });
+    const { container } = await renderServerComponent(
+      ManagerLeadsPage({ searchParams: Promise.resolve({ view: 'funnel' }) })
+    );
+    expect(listManagerLeads).not.toHaveBeenCalled();
+    expect(getFunnelBoard).toHaveBeenCalledWith(prismaMock, SESSION);
+    expect(container.querySelector('[data-testid="funnel-board"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="leads-filter"]')).toBeNull();
+    expect(container.textContent).toContain('Перетаскивайте карточки между стадиями.');
+    expect(link(container, 'Воронка')?.getAttribute('aria-current')).toBe('page');
+    expect(link(container, 'Список')?.getAttribute('href')).toBe('/manager/leads');
+  });
+
+  it('флаг воронки выключен — переключателя нет, ?view=funnel даёт список', async () => {
+    isFeatureEnabled.mockReturnValue(false);
+    listManagerLeads.mockResolvedValue({ rows: [], nextCursor: null });
+    const { container } = await renderServerComponent(
+      ManagerLeadsPage({ searchParams: Promise.resolve({ view: 'funnel' }) })
+    );
+    expect(getFunnelBoard).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="leads-table"]')).not.toBeNull();
+    expect(link(container, 'Воронка')).toBeUndefined();
   });
 });

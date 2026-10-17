@@ -10,6 +10,7 @@ import { ExportLink } from '@/components/ui';
 import { getOrderedStatuses } from '@/lib/services/orderStatuses';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { SALES_STAGE_LINE } from '@/lib/help/salesStages';
 import { MissingObjectNotice } from '@/components/ui/missing-object-notice';
 import { isMissingObjectRequested } from '@/lib/navigation/missingObject';
 export const dynamic = 'force-dynamic';
@@ -50,7 +51,8 @@ export default async function LeaderOrdersPage({
     <>
       <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
-          <PageHeader title="Заказы" subtitle="Все заказы компании" />
+          {/* `У-311`: чем заказ отличается от лида и сделки (зеркало менеджера). */}
+          <PageHeader title="Заказы" subtitle={SALES_STAGE_LINE.orders} />
         </div>
         {/* ФТ-12.2: `scope=company` повторяет company-wide режим экрана лидера. */}
         <ExportLink

@@ -173,6 +173,7 @@ export default async function LeaderOrderDetailPage({
                   : null
               }
               hasContact={data.order.primaryContactId !== null}
+              embedded
             />
           ) : null
         }

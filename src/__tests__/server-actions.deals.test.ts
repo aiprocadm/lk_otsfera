@@ -269,8 +269,10 @@ describe('convertLeadToDealAction (PR-2)', () => {
   it('refreshes both funnels after conversion', async () => {
     convertLeadToDeal.mockResolvedValue({ ok: true, deal: { id: 'd-new' }, lead: { id: 'l1' } });
     await convertLeadToDealAction(form({ leadId: 'l1' }));
-    expect(revalidatePath).toHaveBeenCalledWith('/manager/funnel');
+    // `У-312`: воронка менеджера живёт в «Лидах».
+    expect(revalidatePath).toHaveBeenCalledWith('/manager/leads');
     expect(revalidatePath).toHaveBeenCalledWith('/leader/funnel');
+    expect(revalidatePath).not.toHaveBeenCalledWith('/manager/funnel');
   });
 
   it('missing leadId → not_found; service error passes through without revalidating', async () => {

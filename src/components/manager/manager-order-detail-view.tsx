@@ -17,6 +17,7 @@ import { ManagerDocUploadForm } from '@/components/manager/manager-doc-upload-fo
 import { OrderItemsSection } from '@/components/training/order-items-section';
 import { OrderCustomFields } from '@/components/orders/order-custom-fields';
 import { DealActivityThread } from '@/components/manager/deal-activity/deal-activity-thread';
+import { OrderClientThread } from '@/components/orders/order-client-thread';
 import type { ManagerOrderDetailData } from '@/lib/services/manager/orderDetail';
 import type { FieldWithValue } from '@/lib/services/customFields';
 import type { ActivityItem } from '@/lib/services/manager/dealActivity';
@@ -69,7 +70,7 @@ export function ManagerOrderDetailView({
   dealPanel?: React.ReactNode;
   /** `У-180`: панель «Контакт заказа» (данные и права собирает страница). */
   contactPanel?: React.ReactNode;
-  /** `У-210`: блок «Переписка с клиентом» — сразу под контактом заказа. */
+  /** `У-210`: диалоги контакта — внутри «Переписки с клиентом» (`У-310`), под контактом заказа. */
   dialogsPanel?: React.ReactNode;
   /** `У-283`: «Передать заказ» — только на своём заказе (решает страница, проверяет сервис). */
   transferPanel?: React.ReactNode;
@@ -134,17 +135,25 @@ export function ManagerOrderDetailView({
 
           <OrderCustomFields fields={customFields} orderId={order.id} editable={true} />
 
+          {/* `У-310`: только внутреннее — заметки, звонки, события. */}
           <DealActivityThread
             orderId={order.id}
             items={activityItems}
-            inboundEnabled={inboundEnabled}
             telephonyEnabled={telephonyEnabled}
           />
         </div>
 
         <div className="space-y-4">
           {contactPanel}
-          {dialogsPanel}
+          {/* `У-310`: всё, что видит клиент, — отдельным блоком; диалоги
+              мессенджеров — его частью. */}
+          <OrderClientThread
+            orderId={order.id}
+            items={activityItems}
+            inboundEnabled={inboundEnabled}
+          >
+            {dialogsPanel}
+          </OrderClientThread>
           {dealPanel}
           {transferPanel}
           <ManagerOrderTimeline

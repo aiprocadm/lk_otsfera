@@ -58,7 +58,9 @@ describe('moveFunnelLeadAction', () => {
       reason: undefined,
     });
     expect(revalidatePath).toHaveBeenCalledWith('/leader/funnel');
-    expect(revalidatePath).toHaveBeenCalledWith('/manager/funnel');
+    // `У-312`: воронка менеджера живёт в «Лидах».
+    expect(revalidatePath).toHaveBeenCalledWith('/manager/leads');
+    expect(revalidatePath).not.toHaveBeenCalledWith('/manager/funnel');
   });
   // Прогон сопровождения №37: перенос меняет статус лида и может создать
   // сделку или заказ — списки, где это видно, тоже сбрасываются.

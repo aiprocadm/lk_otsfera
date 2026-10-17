@@ -46,7 +46,7 @@ function revalidate(): void {
  * сбрасывает клиентский кэш роутера.
  */
 function revalidateFunnel(): void {
-  revalidatePath('/manager/funnel');
+  revalidatePath('/manager/leads');
   revalidatePath('/leader/funnel');
 }
 

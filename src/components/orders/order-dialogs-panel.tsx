@@ -26,6 +26,7 @@ export function OrderDialogsPanel({
   writeFirstHref,
   allHref,
   hasContact,
+  embedded = false,
 }: {
   dialogs: OrderDialogRow[];
   /** Всего диалогов — чтобы сказать «показаны N из M», а не обрезать молча. */
@@ -35,11 +36,26 @@ export function OrderDialogsPanel({
   /** Куда вести за всей перепиской — вкладка «Диалоги» карточки организации. */
   allHref: string | null;
   hasContact: boolean;
+  /**
+   * `У-310`: внутри блока «Переписка с клиентом» карточки заказа — без своей
+   * рамки и с подзаголовком «Диалоги в мессенджерах», чтобы на экране не было
+   * двух блоков с одним названием. Администратор (свой экран заказа без
+   * переписки по заказу) видит панель отдельно, как раньше.
+   */
+  embedded?: boolean;
 }) {
   return (
-    <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-5">
+    <div
+      className={
+        embedded ? 'space-y-3' : 'space-y-3 rounded-xl border border-gray-200 bg-white p-5'
+      }
+    >
       <div>
-        <h2 className="text-sm font-semibold text-[#111111]">Переписка с клиентом</h2>
+        {embedded ? (
+          <h3 className="text-sm font-semibold text-[#111111]">Диалоги в мессенджерах</h3>
+        ) : (
+          <h2 className="text-sm font-semibold text-[#111111]">Переписка с клиентом</h2>
+        )}
         <p className="text-xs text-gray-500">
           Диалоги с контактом заказа и его организацией — в мессенджерах и по почте.
         </p>

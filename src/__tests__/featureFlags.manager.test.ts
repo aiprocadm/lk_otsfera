@@ -29,7 +29,7 @@ describe('navByRole.manager', () => {
       '/manager/leads',
       '/manager/requests',
       '/manager/intake',
-      '/manager/funnel',
+      // `У-312`: воронка — вид внутри «Лидов», отдельного пункта нет.
       '/manager/deals',
       '/manager/tasks',
       '/manager/calendar',
@@ -74,7 +74,6 @@ describe('navByRole.manager', () => {
       'Обращения',
       // `У-262`: «Входящие в работу» и «Сделки» тоже без флагов.
       'Входящие в работу',
-      'Воронка продаж',
       'Сделки',
       'Задачи',
       'Календарь',

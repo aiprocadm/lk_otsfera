@@ -118,7 +118,10 @@ describe('ManagerOrdersPage', () => {
       {},
       expect.objectContaining({ session: SESSION, unassigned: false })
     );
-    expect(container.textContent).toContain('Заказы ваших организаций');
+    // `У-311`: подзаголовок объясняет, чем заказ отличается от лида и сделки.
+    expect(container.textContent).toContain(
+      'Заказ — о работе договорились: есть сумма, сроки, оплата и документы.'
+    );
   });
 
   it('парсит ?unassigned=1 в boolean для listOrders и пробрасывает raw-значение в фильтр', async () => {

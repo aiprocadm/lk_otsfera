@@ -52,19 +52,30 @@ vi.mock('@/components/manager/claim-order-button', () => ({
     ),
 }));
 vi.mock('@/components/manager/deal-activity/deal-activity-thread', () => ({
-  DealActivityThread: (props: {
-    orderId: string;
-    items: unknown[];
-    inboundEnabled: boolean;
-    telephonyEnabled: boolean;
-  }) =>
+  DealActivityThread: (props: { orderId: string; items: unknown[]; telephonyEnabled: boolean }) =>
     React.createElement(
       'div',
       { 'data-testid': 'deal-activity-thread' },
       props.orderId,
       String(props.items.length),
-      String(props.inboundEnabled),
       String(props.telephonyEnabled)
+    ),
+}));
+// `У-310`: всё, что видит клиент, — отдельный блок; диалоги — его частью.
+vi.mock('@/components/orders/order-client-thread', () => ({
+  OrderClientThread: (props: {
+    orderId: string;
+    items: unknown[];
+    inboundEnabled: boolean;
+    children?: React.ReactNode;
+  }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'order-client-thread' },
+      props.orderId,
+      String(props.items.length),
+      String(props.inboundEnabled),
+      props.children
     ),
 }));
 
@@ -254,7 +265,7 @@ describe('ManagerOrderDetailView', () => {
     expect(html).toContain('Все заказы');
   });
 
-  it('DealActivityThread gets order.id and defaults (activityItems=[], inboundEnabled=false, telephonyEnabled=false) when omitted', () => {
+  it('DealActivityThread и OrderClientThread получают order.id и умолчания (лента пуста, флаги выключены)', () => {
     const html = renderToString(
       React.createElement(ManagerOrderDetailView, {
         data: makeData({}),
@@ -264,7 +275,10 @@ describe('ManagerOrderDetailView', () => {
       })
     );
     expect(html).toContain('data-testid="deal-activity-thread"');
-    expect(html).toContain('o1<!-- -->0<!-- -->false<!-- -->false');
+    expect(html).toContain(
+      '<div data-testid="deal-activity-thread">o1<!-- -->0<!-- -->false</div>'
+    );
+    expect(html).toContain('<div data-testid="order-client-thread">o1<!-- -->0<!-- -->false</div>');
   });
 
   it('ClaimOrderButton монтируется с order.id и managerId=null (кнопка сама решает видимость)', () => {
@@ -329,7 +343,7 @@ describe('ManagerOrderDetailView', () => {
     expect(html).toContain('o1<!-- -->true<!-- -->нет сканов');
   });
 
-  it('DealActivityThread receives explicit activityItems/inboundEnabled/telephonyEnabled when passed', () => {
+  it('`У-310`: лента одна на оба блока; звонки — «Активности», мессенджеры и диалоги — «Переписке»', () => {
     const html = renderToString(
       React.createElement(ManagerOrderDetailView, {
         data: makeData({}),
@@ -341,8 +355,12 @@ describe('ManagerOrderDetailView', () => {
         ],
         inboundEnabled: true,
         telephonyEnabled: true,
+        dialogsPanel: React.createElement('p', null, 'ДИАЛОГИ'),
       })
     );
-    expect(html).toContain('o1<!-- -->1<!-- -->true<!-- -->true');
+    expect(html).toContain('<div data-testid="deal-activity-thread">o1<!-- -->1<!-- -->true</div>');
+    expect(html).toContain(
+      '<div data-testid="order-client-thread">o1<!-- -->1<!-- -->true<p>ДИАЛОГИ</p></div>'
+    );
   });
 });
