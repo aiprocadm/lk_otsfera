@@ -187,6 +187,30 @@ export function StaffChatSection({ currentUserId }: { currentUserId: string }) {
     }
   }
 
+  /** `У-315`: свой чат команды; `true` — создан и открыт. */
+  async function handleNewGroup(title: string, participantIds: string[]): Promise<boolean> {
+    try {
+      const res = await fetch('/api/staff-chat/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, participantIds }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        toast.error(errorMessageRu(data?.error ?? '', 'Не удалось создать чат.'));
+        return false;
+      }
+      toast.success('Чат создан');
+      refetchConversations();
+      await handleSelect(data.conversationId as string);
+      return true;
+    } catch (err) {
+      clientLog.warn('[staff-chat-section] new group error', err);
+      toast.error(errorMessageRu('network'));
+      return false;
+    }
+  }
+
   return (
     <div
       style={{
@@ -211,6 +235,7 @@ export function StaffChatSection({ currentUserId }: { currentUserId: string }) {
           activeId={activeId}
           onSelect={(id) => void handleSelect(id)}
           onNewDm={(id) => void handleNewDm(id)}
+          onNewGroup={handleNewGroup}
           colleagues={colleagues}
         />
       </div>

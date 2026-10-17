@@ -1,22 +1,26 @@
 'use client';
 import React, { useState } from 'react';
+import { StaffNewGroupForm } from './staff-new-group-form';
+import { staffRoleLabel, type StaffColleagueVM } from './staff-colleague';
 
 export type StaffConversationRowVM = {
   id: string;
-  kind: 'dm' | 'general';
+  kind: 'dm' | 'general' | 'group';
   title: string;
   companyName: string | null;
   lastMessageAt: string;
   unread: boolean;
 };
 
-export type StaffColleagueVM = { id: string; name: string };
+export type { StaffColleagueVM };
 
 type Props = {
   rows: StaffConversationRowVM[];
   activeId: string | null;
   onSelect: (id: string) => void;
   onNewDm: (targetUserId: string) => void;
+  /** `У-315`: свой чат — название и участники; `true` — создан. */
+  onNewGroup: (title: string, participantIds: string[]) => Promise<boolean>;
   colleagues: StaffColleagueVM[];
 };
 
@@ -24,14 +28,25 @@ type Props = {
  * Presentational conversation list for the staff-chat domain — sibling to
  * OrderThreadInbox's left panel, but a standalone component (staff-chat and
  * order-comment chat are separate domains per CLAUDE.md §5 sibling-pattern).
- * Ordering: general channel(s) first, then DMs sorted by lastMessageAt desc.
+ * Ordering: general channel(s) first, then own chats and DMs by lastMessageAt desc.
  */
-export function StaffConversationList({ rows, activeId, onSelect, onNewDm, colleagues }: Props) {
+export function StaffConversationList({
+  rows,
+  activeId,
+  onSelect,
+  onNewDm,
+  onNewGroup,
+  colleagues,
+}: Props) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [groupOpen, setGroupOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const found = q ? colleagues.filter((c) => c.name.toLowerCase().includes(q)) : colleagues;
 
   const generals = rows.filter((r) => r.kind === 'general');
   const dms = rows
-    .filter((r) => r.kind === 'dm')
+    .filter((r) => r.kind !== 'general')
     .slice()
     .sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
   const ordered = [...generals, ...dms];
@@ -47,7 +62,10 @@ export function StaffConversationList({ rows, activeId, onSelect, onNewDm, colle
         style={{ padding: '10px 12px', borderBottom: '1px solid #E5E7EB', position: 'relative' }}
       >
         <button
-          onClick={() => setPickerOpen((v) => !v)}
+          onClick={() => {
+            setGroupOpen(false);
+            setPickerOpen((v) => !v);
+          }}
           style={{
             width: '100%',
             padding: '8px 10px',
@@ -62,6 +80,37 @@ export function StaffConversationList({ rows, activeId, onSelect, onNewDm, colle
         >
           + Новое сообщение
         </button>
+        {/* `У-315`: свой чат команды — вне чатов заказов. */}
+        <button
+          onClick={() => {
+            setPickerOpen(false);
+            setGroupOpen((v) => !v);
+          }}
+          style={{
+            width: '100%',
+            marginTop: '6px',
+            padding: '6px 10px',
+            borderRadius: '8px',
+            border: '1px solid #E5E7EB',
+            backgroundColor: '#ffffff',
+            color: '#374151',
+            fontSize: '13px',
+            cursor: 'pointer',
+          }}
+        >
+          + Новый чат
+        </button>
+        {groupOpen && (
+          <StaffNewGroupForm
+            colleagues={colleagues}
+            onCancel={() => setGroupOpen(false)}
+            onCreate={async (title, ids) => {
+              const ok = await onNewGroup(title, ids);
+              if (ok) setGroupOpen(false);
+              return ok;
+            }}
+          />
+        )}
         {pickerOpen && (
           <ul
             style={{
@@ -80,12 +129,27 @@ export function StaffConversationList({ rows, activeId, onSelect, onNewDm, colle
               overflowY: 'auto',
             }}
           >
-            {colleagues.length === 0 ? (
+            <li style={{ padding: '6px 8px' }}>
+              <input
+                aria-label="Найти коллегу"
+                placeholder="Найти коллегу"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '4px 8px',
+                  fontSize: '13px',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '6px',
+                }}
+              />
+            </li>
+            {found.length === 0 ? (
               <li style={{ padding: '10px 12px', fontSize: '13px', color: '#9CA3AF' }}>
-                Нет доступных коллег
+                {colleagues.length === 0 ? 'Нет доступных коллег' : 'Никого не нашли'}
               </li>
             ) : (
-              colleagues.map((c) => (
+              found.map((c) => (
                 <li key={c.id}>
                   <button
                     onClick={() => handlePick(c.id)}
@@ -101,6 +165,9 @@ export function StaffConversationList({ rows, activeId, onSelect, onNewDm, colle
                     }}
                   >
                     {c.name}
+                    {c.role && (
+                      <span style={{ color: '#6B7280' }}> · {staffRoleLabel(c.role)}</span>
+                    )}
                   </button>
                 </li>
               ))

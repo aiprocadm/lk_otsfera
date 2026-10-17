@@ -1,4 +1,4 @@
-import { it, expect } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { isStaff, canSeeStaffConversation } from '@/lib/services/staffChat/policy';
 
 const conv = (over: Partial<{ kind: 'dm' | 'general'; companyId: string }> = {}) => ({
@@ -67,4 +67,16 @@ it('client roles never see anything', () => {
       ['o1']
     )
   ).toBe(false);
+});
+
+describe('canSeeStaffConversation — свой чат (`У-315`)', () => {
+  const group = { kind: 'group' as const, companyId: 'c1' };
+  it('участник — да; сотрудник той же компании без участия — нет; админ — да', () => {
+    const mgr = (sub: string) => ({ sub, role: 'manager', companyId: 'c1' }) as never;
+    expect(canSeeStaffConversation(mgr('u1'), group, ['u1', 'u2'])).toBe(true);
+    expect(canSeeStaffConversation(mgr('u3'), group, ['u1', 'u2'])).toBe(false);
+    expect(
+      canSeeStaffConversation({ sub: 'a', role: 'admin', companyId: null } as never, group, [])
+    ).toBe(true);
+  });
 });

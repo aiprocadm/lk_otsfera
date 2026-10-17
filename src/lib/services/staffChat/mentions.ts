@@ -54,7 +54,8 @@ export async function listColleagues(
         { role: 'admin' },
       ],
     },
-    select: { id: true, name: true },
+    // `У-315`: роль рядом с именем — по одному имени не понять, кто есть кто.
+    select: { id: true, name: true, role: true },
     orderBy: { name: 'asc' },
     take: 200,
   });

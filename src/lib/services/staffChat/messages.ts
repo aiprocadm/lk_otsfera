@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient, StaffConversationKind } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { recordAudit } from '@/lib/auth/audit';
 import { recordNotification, deliverNotificationToUser } from '@/lib/notifications';
@@ -13,7 +13,7 @@ export const STAFF_REACTION_EMOJI = ['👍', '✅', '🔥', '😄', '❓'] as co
 
 type ConvWithParticipants = {
   id: string;
-  kind: 'dm' | 'general';
+  kind: StaffConversationKind;
   companyId: string;
   participants: { userId: string }[];
 };

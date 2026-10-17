@@ -127,6 +127,7 @@ describe('StaffConversationList', () => {
         activeId={null}
         onSelect={vi.fn()}
         onNewDm={vi.fn()}
+        onNewGroup={vi.fn()}
         colleagues={COLLEAGUES}
       />
     );
@@ -145,6 +146,7 @@ describe('StaffConversationList', () => {
         activeId="dm1"
         onSelect={vi.fn()}
         onNewDm={vi.fn()}
+        onNewGroup={vi.fn()}
         colleagues={COLLEAGUES}
       />
     );
@@ -162,6 +164,7 @@ describe('StaffConversationList', () => {
         activeId={null}
         onSelect={vi.fn()}
         onNewDm={vi.fn()}
+        onNewGroup={vi.fn()}
         colleagues={COLLEAGUES}
       />
     );
@@ -176,6 +179,7 @@ describe('StaffConversationList', () => {
         activeId={null}
         onSelect={onSelect}
         onNewDm={vi.fn()}
+        onNewGroup={vi.fn()}
         colleagues={COLLEAGUES}
       />
     );
@@ -190,6 +194,7 @@ describe('StaffConversationList', () => {
         activeId={null}
         onSelect={vi.fn()}
         onNewDm={vi.fn()}
+        onNewGroup={vi.fn()}
         colleagues={[]}
       />
     );
@@ -213,6 +218,7 @@ describe('StaffConversationList', () => {
         activeId={null}
         onSelect={vi.fn()}
         onNewDm={vi.fn()}
+        onNewGroup={vi.fn()}
         colleagues={[]}
       />
     );
@@ -227,6 +233,7 @@ describe('StaffConversationList', () => {
         activeId={null}
         onSelect={vi.fn()}
         onNewDm={onNewDm}
+        onNewGroup={vi.fn()}
         colleagues={COLLEAGUES}
       />
     );
@@ -253,6 +260,7 @@ describe('StaffConversationList', () => {
         activeId={null}
         onSelect={vi.fn()}
         onNewDm={vi.fn()}
+        onNewGroup={vi.fn()}
         colleagues={[]}
       />
     );

@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient, StaffConversationKind } from '@prisma/client';
 import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { log } from '@/lib/logging';
@@ -137,7 +137,7 @@ function isUnread(c: {
 
 type StaffConversationRow = {
   id: string;
-  kind: 'dm' | 'general';
+  kind: StaffConversationKind;
   title: string;
   companyName: string | null; // admin с несколькими компаниями различает general-каналы
   lastMessageAt: Date;
@@ -162,6 +162,7 @@ export async function listConversations(
     select: {
       id: true,
       kind: true,
+      title: true,
       createdAt: true,
       lastMessageAt: true,
       company: { select: { name: true } },
@@ -179,12 +180,66 @@ export async function listConversations(
       title:
         c.kind === 'general'
           ? '# Общий'
-          : (c.participants.find((p) => p.userId !== session.sub)?.user.name ?? 'Диалог'),
+          : c.kind === 'group'
+            ? // `У-315`: у своего чата — его название.
+              (c.title ?? 'Чат')
+            : (c.participants.find((p) => p.userId !== session.sub)?.user.name ?? 'Диалог'),
       companyName: c.kind === 'general' ? c.company.name : null,
       lastMessageAt: c.lastMessageAt,
       unread: isUnread(c),
     })),
   };
+}
+
+export type CreateGroupChatResult =
+  | { ok: true; conversationId: string }
+  | { ok: false; error: 'forbidden' | 'validation' | 'target_not_found' };
+
+const GROUP_TITLE_MAX = 80;
+const GROUP_PARTICIPANTS_MAX = 50;
+
+/**
+ * Свой чат команды (этап 7 ТЗ 13.10.2026, `У-315`, `Р-7-3`): название и
+ * участники. Создатель — участник всегда. Участники — активные сотрудники
+ * своей компании и администраторы (та же граница, что у личных сообщений,
+ * C8); чужая компания — отказ. Видят чат только участники
+ * (`canSeeStaffConversation`).
+ */
+export async function createGroupChat(
+  prisma: PrismaClient,
+  session: SessionPayload,
+  args: { title: string; participantIds: string[] }
+): Promise<CreateGroupChatResult> {
+  if (!isStaff(session) || !session.companyId) return { ok: false, error: 'forbidden' };
+  const title = args.title.trim();
+  const others = [...new Set(args.participantIds)].filter((id) => id !== session.sub);
+  if (!title || title.length > GROUP_TITLE_MAX) return { ok: false, error: 'validation' };
+  if (others.length === 0 || others.length > GROUP_PARTICIPANTS_MAX) {
+    return { ok: false, error: 'validation' };
+  }
+  const users = await prisma.user.findMany({
+    where: { id: { in: others }, isActive: true },
+    select: { id: true, role: true, companyId: true },
+  });
+  if (users.length !== others.length) return { ok: false, error: 'target_not_found' };
+  const outside = users.some(
+    (u) =>
+      !(
+        u.role === 'admin' ||
+        ((u.role === 'manager' || u.role === 'leader') && u.companyId === session.companyId)
+      )
+  );
+  if (outside) return { ok: false, error: 'forbidden' };
+  const created = await prisma.staffConversation.create({
+    data: {
+      companyId: session.companyId,
+      kind: 'group',
+      title,
+      participants: { create: [session.sub, ...others].map((userId) => ({ userId })) },
+    },
+    select: { id: true },
+  });
+  return { ok: true, conversationId: created.id };
 }
 
 export type StaffUnreadResult = { ok: true; count: number };
