@@ -6,6 +6,7 @@ import { isFeatureEnabled } from '@/lib/featureFlags';
 import { prisma } from '@/lib/db/prisma';
 import { listInbox, type InboxFilters } from '@/lib/services/inbound/listInbox';
 import { listOrganizations } from '@/lib/services/manager/organizations';
+import { emailSignatureFor } from '@/lib/services/inbound/emailSignature';
 import { InboxFiltersBar } from '@/components/manager/inbox-filters';
 import { InboxList } from '@/components/manager/inbox-list';
 import { Paginator } from '@/components/ui';
@@ -54,9 +55,11 @@ export default async function ManagerInboxPage({
     pageSize: PAGE_SIZE,
   };
 
-  const [{ items, total }, organizations] = await Promise.all([
+  const [{ items, total }, organizations, emailSignature] = await Promise.all([
     listInbox(prisma, session, filters),
     listOrganizations(prisma, session),
+    // `У-316`: та же подпись, что уйдёт в письмо, — видна до отправки.
+    emailSignatureFor(prisma, session.sub),
   ]);
 
   const contactsEnabled = isFeatureEnabled('contacts');
@@ -90,6 +93,7 @@ export default async function ManagerInboxPage({
         organizations={organizations}
         contactsEnabled={contactsEnabled}
         currentUserId={session.sub}
+        emailSignature={emailSignature}
       />
 
       <Paginator

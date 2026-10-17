@@ -27,7 +27,9 @@ export async function replyToInbound(
     /** `Message-ID` письма клиента — сшивка ветки ответа (`У-205`). */
     externalMessageId?: string | null;
   },
-  text: string
+  text: string,
+  /** `У-316`: «Копия» и подпись — только у ответа на письмо. */
+  email: { cc?: string[] | undefined; signature?: string | undefined } = {}
 ): Promise<{ ok: boolean }> {
   switch (msg.channel) {
     case 'cabinet':
@@ -45,6 +47,8 @@ export async function replyToInbound(
         subject: msg.subject,
         text,
         inReplyTo: msg.externalMessageId ?? null,
+        ...(email.cc ? { cc: email.cc } : {}),
+        ...(email.signature ? { signature: email.signature } : {}),
       });
     default:
       return { ok: false };

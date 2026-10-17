@@ -29,6 +29,11 @@ const {
   messageCreate: vi.fn(),
 }));
 
+// `У-316`: подпись письма собирает свой модуль — здесь он подменён.
+const { emailSignatureFor } = vi.hoisted(() => ({
+  emailSignatureFor: vi.fn(async () => '-- \nС уважением,\nМенеджер'),
+}));
+vi.mock('@/lib/services/inbound/emailSignature', () => ({ emailSignatureFor }));
 vi.mock('@/lib/services/inbound/reply', () => ({ replyToInbound }));
 vi.mock('@/lib/services/messengers/recordOutbound', () => ({ recordOutboundInDialog }));
 vi.mock('@/lib/auth/audit', () => ({ recordAudit }));
@@ -451,5 +456,76 @@ describe('sendInboundReply (service)', () => {
       expect(recordAudit).toHaveBeenCalledTimes(2);
       warn.mockRestore();
     });
+  });
+});
+
+describe('sendInboundReply — «Копия» и подпись письма (`У-316`)', () => {
+  const emailMsg = {
+    id: 'im-e',
+    channel: 'email',
+    senderRef: 'client@mail.ru',
+    subject: 'Счёт',
+    externalMessageId: null,
+    companyId: 'company-a',
+    threadId: null,
+    resolvedUserId: null,
+    resolvedOrgId: null,
+    contactId: null,
+  };
+  beforeEach(() => {
+    vi.clearAllMocks();
+    replyToInbound.mockResolvedValue({ ok: false });
+  });
+
+  it('письмо: копия очищена (регистр, пробелы, дубли), подпись из профиля — в отправку', async () => {
+    inboundMessageFindUnique.mockResolvedValue(emailMsg);
+    await sendInboundReply(prisma, managerSession(), {
+      inboundMessageId: 'im-e',
+      text: 'ответ',
+      cc: [' Boss@Mail.ru ', 'boss@mail.ru', ''],
+    });
+    expect(emailSignatureFor).toHaveBeenCalledWith(prisma, 'u-mgr-1');
+    expect(replyToInbound).toHaveBeenCalledWith(emailMsg, 'ответ', {
+      cc: ['boss@mail.ru'],
+      signature: '-- \nС уважением,\nМенеджер',
+    });
+  });
+
+  it('кривой адрес или больше десяти — отказ формы, письмо не уходит', async () => {
+    inboundMessageFindUnique.mockResolvedValue(emailMsg);
+    expect(
+      await sendInboundReply(prisma, managerSession(), {
+        inboundMessageId: 'im-e',
+        text: 'ответ',
+        cc: ['не-адрес'],
+      })
+    ).toEqual({ ok: false, error: 'invalid' });
+    const many = Array.from({ length: 11 }, (_, i) => `c${i}@x.ru`);
+    expect(
+      await sendInboundReply(prisma, managerSession(), {
+        inboundMessageId: 'im-e',
+        text: 'о',
+        cc: many,
+      })
+    ).toEqual({ ok: false, error: 'invalid' });
+    expect(replyToInbound).not.toHaveBeenCalled();
+  });
+
+  it('письмо без копии и без подписи — пустые доп. поля; мессенджер — ни копии, ни подписи', async () => {
+    inboundMessageFindUnique.mockResolvedValue(emailMsg);
+    emailSignatureFor.mockResolvedValueOnce('');
+    await sendInboundReply(prisma, managerSession(), { inboundMessageId: 'im-e', text: 'о' });
+    expect(replyToInbound).toHaveBeenLastCalledWith(emailMsg, 'о', {});
+
+    const tg = { ...emailMsg, channel: 'telegram', senderRef: 'chat-1' };
+    inboundMessageFindUnique.mockResolvedValue(tg);
+    emailSignatureFor.mockClear();
+    await sendInboundReply(prisma, managerSession(), {
+      inboundMessageId: 'im-e',
+      text: 'о',
+      cc: ['a@x.ru'],
+    });
+    expect(emailSignatureFor).not.toHaveBeenCalled();
+    expect(replyToInbound).toHaveBeenLastCalledWith(tg, 'о', {});
   });
 });

@@ -120,6 +120,8 @@ async function renderHtml(element: React.ReactElement): Promise<string> {
 export async function send(
   input: {
     to: string;
+    /** `У-316`: «Копия» ответа на письмо. */
+    cc?: string[] | undefined;
     subject: string;
     html: string;
     text?: string;
@@ -146,6 +148,7 @@ export async function send(
   const result = await transport.send({
     from: await getEmailFrom(),
     to: input.to,
+    cc: input.cc,
     subject: input.subject,
     html: input.html,
     text: input.text,

@@ -33,6 +33,8 @@ export type InboxItem = {
   senderRef: string;
   senderDisplay: string | null;
   subject: string | null;
+  /** `У-316`: «Копия» письма. */
+  ccRecipients: string[];
   body: string;
   createdAt: Date;
   status: string;
@@ -55,6 +57,7 @@ const INBOX_SELECT = {
   senderRef: true,
   senderDisplay: true,
   subject: true,
+  ccRecipients: true,
   body: true,
   createdAt: true,
   status: true,

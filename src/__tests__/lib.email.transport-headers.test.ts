@@ -164,3 +164,14 @@ describe('defaultTransport — отказ Resend отличим от успех�
     error.mockRestore();
   });
 });
+
+describe('defaultTransport — «Копия» (`У-316`)', () => {
+  it('копия доходит до Resend полем cc', async () => {
+    const call = await sendThrough({ cc: ['boss@client.ru', 'acc@client.ru'] });
+    expect(call.cc).toEqual(['boss@client.ru', 'acc@client.ru']);
+  });
+  it('пустой список и отсутствие — поля cc нет вовсе', async () => {
+    expect(Object.keys(await sendThrough({ cc: [] }))).not.toContain('cc');
+    expect(Object.keys(await sendThrough({}))).not.toContain('cc');
+  });
+});

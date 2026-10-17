@@ -5,7 +5,7 @@ import { useRef } from 'react';
 import { toast } from 'sonner';
 import { replyInboundAction } from '@/server-actions/inbound';
 import { useFormAction } from '@/lib/ui/useFormAction';
-import { Textarea, Button } from '@/components/ui';
+import { Textarea, Button, Input } from '@/components/ui';
 
 /**
  * Ответ на уже привязанное (`status==='bound'`) обращение. Отправляет через
@@ -24,7 +24,22 @@ const ERROR_LABEL: Record<string, string> = {
   not_found: 'Обращение не найдено.',
 };
 
-export function InboxReplyForm({ inboundMessageId }: { inboundMessageId: string }) {
+/** «a@x.ru, b@y.ru; c@z.ru» → список адресов (`У-316`). */
+function parseCc(raw: string): string[] {
+  return raw
+    .split(/[\s,;]+/)
+    .map((a) => a.trim())
+    .filter(Boolean);
+}
+
+export function InboxReplyForm({
+  inboundMessageId,
+  email,
+}: {
+  inboundMessageId: string;
+  /** `У-316`: ответ на письмо — поле «Копия» и подпись под текстом. */
+  email?: { signature: string } | undefined;
+}) {
   const formRef = useRef<HTMLFormElement>(null);
 
   const { formAction, pending, errorText } = useFormAction<{ ok: true }>({
@@ -32,6 +47,7 @@ export function InboxReplyForm({ inboundMessageId }: { inboundMessageId: string 
       replyInboundAction({
         inboundMessageId,
         text: String(formData.get('text') ?? ''),
+        ...(email ? { cc: parseCc(String(formData.get('cc') ?? '')) } : {}),
       }),
     errorMap: ERROR_LABEL,
     onSuccess: () => {
@@ -50,6 +66,24 @@ export function InboxReplyForm({ inboundMessageId }: { inboundMessageId: string 
         placeholder="Текст ответа…"
         aria-label="Текст ответа"
       />
+      {email && (
+        <>
+          <Input
+            name="cc"
+            disabled={pending}
+            placeholder="Копия: адреса через запятую"
+            aria-label="Копия"
+          />
+          {email.signature && (
+            <pre
+              aria-label="Подпись"
+              className="whitespace-pre-wrap rounded border border-gray-100 bg-gray-50 px-2 py-1 font-sans text-xs text-gray-500"
+            >
+              {email.signature}
+            </pre>
+          )}
+        </>
+      )}
       <div className="flex items-center justify-between gap-2">
         <Button type="submit" size="sm" loading={pending} disabled={pending}>
           Ответить

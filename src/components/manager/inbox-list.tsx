@@ -96,8 +96,19 @@ function DialogLink({ dialogId }: { dialogId: string }) {
  * `Reply-To` на входящий ящик и `In-Reply-To` на письмо клиента, поэтому
  * ответ клиента возвращается в ту же переписку и в кабинет.
  */
-function BoundReplyControl({ item }: { item: InboxItem }) {
-  return <InboxReplyForm inboundMessageId={item.id} />;
+function BoundReplyControl({ item, signature }: { item: InboxItem; signature: string }) {
+  // `У-316`: у письма — «Копия» и подпись; у мессенджеров их нет.
+  return item.channel === 'email' ? (
+    <InboxReplyForm inboundMessageId={item.id} email={{ signature }} />
+  ) : (
+    <InboxReplyForm inboundMessageId={item.id} />
+  );
+}
+
+/** `У-316`: «Копия» письма — кому ещё оно ушло. */
+function CcLine({ item }: { item: InboxItem }) {
+  if (item.ccRecipients.length === 0) return null;
+  return <p className="text-xs text-gray-500">Копия: {item.ccRecipients.join(', ')}</p>;
 }
 
 export function InboxList({
@@ -105,12 +116,15 @@ export function InboxList({
   organizations,
   contactsEnabled = false,
   currentUserId = '',
+  emailSignature = '',
 }: {
   items: InboxItem[];
   organizations: ManagerOrgListRow[];
   contactsEnabled?: boolean;
   /** Этап 7 (ФТ-1.6/7.5): включает «Создать лид»/«Задача» на неразобранных. */
   currentUserId?: string;
+  /** `У-316`: подпись сотрудника для ответа на письмо (видна в форме до отправки). */
+  emailSignature?: string;
 }) {
   if (items.length === 0) {
     return <EmptyState icon="📨" message="Обращений нет" />;
@@ -135,7 +149,8 @@ export function InboxList({
               </Td>
               <Td className="text-gray-700">{item.senderDisplay || item.senderRef}</Td>
               <Td className="max-w-md text-gray-600">
-                {item.subject && <p className="font-medium text-[#111111]">{item.subject}</p>}
+                {item.subject && <p className="font-semibold text-[#111111]">{item.subject}</p>}
+                <CcLine item={item} />
                 <p>{excerpt(item.body)}</p>
                 {item.attachmentName && (
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
@@ -180,7 +195,9 @@ export function InboxList({
                       currentUserId={currentUserId}
                     />
                   )}
-                  {item.status === 'bound' && <BoundReplyControl item={item} />}
+                  {item.status === 'bound' && (
+                    <BoundReplyControl item={item} signature={emailSignature} />
+                  )}
                   {(item.status === 'unresolved' || item.status === 'bound') && (
                     <InboxArchiveButton inboundMessageId={item.id} mode="archive" />
                   )}
@@ -205,7 +222,8 @@ export function InboxList({
               </Badge>
             </div>
             <p className="mt-2 text-sm text-gray-700">{item.senderDisplay || item.senderRef}</p>
-            {item.subject && <p className="text-sm font-medium text-[#111111]">{item.subject}</p>}
+            {item.subject && <p className="text-sm font-semibold text-[#111111]">{item.subject}</p>}
+            <CcLine item={item} />
             <p className="mt-1 text-sm text-gray-600">{excerpt(item.body)}</p>
             {item.attachmentName && (
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
@@ -243,7 +261,9 @@ export function InboxList({
                   currentUserId={currentUserId}
                 />
               )}
-              {item.status === 'bound' && <BoundReplyControl item={item} />}
+              {item.status === 'bound' && (
+                <BoundReplyControl item={item} signature={emailSignature} />
+              )}
               {(item.status === 'unresolved' || item.status === 'bound') && (
                 <InboxArchiveButton inboundMessageId={item.id} mode="archive" />
               )}
