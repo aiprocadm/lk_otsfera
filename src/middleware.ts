@@ -22,6 +22,38 @@ function getJwtSecret() {
   return new TextEncoder().encode(jwtSecret);
 }
 
+/** Имя сайта в шапке: буквы, цифры, точки, дефисы и, может быть, порт. */
+const HOST_RE = /^[a-z0-9.-]+(:\d{1,5})?$/i;
+
+/**
+ * Адрес, по которому пришёл человек, — от шапок посредника.
+ *
+ * За посредником (nginx) Next.js собирает `req.url` на своём внутреннем имени
+ * `localhost:3000`, а схему берёт из `X-Forwarded-Proto`. Перенаправление
+ * `new URL(path, req.url)` выходило `https://localhost:3000/…`, и Next.js не
+ * сокращал его до относительного (схема другая) — живой пользователь уходил
+ * «в никуда» при истёкшей сессии, переходе на «/dashboard» или в чужой кабинет
+ * (найдено сухим прогоном приёмки 17.10.2026). Посредник сам перезаписывает
+ * `Host`/`X-Forwarded-Host`/`X-Forwarded-Proto` — снаружи их не подменить.
+ * Кривое значение — как раньше, от `req.url`.
+ */
+function publicOrigin(req: NextRequest): string | null {
+  const host = (req.headers.get('x-forwarded-host') ?? req.headers.get('host'))
+    ?.split(',')[0]
+    ?.trim();
+  if (!host || !HOST_RE.test(host)) return null;
+  const proto = (
+    req.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() ??
+    req.nextUrl.protocol.replace(/:$/, '')
+  ).toLowerCase();
+  if (proto !== 'http' && proto !== 'https') return null;
+  return `${proto}://${host}`;
+}
+
+function redirectTo(req: NextRequest, path: string): NextResponse {
+  return NextResponse.redirect(new URL(path, publicOrigin(req) ?? req.url));
+}
+
 export async function middleware(req: NextRequest) {
   const token = req.cookies.get('session')?.value;
   const pathname = req.nextUrl.pathname;
@@ -29,13 +61,13 @@ export async function middleware(req: NextRequest) {
 
   if (!token) {
     if (isAuthPage) return NextResponse.next();
-    return NextResponse.redirect(new URL('/login', req.url));
+    return redirectTo(req, '/login');
   }
 
   const secret = getJwtSecret();
   if (!secret) {
     edgeLog.error('[auth] JWT secret is not configured; redirecting to /login');
-    return NextResponse.redirect(new URL('/login', req.url));
+    return redirectTo(req, '/login');
   }
 
   try {
@@ -50,12 +82,12 @@ export async function middleware(req: NextRequest) {
     const home = roleHome[role];
 
     if (isAuthPage) {
-      return NextResponse.redirect(new URL(home, req.url));
+      return redirectTo(req, home);
     }
 
     for (const [prefix, allowedRoles] of Object.entries(protectedPrefixes)) {
       if (pathname.startsWith(prefix) && !allowedRoles.includes(role)) {
-        return NextResponse.redirect(new URL('/forbidden', req.url));
+        return redirectTo(req, '/forbidden');
       }
     }
 
@@ -68,12 +100,12 @@ export async function middleware(req: NextRequest) {
       const isAdminOnly = /^\/partner\/portfolio\/[^/]+\/settings(?:\/|$)/.test(pathname);
 
       if (isAdminOnly && partnerRole !== 'admin') {
-        return NextResponse.redirect(new URL('/forbidden', req.url));
+        return redirectTo(req, '/forbidden');
       }
     }
 
     if (pathname === '/' || pathname === '/dashboard') {
-      return NextResponse.redirect(new URL(home, req.url));
+      return redirectTo(req, home);
     }
 
     // Feature-flag gate: 404 for prefixes whose flag is disabled. Runs after
@@ -88,7 +120,7 @@ export async function middleware(req: NextRequest) {
 
     return NextResponse.next();
   } catch {
-    return NextResponse.redirect(new URL('/login', req.url));
+    return redirectTo(req, '/login');
   }
 }
 

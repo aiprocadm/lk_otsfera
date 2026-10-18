@@ -8,7 +8,8 @@ import { middleware } from '@/middleware';
 function req(pathname: string, token = 'tkn') {
   return {
     url: `https://app.local${pathname}`,
-    nextUrl: { pathname },
+    nextUrl: { pathname, protocol: 'https:' },
+    headers: new Headers(),
     cookies: { get: vi.fn().mockReturnValue({ value: token }) },
   } as any;
 }
