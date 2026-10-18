@@ -90,7 +90,15 @@ async function measure<T>(page: Page, fn: () => T): Promise<T> {
   }
 }
 
-async function expectFitsPhone(page: Page, url: string): Promise<'проверено' | 'недоступно'> {
+/**
+ * `phone` — все правила экрана; `desktop` — только ширина: заголовок и
+ * подзаголовок от ширины не зависят и уже проверены на телефоне.
+ */
+async function expectFitsScreen(
+  page: Page,
+  url: string,
+  screen: 'phone' | 'desktop' = 'phone'
+): Promise<'проверено' | 'недоступно'> {
   const status = await gotoScreen(page, url);
   // Часть разделов — шлюзы: сервер отдаёт страницу, а React уже на клиенте
   // уводит на настоящий экран (`NEXT_REDIRECT` в разметке). Мерить надо ТО,
@@ -123,12 +131,15 @@ async function expectFitsPhone(page: Page, url: string): Promise<'провере
   expect
     .soft(
       pageWidth,
-      `${url} шире экрана: ${pageWidth}px против ${screenWidth}px — браузер уменьшит страницу целиком`
+      screen === 'phone'
+        ? `${url} шире экрана: ${pageWidth}px против ${screenWidth}px — браузер уменьшит страницу целиком`
+        : `${url} шире окна: ${pageWidth}px против ${screenWidth}px — край страницы уехал вправо, её приходится двигать вбок`
     )
     .toBeLessThanOrEqual(screenWidth + 1);
   expect
     .soft(visualWidth, `${url}: браузер уменьшил страницу, чтобы она поместилась`)
     .toBeLessThanOrEqual(screenWidth + 1);
+  if (screen === 'desktop') return 'проверено';
 
   const intro = await measure(page, () => {
     // Ищем по всей странице, а не внутри <main>: в кабинете заказчика экран
@@ -267,7 +278,7 @@ function orgCardTabChecks(cabinet: string, entry: OrgCardEntry): void {
         const href = (await link.first().getAttribute('href')) ?? '';
         const target = new URL(href, `http://stand${card}`);
         const url = `${target.pathname}${target.search}`;
-        const verdict = await expectFitsPhone(page, url);
+        const verdict = await expectFitsScreen(page, url);
         test.skip(
           verdict === 'недоступно',
           `ПРОПУЩЕН: ${url} закрыт этой роли или выключен флагом`
@@ -305,11 +316,26 @@ export function screenRuleChecks(
 
     for (const url of urls) {
       test(`${url}`, async ({ page }) => {
-        const verdict = await expectFitsPhone(page, url);
+        const verdict = await expectFitsScreen(page, url);
         // Пропуск не должен выглядеть как проверка: пишем его в отчёт.
         // Пропуск не должен выглядеть как пройденная проверка: помечаем тест
         // пропущенным — тогда он виден в итоге прогона отдельным счётчиком,
         // а причина стоит рядом.
+        test.skip(verdict === 'недоступно', `${url}: раздел закрыт этой роли или выключен флагом`);
+      });
+    }
+  });
+
+  // Ширина на компьютере (прогон сопровождения №47): замер шёл только на
+  // телефоне, и в «Заказах» менеджера строка фильтров без переноса выталкивала
+  // кнопку «Найти» за правый край окна 1280 — этого не видел ни один страж.
+  test.describe(`Правила экранов (ширина на компьютере): ${cabinet}`, () => {
+    test.skip(({ viewport }) => (viewport?.width ?? 0) < 768, 'только компьютерный вьюпорт');
+    test.describe.configure({ timeout: 120_000 });
+
+    for (const url of urls) {
+      test(`${url}`, async ({ page }) => {
+        const verdict = await expectFitsScreen(page, url, 'desktop');
         test.skip(verdict === 'недоступно', `${url}: раздел закрыт этой роли или выключен флагом`);
       });
     }
