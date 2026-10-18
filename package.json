@@ -129,7 +129,7 @@
     "@prisma/engines@6.19.3": true,
     "@sentry/cli@2.58.6": true,
     "esbuild@0.21.5": true,
-    "esbuild@0.28.0": true,
+    "esbuild@0.28.1": true,
     "msgpackr-extract@3.0.3": true,
     "prisma@6.19.3": true,
     "sharp@0.34.5": true,
