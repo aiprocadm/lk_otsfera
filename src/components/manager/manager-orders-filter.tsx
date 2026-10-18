@@ -66,7 +66,9 @@ export function ManagerOrdersFilter({
     <form
       method="get"
       action={`${basePath}/orders`}
-      className="bg-white border border-gray-200 rounded-xl p-3 flex flex-col md:flex-row md:items-center gap-2"
+      // `md:flex-wrap`: полей до шести (у админа ещё «Компания») — в одну строку
+      // на окне 1280 они не помещались, и «Найти» уезжала за правый край.
+      className="bg-white border border-gray-200 rounded-xl p-3 flex flex-col md:flex-row md:flex-wrap md:items-center gap-2"
     >
       {initial.focus && <input type="hidden" name="focus" value={initial.focus} />}
       <input
@@ -74,7 +76,7 @@ export function ManagerOrdersFilter({
         name="search"
         defaultValue={initial.search ?? ''}
         placeholder="Поиск по названию или номеру заказа…"
-        className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:border-[#F97316]"
+        className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 md:min-w-64 focus:outline-none focus:border-[#F97316]"
       />
 
       <select
