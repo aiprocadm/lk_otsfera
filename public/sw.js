@@ -6,19 +6,27 @@
  *  - Precache app shell + icons on install
  *  - NetworkFirst with cache fallback for /api/partner GET (24h TTL)
  *  - CacheFirst for /_next/static (hashed assets, immutable)
- *  - Stale-while-revalidate for navigation requests (HTML pages)
+ *  - Network-only for navigation requests (HTML pages); offline → cached /login
+ *
+ * Страницы кабинета НЕ кэшируются (v2, 19.10.2026). Прежнее «сначала из кэша,
+ * потом обновить» показывало страницу с прошлого визита: после обновления
+ * стенда человек видел старую версию экрана, а после входа под другой ролью
+ * на том же адресе — страницу ПРЕДЫДУЩЕГО пользователя (кэш различает адрес,
+ * но не того, кто вошёл). Поэтому страница всегда идёт с сервера.
  *
  * Bump CACHE_VERSION whenever this file or precached assets change —
  * old caches are dropped in the activate handler.
  */
 
-const CACHE_VERSION = 'v1';
+// v2: при активации стираются кэши v1 вместе с сохранёнными страницами кабинета.
+const CACHE_VERSION = 'v2';
 const SHELL_CACHE = `otsfera-shell-${CACHE_VERSION}`;
 const STATIC_CACHE = `otsfera-static-${CACHE_VERSION}`;
 const API_CACHE = `otsfera-api-${CACHE_VERSION}`;
 
+// Без '/': он перенаправляет, и при адресе, отличном от публичного, установка
+// службы падала целиком (cache.addAll отвергает весь список).
 const SHELL_ASSETS = [
-  '/',
   '/login',
   '/manifest.webmanifest',
   '/icon-192.png',
@@ -95,16 +103,16 @@ async function networkFirstWithTtl(req, cacheName, ttlMs) {
   }
 }
 
-async function staleWhileRevalidate(req, cacheName) {
-  const cache = await caches.open(cacheName);
-  const cached = await cache.match(req);
-  const network = fetch(req)
-    .then((res) => {
-      if (res.ok) cache.put(req, res.clone());
-      return res;
-    })
-    .catch(() => cached);
-  return cached || network;
+async function networkOnlyNavigation(req) {
+  try {
+    return await fetch(req);
+  } catch (err) {
+    // Нет сети — показываем страницу входа, а не чужую или устаревшую страницу.
+    const cache = await caches.open(SHELL_CACHE);
+    const login = await cache.match('/login');
+    if (login) return login;
+    throw err;
+  }
 }
 
 self.addEventListener('fetch', (event) => {
@@ -122,7 +130,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   if (isNavigation(req)) {
-    event.respondWith(staleWhileRevalidate(req, SHELL_CACHE));
+    event.respondWith(networkOnlyNavigation(req));
     return;
   }
 });
