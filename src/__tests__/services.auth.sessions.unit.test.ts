@@ -13,7 +13,7 @@ const { recordAuditMock, userUpdateMock } = vi.hoisted(() => ({
 
 vi.mock('@/lib/auth/audit', () => ({ recordAudit: recordAuditMock }));
 
-import { revokeAllSessions } from '@/lib/services/auth/sessions';
+import { endSessionOnLogout, revokeAllSessions } from '@/lib/services/auth/sessions';
 import type { SessionPayload } from '@/lib/auth/jwt';
 
 const prisma = { user: { update: userUpdateMock } } as never;
@@ -53,5 +53,21 @@ describe('revokeAllSessions', () => {
     recordAuditMock.mockRejectedValue(new Error('audit down'));
 
     expect(await revokeAllSessions(prisma, { sub: 'u1', role: 'admin' })).toEqual({ ok: true });
+  });
+});
+
+// `У-324` (ТЗ 28.10.2026, ДП §1 п. 5): выход отзывает токен — украденный до
+// выхода токен после него не принимается `getSession` (версия разошлась).
+describe('endSessionOnLogout', () => {
+  it('инкрементит sessionVersion своего пользователя и пишет аудит logout', async () => {
+    expect(await endSessionOnLogout(prisma, { sub: 'u3', role: 'student' })).toEqual({ ok: true });
+    expect(userUpdateMock).toHaveBeenCalledWith({
+      where: { id: 'u3' },
+      data: { sessionVersion: { increment: 1 } },
+    });
+    expect(recordAuditMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ userId: 'u3', action: 'logout', entity: 'user', entityId: 'u3' })
+    );
   });
 });

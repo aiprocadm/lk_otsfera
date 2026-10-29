@@ -72,6 +72,10 @@ export async function middleware(req: NextRequest) {
 
   try {
     const { payload } = await jwtVerify(token, secret);
+    // `У-323` (ТЗ 28.10.2026, ДП §1 п. 4): у токена сессии ЛК нет `aud`.
+    // Токен с адресатом выдан кому-то другому (мост учебной площадки) — даже
+    // если подпись сошлась, кабинет он не открывает. Зеркало — `verifyToken`.
+    if (payload.aud !== undefined) throw new Error('foreign token audience');
     const role = payload.role as Role;
 
     // Дом роли. Руководитель попадает в свой кабинет: роль говорит сама за

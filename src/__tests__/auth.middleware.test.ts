@@ -45,6 +45,19 @@ describe('auth middleware', () => {
     expect(res.url).toBe('');
   });
 
+  // `У-323` (ТЗ 28.10.2026): токен с адресатом (мост учебной площадки) не
+  // открывает кабинет, даже если подпись сошлась.
+  it('токен с aud (мост учебной площадки) → /login, а не кабинет слушателя', async () => {
+    vi.mocked(jwtVerify).mockResolvedValue({
+      payload: { role: 'student', aud: 'external-student-portal' },
+    } as any);
+
+    const res = await middleware(req('/student', 'tkn'));
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe('https://app.local/login');
+  });
+
   it('redirects authenticated user from / and /dashboard to role home', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({ payload: { role: 'organization' } } as any);
 

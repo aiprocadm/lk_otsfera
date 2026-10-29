@@ -46,6 +46,12 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      # `У-322` (ТЗ 28.10.2026, ДП §1 п. 2): без антивируса загруженный файл
+      # навсегда остаётся `pending`, а скачивание блокирует только `infected` —
+      # проверка фактически выключена. Воркер стартует, когда базы сигнатур
+      # загружены (CLAMAV_HOST=clamav, CLAMAV_PORT=3310 в .env.production).
+      clamav:
+        condition: service_healthy
     # R1.1: без override воркер наследует HTTP-healthcheck образа (порт 3000),
     # который у него никогда не отвечает → вечный unhealthy (ложный сигнал).
     # Честный liveness — свежесть heartbeat-файла (voркер трогает его каждые
@@ -62,6 +68,20 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+    restart: unless-stopped
+
+  # `У-322`: антивирус для `docs.scanDocument`. Занимает 2–3 ГБ памяти — VM
+  # прода от 6 ГБ. Базы сигнатур при первом старте грузятся несколько минут,
+  # поэтому у проверки здоровья длинный стартовый период.
+  clamav:
+    image: clamav/clamav:1.4
+    volumes: ['clamdb:/var/lib/clamav']
+    healthcheck:
+      test: ['CMD', 'clamdcheck.sh']
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 300s
     restart: unless-stopped
 
   redis:
@@ -88,5 +108,6 @@ services:
 
 volumes:
   redisdata:
+  clamdb:
   caddy_data:
   caddy_config:

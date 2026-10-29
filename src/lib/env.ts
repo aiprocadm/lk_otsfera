@@ -82,13 +82,13 @@ const productionEnvSchema = z
     S3_ACCESS_KEY_ID: s3Credential(),
     S3_SECRET_ACCESS_KEY: s3Credential(),
     S3_BUCKET: requiredNonEmpty('обязательна в production'),
-    /** Опционален (fallback на JWT_SECRET), но если задан — те же требования. */
-    STUDENT_BRIDGE_JWT_SECRET: z
-      .string()
-      .trim()
-      .min(32, 'минимум 32 символа(ов)')
-      .refine(notPlaceholder, PLACEHOLDER_MSG)
-      .optional(),
+    /**
+     * `У-323` (ТЗ 28.10.2026, ДП §1 п. 4): обязателен в production. Прежний
+     * запасной путь «нет своего — подписываем JWT_SECRET» выдавал учебной
+     * площадке токен, подписанный ключом сессий ЛК. Совпадать с JWT_SECRET
+     * тоже нельзя — проверка в superRefine ниже.
+     */
+    STUDENT_BRIDGE_JWT_SECRET: requiredSecret(32),
     // Ключи ниже сами по себе опциональны — условия в superRefine.
     ONE_C_ADAPTER: optionalStr,
     ONE_C_API_URL: optionalStr,
@@ -105,6 +105,14 @@ const productionEnvSchema = z
     SHOW_DEMO_LOGINS: optionalStr,
   })
   .superRefine((env, ctx) => {
+    if (env.STUDENT_BRIDGE_JWT_SECRET.trim() === env.JWT_SECRET.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['STUDENT_BRIDGE_JWT_SECRET'],
+        message: 'не должна совпадать с JWT_SECRET (ключ моста ≠ ключ сессий)',
+      });
+    }
+
     const requireIf = (cond: boolean, key: keyof typeof env, message: string) => {
       if (cond && !env[key]?.trim()) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message });

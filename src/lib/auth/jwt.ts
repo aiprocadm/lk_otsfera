@@ -184,6 +184,11 @@ export async function signStudentBridgeToken(payload: StudentBridgePayload) {
 
 export async function verifyToken(token: string): Promise<SessionPayload> {
   const { payload } = await jwtVerify(token, getJwtSecret());
+  // `У-323` (ТЗ 28.10.2026, ДП §1 п. 4): `signToken` не ставит `aud`, а токен
+  // моста учебной площадки — ставит. Без этой проверки токен, выданный
+  // площадке, открывал кабинет слушателя, если мост подписан тем же ключом
+  // (запасной путь `getStudentBridgeSecret` вне production). Зеркало — middleware.
+  if (payload.aud !== undefined) throw new Error('foreign token audience');
   return sessionPayloadSchema.parse(payload) as SessionPayload;
 }
 

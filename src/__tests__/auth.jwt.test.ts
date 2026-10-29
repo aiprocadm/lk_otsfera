@@ -273,6 +273,19 @@ describe('signToken + verifyToken', () => {
     process.env.JWT_SECRET = 'c'.repeat(32);
     await expect(verifyToken(token)).rejects.toThrow();
   });
+
+  // `У-323` (ТЗ 28.10.2026, ДП §1 п. 4): токен, выданный учебной площадке, не
+  // открывает кабинет ЛК даже при общем ключе подписи (запасной путь моста).
+  it('verifyToken отвергает токен моста учебной площадки, подписанный ключом сессий', async () => {
+    delete process.env.STUDENT_BRIDGE_JWT_SECRET; // мост подписывается JWT_SECRET
+    const { token } = await signStudentBridgeToken({
+      sub: 'stu-1',
+      role: 'student',
+      organizationId: null,
+      externalStudentId: null,
+    });
+    await expect(verifyToken(token)).rejects.toThrow('foreign token audience');
+  });
 });
 
 // ---------------------------------------------------------------------------

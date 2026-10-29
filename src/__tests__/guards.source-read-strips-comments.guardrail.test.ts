@@ -85,7 +85,19 @@ const READS_NOT_CODE = new Set(['prisma.migrations-plain-sql']);
  * вызове действует ровно на тот вызов. Поменяет кто-нибудь чтение `README.md`
  * на чтение `access.ts` — страж снова станет нарушителем, как и должен.
  */
-const NOT_CODE = ['.md', '.env', '.prisma', '.sql', 'package.json', 'package-lock', 'snapshots'];
+// `.yml` (ТЗ 28.10.2026, `У-322`): у YAML комментарий — `#`, а снятие `//`
+// съело бы `http://…` в проверках здоровья compose. Страж compose снимает `#`
+// сам (`infra.compose-prod.guardrail`).
+const NOT_CODE = [
+  '.md',
+  '.env',
+  '.prisma',
+  '.sql',
+  '.yml',
+  'package.json',
+  'package-lock',
+  'snapshots',
+];
 
 const TESTS_DIR = __dirname;
 const name = (file: string) => file.replace('.guardrail.test.ts', '');

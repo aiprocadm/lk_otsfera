@@ -187,8 +187,8 @@
 
 | Вердикт | Кол-во |
 |---|---|
-| `✅` соответствует | **316** |
-| `⏳` запланировано | **66** |
+| `✅` соответствует | **320** |
+| `⏳` запланировано | **62** |
 | `❌` расхождение | 0 |
 | `⚠` вне объёма | 1 (см. раздел ниже) — расхождение в тексте ТЗ понятности (чинить нечего); карточка организации у администратора мимо реестра вкладок закрыта 05.09.2026 (этап 9, PR-1) |
 
@@ -226,10 +226,10 @@
 | Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
 |---|---|---|---|---|
 | `У-321` | `nodemailer` обновлён до версии без известных уязвимостей (мажор), заодно подняты `@sentry/*`; `npm run audit:prod` — 0 high, 0 critical; отправка писем и разбор входящей почты (`mailparser`) проходят свои тесты | [ТЗ §4](2026-10-28-tz-leader-customer-release.md) | ⏳ этап 1 | — |
-| `У-322` | В `docker-compose.prod.yml` есть сервис `clamav` (образ `clamav/clamav:1.4`, том `clamdb`, проверка здоровья `clamdcheck.sh` со стартовым периодом 300 с, `restart: unless-stopped`); `worker` ждёт его здоровья. Загруженный файл перестаёт навсегда висеть в… | [docker-compose.prod.yml](../../docker-compose.prod.yml) | ⏳ этап 1 | — |
-| `У-323` | Сессия ЛК не принимает токен моста слушателя: `verifyToken`/`getSession` отвергают токен с `aud`; в production приложение не стартует без `STUDENT_BRIDGE_JWT_SECRET` и при его совпадении с `JWT_SECRET`. Страж — токен портала с подписью сессионным ключом не… | [ТЗ §4](2026-10-28-tz-leader-customer-release.md) | ⏳ этап 1 | — |
-| `У-324` | Выход из кабинета отзывает токен: `sessionVersion` пользователя растёт при выходе, украденный до выхода токен после него не работает; уже выданные токены без клейма продолжают читаться как версия 0 | [ТЗ §4](2026-10-28-tz-leader-customer-release.md) | ⏳ этап 1 | — |
-| `У-325` | Лимит попыток входа считается и по учётной записи, а не только по IP: подбор пароля одной учётной записи с многих адресов останавливается; сообщение человеку — на русском, с временем до следующей попытки | [ТЗ §4](2026-10-28-tz-leader-customer-release.md) | ⏳ этап 1 | — |
+| `У-322` | `docker-compose.prod.yml`: сервис `clamav` с проверкой здоровья и томом `clamdb`, `worker` ждёт `service_healthy`; в `.env.production.example` `CLAMAV_HOST=clamav` | [docker-compose.prod.yml](../../docker-compose.prod.yml) + страж [infra.compose-prod.guardrail](../../src/__tests__/infra.compose-prod.guardrail.test.ts) (мутация «воркер не ждёт» → падает) | ✅ | 28.10.2026 |
+| `У-323` | Токен с `aud` (мост площадки) не открывает кабинет ни через `getSession`, ни через middleware; production без `STUDENT_BRIDGE_JWT_SECRET` или с равным `JWT_SECRET` не стартует | [jwt.ts](../../src/lib/auth/jwt.ts) `verifyToken`, [middleware.ts](../../src/middleware.ts), [env.ts](../../src/lib/env.ts); тесты `auth.jwt`, `auth.middleware`, `env.validate` (три мутации → падают) | ✅ | 28.10.2026 |
+| `У-324` | `POST /api/auth/logout` при живой сессии увеличивает `sessionVersion` (старый токен перестаёт приниматься `getSession`), пишет аудит `logout`; сбой базы не мешает стереть cookie | [logout/route.ts](../../src/app/api/auth/logout/route.ts) → `endSessionOnLogout` ([sessions.ts](../../src/lib/services/auth/sessions.ts)); тесты `api.auth.logout`, `services.auth.sessions.unit` (мутация → падает) | ✅ | 28.10.2026 |
+| `У-325` | 21-я попытка входа в одну запись с 21-го адреса → 429 `ACCOUNT_TOO_MANY_ATTEMPTS`, `Retry-After`, форма называет срок; регистр адреса счётчик не обходит; ключ в Redis — отпечаток адреса; предел и окно — в «Политиках входа» | [login/route.ts](../../src/app/api/auth/login/route.ts) `accountLimitKey`, [loginPolicyFields.ts](../../src/lib/auth/loginPolicyFields.ts); тесты `auth.login.ratelimit`, `config.login-sla.guardrail` (мутация регистра → падает) | ✅ | 28.10.2026 |
 
 ## Блок ТР-2. Дефекты из отчёта тестировщика — этап 2
 

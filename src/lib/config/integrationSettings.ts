@@ -217,6 +217,18 @@ export const SETTING_SPECS = {
     envVar: 'LOGIN_RATE_LIMIT_MAX',
     isSecret: false,
   },
+  // `У-325` (ТЗ 28.10.2026, ДП §1 п. 6): второй счётчик — по учётной записи.
+  // Переменной окружения у него не было и нет.
+  'login.accountRateLimitMax': {
+    key: 'login.accountRateLimitMax',
+    envVar: null,
+    isSecret: false,
+  },
+  'login.accountRateLimitWindowMs': {
+    key: 'login.accountRateLimitWindowMs',
+    envVar: null,
+    isSecret: false,
+  },
   'login.inviteTtlDays': {
     key: 'login.inviteTtlDays',
     envVar: 'INVITE_TOKEN_TTL_DAYS',

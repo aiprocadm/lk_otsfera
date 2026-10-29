@@ -199,6 +199,9 @@ export const AUDIT_ACTIONS = [
   'lead_rejected',
   'lead_status_changed',
   'login',
+  // `У-324` (ТЗ 28.10.2026): выход отзывает токен — событие отдельно от
+  // «завершить все сессии», хотя механизм тот же (`sessionVersion`).
+  'logout',
   'manager_assigned',
   'manager_deactivated',
   'manager_reactivated',

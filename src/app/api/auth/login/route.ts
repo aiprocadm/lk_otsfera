@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import * as React from 'react';
@@ -41,17 +42,38 @@ const loginSchema = z.object({
  * а не один раз при загрузке модуля: иначе правка подействовала бы только
  * после перезапуска — ровно та беда, которую этап и чинит.
  */
-function loginLimits(): { windowMs: number; maxAttempts: number } {
+function loginLimits(): {
+  windowMs: number;
+  maxAttempts: number;
+  accountWindowMs: number;
+  accountMaxAttempts: number;
+} {
   const windowMs = Number(
     cachedIntegrationSetting('login.rateLimitWindowMs') ?? process.env.LOGIN_RATE_LIMIT_WINDOW_MS
   );
   const maxAttempts = Number(
     cachedIntegrationSetting('login.rateLimitMax') ?? process.env.LOGIN_RATE_LIMIT_MAX
   );
+  // `У-325` (ТЗ 28.10.2026, ДП §1 п. 6): второй счётчик — по учётной записи.
+  // Счётчик по IP не мешает подбирать пароль одной записи со многих адресов.
+  const accountWindowMs = Number(cachedIntegrationSetting('login.accountRateLimitWindowMs'));
+  const accountMaxAttempts = Number(cachedIntegrationSetting('login.accountRateLimitMax'));
   return {
     windowMs: Number.isFinite(windowMs) && windowMs > 0 ? windowMs : 60_000,
     maxAttempts: Number.isFinite(maxAttempts) && maxAttempts > 0 ? maxAttempts : 10,
+    accountWindowMs:
+      Number.isFinite(accountWindowMs) && accountWindowMs > 0 ? accountWindowMs : 900_000,
+    accountMaxAttempts:
+      Number.isFinite(accountMaxAttempts) && accountMaxAttempts > 0 ? accountMaxAttempts : 20,
   };
+}
+
+/**
+ * Ключ счётчика по учётной записи. В Redis уходит отпечаток адреса, а не сам
+ * адрес: ключи лимитера видны любому, кто смотрит Redis, а e-mail — ПДн.
+ */
+function accountLimitKey(email: string): string {
+  return `login:acct:${createHash('sha256').update(email.trim().toLowerCase()).digest('hex')}`;
 }
 
 // Общий Redis-backed лимитер (@/lib/rateLimit): счётчик делится между всеми
@@ -66,7 +88,7 @@ export async function POST(req: Request) {
   // `У-129`: лимиты живут в базе — снапшот настроек нужен ДО первой проверки.
   // Вход происходит до всякой сессии, праймить его больше некому (`У-133`).
   await primeIntegrationSettingsCache(prisma);
-  const { windowMs, maxAttempts } = loginLimits();
+  const { windowMs, maxAttempts, accountWindowMs, accountMaxAttempts } = loginLimits();
 
   if (await isRateLimited(`login:${ip}`, { windowMs, max: maxAttempts })) {
     return NextResponse.json(
@@ -94,6 +116,26 @@ export async function POST(req: Request) {
   }
 
   const { email, password } = parsed.data;
+
+  // Считается каждая попытка, как и по IP: проверка идёт до пароля, иначе
+  // счётчик выдавал бы, существует ли запись. Сознательная цена — чужие
+  // попытки на время окна закрывают вход и владельцу записи; ему остаётся
+  // «Забыли пароль?», а окно настраивается в «Политиках входа».
+  if (
+    await isRateLimited(accountLimitKey(email), {
+      windowMs: accountWindowMs,
+      max: accountMaxAttempts,
+    })
+  ) {
+    return NextResponse.json(
+      {
+        code: 'ACCOUNT_TOO_MANY_ATTEMPTS',
+        message: 'Too many login attempts for this account. Try again later.',
+        retryAfterMinutes: Math.ceil(accountWindowMs / 60_000),
+      },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(accountWindowMs / 1000)) } }
+    );
+  }
 
   // Проверка пары email+пароль целиком за сервисом: там же и DUMMY-хеш, и
   // порядок веток, от которых зависит невозможность перечислить e-mail
