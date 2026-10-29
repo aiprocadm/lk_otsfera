@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readSource } from './helpers/source';
 import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
@@ -46,7 +46,9 @@ function loadWorker() {
     skipWaiting: async () => undefined,
     clients: { claim: async () => undefined },
   };
-  const source = readFileSync(path.join(process.cwd(), 'public/sw.js'), 'utf8');
+  // Через `readSource`: исполняется код без комментариев — закомментированная
+  // строка службы не должна «работать» в тесте (страж `guards.source-read-strips-comments`).
+  const source = readSource(path.join(process.cwd(), 'public/sw.js'));
   vm.runInNewContext(source, {
     self,
     caches,

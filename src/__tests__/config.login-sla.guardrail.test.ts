@@ -27,11 +27,14 @@ describe('У-129: политики входа настраиваются из и
     'login.backupCodesCount',
     'login.rateLimitMax',
     'login.rateLimitWindowMs',
+    // `У-325` (ТЗ 28.10.2026): счётчик попыток по учётной записи.
+    'login.accountRateLimitMax',
+    'login.accountRateLimitWindowMs',
     'login.inviteTtlDays',
     'login.resetTtlHours',
   ];
 
-  it('все семь параметров есть в реестре настроек', () => {
+  it('все девять параметров есть в реестре настроек', () => {
     expect(
       LOGIN_POLICY_FIELDS.map((f) => f.key).sort(),
       'набор политик входа разошёлся с У-129'
@@ -52,6 +55,8 @@ describe('У-129: политики входа настраиваются из и
       'login.twoFactorCodeTtlMinutes',
       'login.twoFactorMaxAttempts',
       'login.backupCodesCount',
+      'login.accountRateLimitMax',
+      'login.accountRateLimitWindowMs',
     ]) {
       expect(SETTING_SPECS[key as keyof typeof SETTING_SPECS].envVar, key).toBeNull();
     }

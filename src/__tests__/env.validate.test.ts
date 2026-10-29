@@ -12,6 +12,7 @@ function validEnv(overrides: Record<string, string | undefined> = {}): NodeJS.Pr
     DATABASE_URL: 'postgresql://u:p@host:5432/cabinet',
     APP_URL: 'https://lk.example.ru',
     JWT_SECRET: 'a'.repeat(32),
+    STUDENT_BRIDGE_JWT_SECRET: 'b'.repeat(32),
     HEALTH_TOKEN: 'h'.repeat(40),
     // `У-132`: мастер-ключ секретов интеграций обязателен в production —
     // сервер, на котором интеграции нельзя настроить, не поднимается.
@@ -99,9 +100,17 @@ describe('validateProductionEnv — базовый набор', () => {
   });
 });
 
-describe('validateProductionEnv — STUDENT_BRIDGE_JWT_SECRET (опционален с требованиями)', () => {
-  it('не задан → ok (fallback на JWT_SECRET)', () => {
-    expect(validateProductionEnv(validEnv()).ok).toBe(true);
+describe('validateProductionEnv — STUDENT_BRIDGE_JWT_SECRET (обязателен, `У-323`)', () => {
+  it('не задан → issue: без своего ключа мост подписывался бы ключом сессий', () => {
+    expect(issuesFor({ STUDENT_BRIDGE_JWT_SECRET: undefined }).join('\n')).toContain(
+      'STUDENT_BRIDGE_JWT_SECRET'
+    );
+  });
+
+  it('совпадает с JWT_SECRET → issue', () => {
+    expect(issuesFor({ STUDENT_BRIDGE_JWT_SECRET: 'a'.repeat(32) }).join('\n')).toContain(
+      'не должна совпадать с JWT_SECRET'
+    );
   });
 
   it('задан коротким → issue', () => {

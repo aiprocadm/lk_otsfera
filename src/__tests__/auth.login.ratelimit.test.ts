@@ -109,14 +109,14 @@ describe('предел попыток входа: настройка и запа
     const ip = '192.0.2.11';
 
     for (let i = 0; i < 2; i++) {
-      expect((await POST(makeReq({ email: 'admin@example.com', password: 'x' }, ip))).status).toBe(
-        200
-      );
+      expect(
+        (await POST(makeReq({ email: `admin+${ip}@example.com`, password: 'x' }, ip))).status
+      ).toBe(200);
     }
 
-    expect((await POST(makeReq({ email: 'admin@example.com', password: 'x' }, ip))).status).toBe(
-      429
-    );
+    expect(
+      (await POST(makeReq({ email: `admin+${ip}@example.com`, password: 'x' }, ip))).status
+    ).toBe(429);
   });
 
   it.each([
@@ -130,9 +130,9 @@ describe('предел попыток входа: настройка и запа
     // При «нуле как пределе» уже первый запрос дал бы 429, при `NaN` —
     // никогда. Умолчание 10 означает: третий запрос ещё проходит.
     for (let i = 0; i < 3; i++) {
-      expect((await POST(makeReq({ email: 'admin@example.com', password: 'x' }, ip))).status).toBe(
-        200
-      );
+      expect(
+        (await POST(makeReq({ email: `admin+${ip}@example.com`, password: 'x' }, ip))).status
+      ).toBe(200);
     }
   });
 
@@ -140,8 +140,49 @@ describe('предел попыток входа: настройка и запа
     process.env.LOGIN_RATE_LIMIT_WINDOW_MS = 'полчаса';
     const ip = '192.0.2.40';
 
-    expect((await POST(makeReq({ email: 'admin@example.com', password: 'x' }, ip))).status).toBe(
-      200
+    expect(
+      (await POST(makeReq({ email: `admin+${ip}@example.com`, password: 'x' }, ip))).status
+    ).toBe(200);
+  });
+});
+
+/**
+ * `У-325` (ТЗ 28.10.2026, ДП §1 п. 6): подбор пароля одной учётной записи со
+ * многих адресов упирается в счётчик по записи, а не только по IP.
+ */
+describe('предел попыток входа в одну учётную запись', () => {
+  beforeEach(() => {
+    compare.mockResolvedValue(false);
+    findUnique.mockResolvedValue(adminUser);
+    updateUser.mockResolvedValue({});
+  });
+
+  it('21-я попытка с 21-го адреса — 429 с кодом записи и сроком', async () => {
+    for (let i = 0; i < 20; i++) {
+      const res = await POST(
+        makeReq({ email: 'victim@example.com', password: 'x' }, `198.51.100.${i}`)
+      );
+      expect(res.status, `попытка ${i + 1} ещё не упирается в предел`).toBe(401);
+    }
+
+    const res = await POST(
+      makeReq({ email: 'victim@example.com', password: 'x' }, '198.51.100.250')
     );
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get('retry-after')).toBe('900');
+    const body = await res.json();
+    expect(body).toMatchObject({ code: 'ACCOUNT_TOO_MANY_ATTEMPTS', retryAfterMinutes: 15 });
+  });
+
+  it('регистр букв в адресе не даёт обойти счётчик', async () => {
+    for (let i = 0; i < 20; i++) {
+      const email = i % 2 === 0 ? 'Target@Example.com' : 'target@example.com';
+      await POST(makeReq({ email, password: 'x' }, `203.0.113.${i}`));
+    }
+    const res = await POST(
+      makeReq({ email: 'TARGET@EXAMPLE.COM', password: 'x' }, '203.0.113.200')
+    );
+    expect(res.status).toBe(429);
   });
 });

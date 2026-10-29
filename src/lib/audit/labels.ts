@@ -123,6 +123,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   lead_rejected: 'Отклонение заявки',
   lead_status_changed: 'Смена статуса заявки',
   login: 'Вход в систему',
+  logout: 'Выход из системы',
   manager_assigned: 'Назначение менеджера',
   manager_deactivated: 'Отключение менеджера',
   manager_reactivated: 'Возврат менеджера в работу',

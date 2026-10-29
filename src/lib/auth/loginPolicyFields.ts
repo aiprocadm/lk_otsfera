@@ -62,6 +62,24 @@ export const LOGIN_POLICY_FIELDS: Array<{
     min: 10_000,
     max: 3_600_000,
   },
+  // `У-325`: подбор пароля одной учётной записи с многих адресов не упирается
+  // в счётчик по IP. Окно шире: обычный человек столько раз не ошибается.
+  {
+    field: 'login_accountRateLimitMax',
+    key: 'login.accountRateLimitMax',
+    label: 'Попыток входа в одну учётную запись за окно',
+    hint: 'по умолчанию 20',
+    min: 5,
+    max: 200,
+  },
+  {
+    field: 'login_accountRateLimitWindowMs',
+    key: 'login.accountRateLimitWindowMs',
+    label: 'Окно подсчёта попыток по учётной записи, мс',
+    hint: 'по умолчанию 900000 (15 минут)',
+    min: 60_000,
+    max: 86_400_000,
+  },
   {
     field: 'login_inviteTtlDays',
     key: 'login.inviteTtlDays',

@@ -65,7 +65,14 @@ export function LoginForm({ demoLogins }: { demoLogins?: DemoLogin[] | undefined
           typeof (data as { code?: unknown })?.code === 'string'
             ? (data as { code: string }).code
             : '';
-        setError(errorMessageRu(code.toLowerCase(), 'Неверный email или пароль.'));
+        const minutes = (data as { retryAfterMinutes?: unknown })?.retryAfterMinutes;
+        setError(
+          // `У-325`: блокировка по учётной записи называет срок — иначе человек
+          // жмёт «Войти» снова и продлевает окно.
+          code === 'ACCOUNT_TOO_MANY_ATTEMPTS' && typeof minutes === 'number'
+            ? `Слишком много попыток входа в эту учётную запись. Попробуйте не раньше чем через ${minutes} мин. или восстановите пароль.`
+            : errorMessageRu(code.toLowerCase(), 'Неверный email или пароль.')
+        );
       }
     } catch {
       setError('Ошибка сети. Попробуйте ещё раз.');
