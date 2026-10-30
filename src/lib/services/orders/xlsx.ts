@@ -9,6 +9,7 @@ import {
   styleHeader,
   textOrDash,
 } from '@/lib/services/export/xlsx';
+import { executionStatusRu, financialStatusRu } from '@/lib/i18n/labels';
 
 /**
  * Xlsx-рендерер списка заказов сотрудника (этап 9 PR-3, ФТ-12.2). Правила
@@ -16,31 +17,6 @@ import {
  * что и экран (RBAC-скоуп и фильтры — забота роута), лимит строк, защита от
  * формула-инъекций.
  */
-
-const EXECUTION_RU: Record<string, string> = {
-  pending: 'Новый',
-  in_progress: 'В работе',
-  completed: 'Завершён',
-  cancelled: 'Отменён',
-  on_hold: 'Приостановлен',
-};
-
-const FINANCIAL_RU: Record<string, string> = {
-  not_billed: 'Не выставлен',
-  billed: 'Выставлен',
-  partially_paid: 'Частично оплачен',
-  paid: 'Оплачен',
-  refunded: 'Возврат',
-};
-
-/** Коды приходят из БД-энамов, но fallback на код держим (как в i18n/labels.ts). */
-function executionRu(code: string): string {
-  return EXECUTION_RU[code] ?? code;
-}
-
-function financialRu(code: string): string {
-  return FINANCIAL_RU[code] ?? code;
-}
 
 export function renderOrdersXlsx(args: {
   rows: ManagerOrderRow[];
@@ -76,8 +52,8 @@ export function renderOrdersXlsx(args: {
       title: safeText(o.title),
       organization: safeText(o.organization.name),
       manager: textOrDash(o.manager?.name ?? o.manager?.email ?? null),
-      executionStatus: executionRu(o.executionStatus),
-      financialStatus: financialRu(o.financialStatus),
+      executionStatus: executionStatusRu(o.executionStatus),
+      financialStatus: financialStatusRu(o.financialStatus),
       total: total.toFixed(2),
       paid: paid.toFixed(2),
       outstanding: total.minus(paid).toFixed(2),

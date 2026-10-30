@@ -17,6 +17,8 @@ import { OrgDialogsSection } from '@/components/manager/org-dialogs-section';
 import { LeadStatusBadge } from '@/components/partner/lead-status-badge';
 import { clientRequestStatusLabel } from '@/lib/services/clientRequests/labels';
 import { enrollmentStatusLabel } from '@/lib/services/enrollments/labels';
+import { documentDirectionRu, executionStatusRu, financialStatusRu } from '@/lib/i18n/labels';
+import { documentTypeLabelRu } from '@/lib/documents/fileName';
 import { orgCardTiles } from '@/lib/navigation/orgCardTiles';
 import type { OrgCardTabKey } from '@/lib/navigation/orgCardTabs';
 import type { OrganizationCard, OrgCardListKey } from '@/lib/services/manager/organizationCard';
@@ -456,10 +458,10 @@ function OrdersSection({ orders }: { orders: OrganizationCard['orders'] }) {
             <Td>{o.orderNumber ?? '—'}</Td>
             <Td className="font-medium">{o.title}</Td>
             <Td>
-              <Badge tone="neutral">{o.executionStatus}</Badge>
+              <Badge tone="neutral">{executionStatusRu(o.executionStatus)}</Badge>
             </Td>
             <Td>
-              <Badge tone="neutral">{o.financialStatus}</Badge>
+              <Badge tone="neutral">{financialStatusRu(o.financialStatus)}</Badge>
             </Td>
             <Td>{money(o.totalAmount)}</Td>
             <Td>{money(o.paidAmount)}</Td>
@@ -484,8 +486,8 @@ function DocumentsSection({ documents }: { documents: OrganizationCard['document
         {documents.map((d) => (
           <Tr key={d.id}>
             <Td className="font-medium">{d.name}</Td>
-            <Td>{d.type}</Td>
-            <Td>{d.direction}</Td>
+            <Td>{documentTypeLabelRu(d.type)}</Td>
+            <Td>{documentDirectionRu(d.direction)}</Td>
             <Td>{fmtDate(d.createdAt)}</Td>
           </Tr>
         ))}

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { orderTypeRu, paymentMethodRu } from '@/lib/i18n/labels';
+import {
+  documentDirectionRu,
+  executionStatusRu,
+  financialStatusRu,
+  orderTypeRu,
+  paymentMethodRu,
+} from '@/lib/i18n/labels';
 
 describe('orderTypeRu', () => {
   it('переводит известные коды', () => {
@@ -24,5 +30,22 @@ describe('paymentMethodRu', () => {
   });
   it('неизвестный код как есть', () => {
     expect(paymentMethodRu('crypto')).toBe('crypto');
+  });
+});
+
+// `У-328`: статусы заказа и направление документа — один источник подписей.
+describe('executionStatusRu / financialStatusRu / documentDirectionRu', () => {
+  it('переводят значения перечислений', () => {
+    expect(executionStatusRu('pending')).toBe('Ожидает старта');
+    expect(executionStatusRu('on_hold')).toBe('На паузе');
+    expect(financialStatusRu('not_billed')).toBe('Счёт не выставлен');
+    expect(financialStatusRu('partially_paid')).toBe('Частично оплачен');
+    expect(documentDirectionRu('incoming')).toBe('Входящий');
+    expect(documentDirectionRu('outgoing')).toBe('Исходящий');
+  });
+  it('незнакомое значение показывают как есть (не падают)', () => {
+    expect(executionStatusRu('archived')).toBe('archived');
+    expect(financialStatusRu('written_off')).toBe('written_off');
+    expect(documentDirectionRu('internal')).toBe('internal');
   });
 });

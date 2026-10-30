@@ -60,7 +60,9 @@ describe('quickTasksFor (У-71)', () => {
       // считаем её живой, если она начинается с известного пункта меню.
       const known = navByRole[role].map((i) => i.href);
       for (const t of quickTasksFor(role)) {
-        const ok = known.some((href) => t.href === href || t.href.startsWith(`${href}/`));
+        // `?tab=` — вкладка внутри раздела (`У-327`), а не другой раздел.
+        const path = t.href.split('?')[0] ?? t.href;
+        const ok = known.some((href) => path === href || path.startsWith(`${href}/`));
         expect(ok, `${role}: плитка ${t.href} не соответствует ни одному пункту меню`).toBe(true);
       }
     }

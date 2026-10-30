@@ -172,8 +172,10 @@ describe('OrgCardTabs — orders section', () => {
     );
     expect(html).toContain('A-1');
     expect(html).toContain('Заказ X');
-    expect(html).toContain('in_progress');
-    expect(html).toContain('billed');
+    // `У-328`: статусы по-русски, а не кодами базы.
+    expect(html).toContain('В работе');
+    expect(html).toContain('Счёт выставлен');
+    expect(html).not.toContain('>in_progress<');
     expect(html).toContain('1000.00 ₽');
     expect(html).toContain('500.00 ₽');
   });
@@ -280,7 +282,7 @@ describe('OrgCardTabs — documents section', () => {
           id: 'd1',
           name: 'Договор.pdf',
           type: 'contract',
-          direction: 'to_organization',
+          direction: 'outgoing',
           createdAt: new Date('2026-02-01'),
         },
       ],
@@ -289,8 +291,10 @@ describe('OrgCardTabs — documents section', () => {
       React.createElement(OrgCardTabs, { card, activeTab: 'documents', tabs: MANAGER_TABS })
     );
     expect(html).toContain('Договор.pdf');
-    expect(html).toContain('contract');
-    expect(html).toContain('to_organization');
+    // `У-328`: тип и направление по-русски.
+    expect(html).toContain('Договор');
+    expect(html).toContain('Исходящий');
+    expect(html).not.toContain('>contract<');
   });
 });
 
