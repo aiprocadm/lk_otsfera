@@ -58,9 +58,9 @@ export const OneCOrgSchema = z.object({
  */
 export const OneCOrgFileSchema = OneCOrgSchema.superRefine((org, ctx) => {
   if (!org.inn) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'no_inn' });
+    ctx.addIssue({ code: 'custom', message: 'no_inn' });
   } else if (!isValidInn(org.inn)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'bad_inn' });
+    ctx.addIssue({ code: 'custom', message: 'bad_inn' });
   }
 });
 

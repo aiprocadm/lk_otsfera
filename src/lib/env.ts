@@ -33,14 +33,22 @@ const notPlaceholder = (v: string) => !PLACEHOLDER_RE.test(v);
 const TRUTHY = new Set(['1', 'true', 'on', 'yes', 'enabled']);
 const isTruthy = (v: string | undefined) => TRUTHY.has((v ?? '').trim().toLowerCase());
 
+/**
+ * Текст «переменная не задана» — только когда значения нет вовсе (в zod 3 это
+ * был `required_error`). Прочие ошибки типа оставляем стандартными, как прежде.
+ */
+const missing = (why: string) => ({
+  error: (issue: { input?: unknown }) => (issue.input === undefined ? why : undefined),
+});
+
 const requiredSecret = (minLen: number) =>
   z
-    .string({ required_error: 'обязательна в production' })
+    .string(missing('обязательна в production'))
     .trim()
     .min(minLen, `минимум ${minLen} символа(ов)`)
     .refine(notPlaceholder, PLACEHOLDER_MSG);
 
-const requiredNonEmpty = (why: string) => z.string({ required_error: why }).trim().min(1, why);
+const requiredNonEmpty = (why: string) => z.string(missing(why)).trim().min(1, why);
 
 const s3Credential = () =>
   requiredNonEmpty('обязательна в production')
@@ -53,10 +61,11 @@ const productionEnvSchema = z
   .object({
     DATABASE_URL: requiredNonEmpty('обязательна в production'),
     APP_URL: z
-      .string({
-        required_error:
-          'обязательна в production (абсолютные ссылки в письмах/уведомлениях; без неё действует hardcode-fallback)',
-      })
+      .string(
+        missing(
+          'обязательна в production (абсолютные ссылки в письмах/уведомлениях; без неё действует hardcode-fallback)'
+        )
+      )
       .trim()
       .url('должна быть валидным URL (https://<домен>)'),
     JWT_SECRET: requiredSecret(32),
@@ -76,7 +85,7 @@ const productionEnvSchema = z
       'обязательна в production (BullMQ-воркер, очереди уведомлений, rate-limit)'
     ),
     S3_ENDPOINT: z
-      .string({ required_error: 'обязательна в production' })
+      .string(missing('обязательна в production'))
       .trim()
       .url('должна быть валидным URL'),
     S3_ACCESS_KEY_ID: s3Credential(),
@@ -107,7 +116,7 @@ const productionEnvSchema = z
   .superRefine((env, ctx) => {
     if (env.STUDENT_BRIDGE_JWT_SECRET.trim() === env.JWT_SECRET.trim()) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['STUDENT_BRIDGE_JWT_SECRET'],
         message: 'не должна совпадать с JWT_SECRET (ключ моста ≠ ключ сессий)',
       });
@@ -115,7 +124,7 @@ const productionEnvSchema = z
 
     const requireIf = (cond: boolean, key: keyof typeof env, message: string) => {
       if (cond && !env[key]?.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message });
+        ctx.addIssue({ code: 'custom', path: [key], message });
       }
     };
 
@@ -127,7 +136,7 @@ const productionEnvSchema = z
     requireIf(emailOn, 'RESEND_API_KEY', 'обязательна при EMAIL_ENABLED=true');
     if (emailOn && env.RESEND_API_KEY && !notPlaceholder(env.RESEND_API_KEY)) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['RESEND_API_KEY'],
         message: PLACEHOLDER_MSG,
       });
@@ -152,7 +161,7 @@ const productionEnvSchema = z
 
     if (isTruthy(env.SHOW_DEMO_LOGINS)) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['SHOW_DEMO_LOGINS'],
         message: 'НИКОГДА не включать в production — раскрытие демо-учёток на /login',
       });

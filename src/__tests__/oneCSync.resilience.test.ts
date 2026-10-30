@@ -114,7 +114,7 @@ describe('parseRecords', () => {
     // using ZodType.superRefine — but actually zod always has issues.
     // Simulate via a custom mock-like schema that parses but returns an error with empty issues.
     const emptyIssuesSchema = z.any().superRefine((val, ctx) => {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: '' });
+      ctx.addIssue({ code: 'custom', message: '' });
     });
     const res = parseRecords(emptyIssuesSchema as any, [{ externalId: 'x' }]);
     // message is '' which is falsy but defined — so ?? 'invalid' does NOT apply here.

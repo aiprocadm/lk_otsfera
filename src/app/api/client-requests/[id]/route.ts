@@ -36,7 +36,7 @@ export async function PATCH(req: Request, { params }: Params) {
   const { id } = await params;
   // Схема — только «тело — JSON-объект»: проверку action и String()-коэрцию
   // reason роут сохраняет; коды triage-сервисов не подменяются.
-  const parsed = await parseJsonBody(req, z.record(z.unknown()));
+  const parsed = await parseJsonBody(req, z.record(z.string(), z.unknown()));
   if (!parsed.ok) return parsed.response;
   const body = parsed.data;
   const action = body.action;
