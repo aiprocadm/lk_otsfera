@@ -1,6 +1,6 @@
 import type { PrismaClient, ServiceType } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
-import { isStaffManagerSide } from '@/lib/auth/roleModel';
+import { isManagerLeader, isStaffManagerSide } from '@/lib/auth/roleModel';
 import { managerOrgScope, getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { recordAudit } from '@/lib/auth/audit';
 import { getInitialStatusId } from '@/lib/services/orderStatuses/definitions';
@@ -28,7 +28,12 @@ export async function createOrderDirect(
   const title = args.title.trim();
   if (!title || title.length > TITLE_MAX) return { ok: false, error: 'validation' };
 
-  const teamMode = await getCompanyTeamVisibility(prisma, session.companyId);
+  // `У-335`: руководитель работает по всей компании (как его список заказов и
+  // организаций — `teamModeOverride`), рядовой менеджер — по настройке компании.
+  // Без этого руководитель выбирал клиента из списка всей компании, а сервер
+  // при выключенном режиме команды отвечал «не найдено».
+  const teamMode =
+    isManagerLeader(session) || (await getCompanyTeamVisibility(prisma, session.companyId));
   const org = await prisma.organization.findFirst({
     where: { AND: [managerOrgScope(session, teamMode), { id: args.organizationId }] },
     select: { id: true, companyId: true, partnerId: true },

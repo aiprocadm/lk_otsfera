@@ -7,6 +7,7 @@ import { ManagerOrdersFilter } from '@/components/manager/manager-orders-filter'
 import { ManagerOrdersTable } from '@/components/manager/manager-orders-table';
 import { ManagerOrdersCardList } from '@/components/manager/manager-orders-card-list';
 import { ExportLink } from '@/components/ui';
+import { CreateOrderButton } from '@/components/manager/create-order-button';
 import { getOrderedStatuses } from '@/lib/services/orderStatuses';
 
 import { PageHeader } from '@/components/ui/page-header';
@@ -54,18 +55,26 @@ export default async function LeaderOrdersPage({
           {/* `У-311`: чем заказ отличается от лида и сделки (зеркало менеджера). */}
           <PageHeader title="Заказы" subtitle={SALES_STAGE_LINE.orders} />
         </div>
-        {/* ФТ-12.2: `scope=company` повторяет company-wide режим экрана лидера. */}
-        <ExportLink
-          base="/api/manager/orders/export"
-          params={{
-            scope: 'company',
-            search: sp.search,
-            executionStatus: sp.executionStatus,
-            financialStatus: sp.financialStatus,
-            organizationId: sp.organizationId,
-            unassigned: sp.unassigned,
-          }}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          {/* `У-335` (зеркало `У-306`): тот же диалог, что у менеджера; после
+              создания — в карточку заказа своего кабинета. */}
+          <CreateOrderButton
+            organizations={orgs.map((o) => ({ id: o.id, name: o.name }))}
+            ordersHref="/leader/orders"
+          />
+          {/* ФТ-12.2: `scope=company` повторяет company-wide режим экрана лидера. */}
+          <ExportLink
+            base="/api/manager/orders/export"
+            params={{
+              scope: 'company',
+              search: sp.search,
+              executionStatus: sp.executionStatus,
+              financialStatus: sp.financialStatus,
+              organizationId: sp.organizationId,
+              unassigned: sp.unassigned,
+            }}
+          />
+        </div>
       </div>
       {/* `У-232`: пришли по ссылке на удалённый или чужой заказ. */}
       {isMissingObjectRequested(sp) && <MissingObjectNotice what="Заказ" />}

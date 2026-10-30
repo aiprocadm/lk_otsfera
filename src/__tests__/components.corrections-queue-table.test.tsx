@@ -25,6 +25,8 @@ const row: CorrectionRow = {
   rate: '0.15',
   originalPeriodFrom: '2026-01-01',
   originalPeriodTo: '2026-01-31',
+  order: { id: 'o1', label: '2410-15' },
+  payment: { paidAt: '2026-02-10', amount: '1000' },
 };
 
 describe('CorrectionsQueueTable', () => {
@@ -46,20 +48,47 @@ describe('CorrectionsQueueTable', () => {
   });
 
   it('renders an EmptyState when there are no rows', () => {
-    render(React.createElement(CorrectionsQueueTable, { rows: [] }));
+    render(
+      React.createElement(CorrectionsQueueTable, { orderHrefBase: '/leader/orders', rows: [] })
+    );
     expect(screen.getByText('Очередь пуста — нет корректировок, требующих решения.')).toBeTruthy();
   });
 
   it('renders a row with partner, period, amounts, and action buttons', () => {
-    render(React.createElement(CorrectionsQueueTable, { rows: [row] }));
+    render(
+      React.createElement(CorrectionsQueueTable, { orderHrefBase: '/leader/orders', rows: [row] })
+    );
     expect(screen.getByText('ООО Ромашка')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Применить' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Списать' })).toBeTruthy();
   });
 
+  // `У-336`: строка ведёт на свой заказ и показывает платёж-возврат.
+  it('строка ссылается на свой заказ и показывает платёж', () => {
+    render(
+      React.createElement(CorrectionsQueueTable, { orderHrefBase: '/leader/orders', rows: [row] })
+    );
+    const link = screen.getByRole('link', { name: '2410-15' });
+    expect(link.getAttribute('href')).toBe('/leader/orders/o1');
+    expect(screen.getByText(/возврат 10\.02\.2026/)).toBeTruthy();
+  });
+
+  it('корректировка без заказа так и подписана, без ссылки', () => {
+    render(
+      React.createElement(CorrectionsQueueTable, {
+        orderHrefBase: '/admin/orders',
+        rows: [{ ...row, order: null, payment: null }],
+      })
+    );
+    expect(screen.getByText('Без заказа')).toBeTruthy();
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
   it('apply flow: opens dialog without a reason field, submits, shows success toast, calls onResolved + router.refresh', async () => {
     resolveCorrectionAction.mockResolvedValue({ ok: true });
-    render(React.createElement(CorrectionsQueueTable, { rows: [row] }));
+    render(
+      React.createElement(CorrectionsQueueTable, { orderHrefBase: '/leader/orders', rows: [row] })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Применить' }));
     expect(await screen.findByText('Применить корректировку')).toBeTruthy();
@@ -81,7 +110,9 @@ describe('CorrectionsQueueTable', () => {
 
   it('waive flow: requires a reason, submit button disabled until filled, then submits with reason', async () => {
     resolveCorrectionAction.mockResolvedValue({ ok: true });
-    render(React.createElement(CorrectionsQueueTable, { rows: [row] }));
+    render(
+      React.createElement(CorrectionsQueueTable, { orderHrefBase: '/leader/orders', rows: [row] })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Списать' }));
     expect(await screen.findByText('Списать корректировку')).toBeTruthy();
@@ -105,7 +136,9 @@ describe('CorrectionsQueueTable', () => {
   });
 
   it('waive submit button stays disabled (blocks the click) while the reason is empty', async () => {
-    render(React.createElement(CorrectionsQueueTable, { rows: [row] }));
+    render(
+      React.createElement(CorrectionsQueueTable, { orderHrefBase: '/leader/orders', rows: [row] })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Списать' }));
     await screen.findByText('Списать корректировку');
 
@@ -117,7 +150,9 @@ describe('CorrectionsQueueTable', () => {
 
   it('error path: shows inline error message via errorMessageRu, does not resolve the row', async () => {
     resolveCorrectionAction.mockResolvedValue({ ok: false, error: 'forbidden' });
-    render(React.createElement(CorrectionsQueueTable, { rows: [row] }));
+    render(
+      React.createElement(CorrectionsQueueTable, { orderHrefBase: '/leader/orders', rows: [row] })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Применить' }));
     await screen.findByText('Применить корректировку');
@@ -132,7 +167,9 @@ describe('CorrectionsQueueTable', () => {
 
   it('error path: falls back to the raw code when errorMessageRu has no mapping', async () => {
     resolveCorrectionAction.mockResolvedValue({ ok: false, error: 'weird_code' });
-    render(React.createElement(CorrectionsQueueTable, { rows: [row] }));
+    render(
+      React.createElement(CorrectionsQueueTable, { orderHrefBase: '/leader/orders', rows: [row] })
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Применить' }));
     await screen.findByText('Применить корректировку');
@@ -143,7 +180,9 @@ describe('CorrectionsQueueTable', () => {
   });
 
   it('cancel button closes the dialog without submitting', async () => {
-    render(React.createElement(CorrectionsQueueTable, { rows: [row] }));
+    render(
+      React.createElement(CorrectionsQueueTable, { orderHrefBase: '/leader/orders', rows: [row] })
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Применить' }));
     await screen.findByText('Применить корректировку');
 

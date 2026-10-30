@@ -19,6 +19,15 @@ export default async function AdminCommissionCorrectionsPage() {
     rate: r.rate.toString(),
     originalPeriodFrom: r.originalPeriodFrom.toISOString(),
     originalPeriodTo: r.originalPeriodTo.toISOString(),
+    order: r.payment?.order
+      ? {
+          id: r.payment.order.id,
+          label: r.payment.order.orderNumber ?? r.payment.order.title,
+        }
+      : null,
+    payment: r.payment
+      ? { paidAt: r.payment.paidAt.toISOString(), amount: r.payment.amount.toString() }
+      : null,
   }));
 
   return (
@@ -26,10 +35,10 @@ export default async function AdminCommissionCorrectionsPage() {
       <div>
         <PageHeader
           title="Корректировки комиссии"
-          subtitle="Поздние возвраты в закрытые периоды — требуют решения (§9.5)."
+          subtitle="Клиенту вернули деньги, когда комиссия партнёра за тот месяц уже начислена. Решите по каждой строке: «Применить» — удержать комиссию в следующем отчёте, «Списать» — не удерживать."
         />
       </div>
-      <CorrectionsQueueTable rows={serialized} />
+      <CorrectionsQueueTable rows={serialized} orderHrefBase="/admin/orders" />
       {/* `С-6`: очередь режется по 200; фильтра нет — остальные появятся после разбора. */}
       <ListCapNotice
         shown={serialized.length}

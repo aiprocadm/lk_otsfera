@@ -56,6 +56,16 @@ vi.mock('@/components/manager/manager-orders-card-list', () => ({
     ),
 }));
 
+// `У-335`: та же кнопка, что у менеджера, — смотрим, что её дали и куда она ведёт.
+vi.mock('@/components/manager/create-order-button', () => ({
+  CreateOrderButton: (props: { organizations: unknown[]; ordersHref?: string }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'create-order' },
+      `${props.ordersHref}|${JSON.stringify(props.organizations)}`
+    ),
+}));
+
 const SESSION = {
   sub: 'u1',
   role: 'leader' as const,
@@ -85,6 +95,9 @@ describe('LeaderOrdersPage', () => {
     expect(listOrganizations).toHaveBeenCalledWith({}, SESSION, true);
     expect(container.textContent).toContain('Заказы');
     expect(container.textContent).toContain('/leader');
+    // `У-335`: «Создать заказ» — организации всей компании, переход в свой кабинет.
+    const create = container.querySelector('[data-testid="create-order"]');
+    expect(create?.textContent).toBe('/leader/orders|[{"id":"org1","name":"Org"}]');
   });
 
   it('forwards search/filter query params to listOrders and renders a nextCursor', async () => {

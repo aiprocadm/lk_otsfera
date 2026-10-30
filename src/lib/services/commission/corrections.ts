@@ -240,6 +240,15 @@ export async function listCorrectionQueue(prisma: PrismaClient, session: Session
         paymentId: true,
         createdAt: true,
         partner: { select: { name: true } },
+        // `У-336`: строка корректировки ведёт на свой заказ и платёж — без них
+        // руководитель решал «применить или списать», не видя, о чём речь.
+        payment: {
+          select: {
+            paidAt: true,
+            amount: true,
+            order: { select: { id: true, orderNumber: true, title: true } },
+          },
+        },
       },
     }),
     prisma.commissionCorrection.count({ where }),
