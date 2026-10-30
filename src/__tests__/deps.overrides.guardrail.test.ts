@@ -25,12 +25,29 @@ const FLOORS: Record<string, string> = {
   postcss: '8.5.23', // GHSA: уязвимы <=8.5.22
   uuid: '11.1.1', // GHSA-w5hq-g745-h8pq: уязвимы <11.1.1
   'deepmerge-ts': '8.0.0', // GHSA-ggr8-5vv4-36mx: уязвимы <8
-  // Хотфикс №24 (09.09.2026): `imapflow@1.5.0` держит у себя `nodemailer@9.0.3`.
-  // GHSA-2x7j-588g-ccc2 — разбор списка адресов во входящем письме квадратичен
-  // по длине: письмо с составленным списком адресов вешает разбор «Входящих».
-  // Рядом GHSA-wmmp-3585-3rmp и GHSA-cc9r-2j5m-2m83 — обход проверки домена
-  // получателя (IDN/Punycode и комментарии RFC 5322). Уязвимы `<=9.1.0`.
-  nodemailer: '9.1.1',
+  // Хотфикс №24 (09.09.2026): `imapflow@1.5.0` держал у себя `nodemailer@9.0.3`
+  // (GHSA-2x7j-588g-ccc2 и др., уязвимы `<=9.1.0`). `У-321` (ТЗ 28.10.2026,
+  // `Р-ТР-9`): вся линия 9.x закрыта советами 2026-10 — разбор адресов и
+  // ответов SMTP квадратичен (GHSA-v53p-9fqp-m79j, GHSA-prgh-xp8r-p3m5,
+  // GHSA-4g23-2xm8-66gc), адрес с `;`/`>` в кавычках рвёт группу получателей
+  // (GHSA-m943-m63m-w62w, GHSA-85x2-q946-cp5h). Уязвимы `<=10.1.3`; override
+  // закреплён точной версией, чтобы установка не тянула вчерашний выпуск.
+  nodemailer: '10.1.4',
+};
+
+/**
+ * `У-321`: прямые и транзитивные зависимости без override — их держит сама
+ * версия в `package.json`/`package-lock.json`, страж следит, чтобы обновление
+ * или откат не вернули уязвимую копию.
+ */
+const LOCK_FLOORS: Record<string, string> = {
+  // GHSA-mchm-gjx6-7h55: обход middleware через tunnel-route Sentry. Уязвимы <10.75.2.
+  '@sentry/nextjs': '10.75.2',
+  // `npm audit`: уязвимы 1.0.77–1.5.0 (тянули старый nodemailer).
+  imapflow: '1.5.1',
+  // GHSA-w74x-v6f9-j3xg, GHSA-wjr9-j795-jxcr и др.: подмена схемы и хоста при
+  // разборе URI (через ajv у @sentry/webpack-plugin). Уязвимы 3.0.0–3.1.8.
+  'fast-uri': '3.1.9',
 };
 
 function parse(v: string): number[] {
@@ -63,15 +80,15 @@ describe('С-9/В-2: overrides держат транзитивные завис�
     const bad: string[] = [];
     for (const [key, entry] of Object.entries(lock.packages)) {
       const name = key.slice(key.lastIndexOf('node_modules/') + 'node_modules/'.length);
-      const floor = FLOORS[name];
+      const floor = FLOORS[name] ?? LOCK_FLOORS[name];
       if (!floor || !entry.version) continue;
       if (lt(entry.version, floor)) bad.push(`${key}@${entry.version} < ${floor}`);
     }
     expect(bad, bad.join('\n')).toEqual([]);
   });
 
-  it('каждый из трёх пакетов действительно установлен (страж не проверяет пустоту)', () => {
-    for (const name of Object.keys(FLOORS)) {
+  it('каждый пакет списка действительно установлен (страж не проверяет пустоту)', () => {
+    for (const name of [...Object.keys(FLOORS), ...Object.keys(LOCK_FLOORS)]) {
       const keys = Object.keys(lock.packages).filter((k) => k.endsWith(`node_modules/${name}`));
       expect(keys.length, name).toBeGreaterThan(0);
     }
