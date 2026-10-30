@@ -1,22 +1,6 @@
 import * as React from 'react';
-import type { ExecutionStatus, FinancialStatus } from '@prisma/client';
+import { executionStatusRu, financialStatusRu } from '@/lib/i18n/labels';
 import { EmailLayout, emailStyles } from '../layout';
-
-const EXECUTION_LABELS: Record<ExecutionStatus, string> = {
-  pending: 'Ожидает старта',
-  in_progress: 'В работе',
-  on_hold: 'На паузе',
-  completed: 'Завершён',
-  cancelled: 'Отменён',
-};
-
-const FINANCIAL_LABELS: Record<FinancialStatus, string> = {
-  not_billed: 'Счёт не выставлен',
-  billed: 'Счёт выставлен',
-  partially_paid: 'Частично оплачен',
-  paid: 'Оплачен',
-  refunded: 'Возврат',
-};
 
 export type OrgOrderStatusChangedProps = {
   organizationName: string;
@@ -29,10 +13,8 @@ export type OrgOrderStatusChangedProps = {
 };
 
 function statusLabel(dimension: 'execution' | 'financial', status: string): string {
-  if (dimension === 'execution') {
-    return EXECUTION_LABELS[status as ExecutionStatus] ?? status;
-  }
-  return FINANCIAL_LABELS[status as FinancialStatus] ?? status;
+  // `У-328`: одна подпись статуса на экраны, письма и выгрузки (правило зеркала).
+  return dimension === 'execution' ? executionStatusRu(status) : financialStatusRu(status);
 }
 
 export function OrgOrderStatusChangedTemplate(props: OrgOrderStatusChangedProps) {

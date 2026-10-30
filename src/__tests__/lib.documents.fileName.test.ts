@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { documentDownloadName } from '@/lib/documents/fileName';
+import { documentDownloadName, documentTypeLabelRu } from '@/lib/documents/fileName';
 
 /**
  * `У-154` — имя файла при скачивании. Проверяем не «функция вернула строку»,
@@ -76,5 +76,17 @@ describe('documentDownloadName', () => {
     expect(documentDownloadName({ ...DOC, type: 'unknown_kind' })).toBe(
       'Документ С-2026-7 от 26.07.2026.pdf'
     );
+  });
+});
+
+// `У-328`: тип документа в таблицах карточки организации — по-русски.
+describe('documentTypeLabelRu', () => {
+  it('подписывает все типы, включая отчёт и комиссионный отчёт', () => {
+    expect(documentTypeLabelRu('invoice')).toBe('Счёт');
+    expect(documentTypeLabelRu('report')).toBe('Отчёт');
+    expect(documentTypeLabelRu('commission_statement')).toBe('Комиссионный отчёт');
+  });
+  it('незнакомый тип — «Документ», а не код', () => {
+    expect(documentTypeLabelRu('mystery')).toBe('Документ');
   });
 });

@@ -27,6 +27,9 @@ export async function GET() {
     { header: ENROLLMENT_IMPORT_COLUMNS.position, key: 'position', width: 24 },
     { header: ENROLLMENT_IMPORT_COLUMNS.snils, key: 'snils', width: 18 },
     { header: ENROLLMENT_IMPORT_COLUMNS.birthDate, key: 'birthDate', width: 16 },
+    // `У-326`: импорт понимает направление у каждого слушателя (`У-41`), подсказка
+    // мастера о нём говорит — значит, колонка должна быть и в шаблоне.
+    { header: ENROLLMENT_IMPORT_COLUMNS.directionName, key: 'directionName', width: 36 },
     { header: ENROLLMENT_IMPORT_COLUMNS.extra, key: 'extra', width: 32 },
   ];
   const headerRow = ws.getRow(1);
@@ -44,6 +47,9 @@ export async function GET() {
     position: 'Инженер по охране труда',
     snils: '123-456-789 00',
     birthDate: '01.01.1990',
+    // Пусто: название берётся из справочника направлений заказчика, выдуманное
+    // название в примере только запутает.
+    directionName: '',
     extra: '',
   });
 

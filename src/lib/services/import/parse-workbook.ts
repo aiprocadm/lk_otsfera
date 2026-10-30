@@ -35,6 +35,12 @@ export function cellToString(value: ExcelJS.CellValue): string {
     const result = (value as { result: ExcelJS.CellValue }).result;
     return cellToString(result);
   }
+  // Ячейка-ссылка `{ text, hyperlink }` (`У-326`, `Д-60`): набранный адрес
+  // почты Excel сам делает ссылкой `mailto:`. Берём видимый текст — он и есть
+  // значение; `text` бывает и rich text, если часть адреса выделена.
+  if (typeof value === 'object' && 'hyperlink' in value && 'text' in value) {
+    return cellToString((value as { text: ExcelJS.CellValue }).text);
+  }
   return String(value).trim();
 }
 

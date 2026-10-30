@@ -1,3 +1,4 @@
+import type { DocumentType } from '@prisma/client';
 import { fmtDate } from '@/lib/format';
 
 /**
@@ -14,8 +15,12 @@ import { fmtDate } from '@/lib/format';
  * хуже, чем оставить как есть.
  */
 
-/** Русские названия типов — те же слова, что в интерфейсе (глоссарий). */
-const TYPE_LABELS: Record<string, string> = {
+/**
+ * Русские названия типов — те же слова, что в интерфейсе (глоссарий).
+ * `Record<DocumentType, …>` (`У-328`): тип без подписи не соберётся — раньше
+ * `report` и `commission_statement` молча показывались как «Документ».
+ */
+const TYPE_LABELS: Record<DocumentType, string> = {
   invoice: 'Счёт',
   act: 'Акт',
   contract: 'Договор',
@@ -23,6 +28,8 @@ const TYPE_LABELS: Record<string, string> = {
   commercial_proposal: 'Коммерческое предложение',
   waybill: 'Накладная',
   certificate: 'Удостоверение',
+  report: 'Отчёт',
+  commission_statement: 'Комиссионный отчёт',
   other: 'Документ',
 };
 
@@ -34,7 +41,7 @@ const FORBIDDEN = /[\\/:*?"<>|]/g;
  * тип показывают человеку (`У-173`: лист «Документы» пакета для 1С).
  */
 export function documentTypeLabelRu(type: string): string {
-  return TYPE_LABELS[type] ?? TYPE_LABELS.other!;
+  return TYPE_LABELS[type as DocumentType] ?? TYPE_LABELS.other;
 }
 
 /**
