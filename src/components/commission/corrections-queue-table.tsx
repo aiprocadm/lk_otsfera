@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Button,
@@ -27,11 +28,21 @@ export type CorrectionRow = {
   rate: string;
   originalPeriodFrom: string | Date;
   originalPeriodTo: string | Date;
+  /** `У-336`: заказ и платёж, из-за которых появилась корректировка. */
+  order: { id: string; label: string } | null;
+  payment: { paidAt: string | Date; amount: string } | null;
 };
 
 type Action = 'apply' | 'waive';
 
-export function CorrectionsQueueTable({ rows }: { rows: CorrectionRow[] }) {
+export function CorrectionsQueueTable({
+  rows,
+  orderHrefBase,
+}: {
+  rows: CorrectionRow[];
+  /** Карточка заказа своего кабинета: `/leader/orders` или `/admin/orders`. */
+  orderHrefBase: string;
+}) {
   const [resolved, setResolved] = useState<Set<string>>(new Set());
   const [active, setActive] = useState<{ row: CorrectionRow; action: Action } | null>(null);
   const visible = rows.filter((r) => !resolved.has(r.id));
@@ -44,6 +55,7 @@ export function CorrectionsQueueTable({ rows }: { rows: CorrectionRow[] }) {
     <TableShell overflow="x-auto">
       <THead>
         <Th>Партнёр</Th>
+        <Th>Заказ и платёж</Th>
         <Th>Период возврата</Th>
         <Th className="text-right">Сумма возврата</Th>
         <Th className="text-right">Удержание</Th>
@@ -53,6 +65,23 @@ export function CorrectionsQueueTable({ rows }: { rows: CorrectionRow[] }) {
         {visible.map((r) => (
           <Tr key={r.id}>
             <Td className="text-gray-700">{r.partnerName}</Td>
+            <Td className="text-gray-700">
+              {r.order ? (
+                <Link
+                  href={`${orderHrefBase}/${r.order.id}`}
+                  className="text-orange-600 hover:underline"
+                >
+                  {r.order.label}
+                </Link>
+              ) : (
+                'Без заказа'
+              )}
+              {r.payment && (
+                <div className="text-xs text-gray-500">
+                  возврат {fmtDate(r.payment.paidAt)} · {fmtMoney(r.payment.amount)}
+                </div>
+              )}
+            </Td>
             <Td className="text-gray-700">
               {fmtDate(r.originalPeriodFrom)} — {fmtDate(r.originalPeriodTo)}
             </Td>

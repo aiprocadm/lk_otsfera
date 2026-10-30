@@ -125,6 +125,29 @@ describe('правило зеркала: кабинеты пары устрое�
         }
         expect(drift, drift.join('\n')).toEqual([]);
       });
+
+      // `У-337` (`Д-71`, ТЗ 28.10.2026): у менеджера «Сообщения» показывали
+      // счётчик непрочитанного, у руководителя — нет; страж сравнивал название,
+      // значок и место, а счётчик не смотрел. Сравниваем между кабинетами, где
+      // счётчики вообще есть (у администратора их нет намеренно).
+      it('общий раздел носит один и тот же счётчик', () => {
+        const withBadges = roles.filter((role) =>
+          (navByRole[role as keyof typeof navByRole] as NavItem[]).some((i) => i.badgeKey)
+        );
+        const drift: string[] = [];
+        for (const key of renderedOrder(withBadges[0] ?? roles[0]!)) {
+          const badges = withBadges
+            .map((role) => ({ role, item: itemOf(role, key) }))
+            .filter((x): x is { role: string; item: NavItem } => !!x.item);
+          const kinds = new Set(badges.map((x) => x.item.badgeKey ?? '—'));
+          if (kinds.size > 1) {
+            drift.push(
+              `${key}: ` + badges.map((x) => `${x.role}=${x.item.badgeKey ?? '—'}`).join(', ')
+            );
+          }
+        }
+        expect(drift, drift.join('\n')).toEqual([]);
+      });
     });
   }
 

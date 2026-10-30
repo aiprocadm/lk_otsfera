@@ -361,6 +361,8 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       href: '/leader/messages',
       group: 'Коммуникации',
       sectionKey: 'messages',
+      // `У-337`: счётчик непрочитанного, как у менеджера (страж зеркала сверяет).
+      badgeKey: 'messagesUnread',
       // `У-313`: те же подпункты, что у менеджера (правило зеркала).
       childrenOf: () => messagesTabsFor('/leader/messages'),
     },

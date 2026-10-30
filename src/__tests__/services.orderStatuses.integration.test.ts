@@ -924,6 +924,58 @@ describe('этап 6 ТЗ 13.10.2026 (`У-306`): «Создать заказ» �
       })
     ).toEqual({ ok: false, error: 'forbidden' });
   });
+
+  // `У-335` (ТЗ 28.10.2026): «Создать заказ» у руководителя. Его экран заказов
+  // предлагает организации всей компании — значит, и сервер обязан принять
+  // любую из них, даже при выключенном режиме команды. Чужая компания — нет (C8).
+  it('руководитель создаёт заказ любой организации своей компании, но не чужой', async () => {
+    await prisma.company.update({
+      where: { id: companyId },
+      data: { managerTeamVisibility: false },
+    });
+    const companyOrg = await prisma.organization.create({
+      data: { name: `OSS-Org-leader-${S}`, companyId },
+    });
+    const otherCo = (await prisma.company.create({ data: { name: `OSS-Co-leader-${S}` } })).id;
+    const foreign = await prisma.organization.create({
+      data: { name: `OSS-Org-leader-foreign-${S}`, companyId: otherCo },
+    });
+    const leader = sess(leaderId, 'leader', { companyId, managedOrgIds: [] });
+
+    // Рядовой менеджер без закрепления этой организации её не видит.
+    expect(
+      await createOrderDirect(
+        prisma,
+        sess(managerId, 'manager', { companyId, managedOrgIds: [] }),
+        {
+          organizationId: companyOrg.id,
+          title: `OSS-leader-mgr-${S}`,
+          serviceType: 'training',
+        }
+      )
+    ).toEqual({ ok: false, error: 'not_found' });
+
+    const res = await createOrderDirect(prisma, leader, {
+      organizationId: companyOrg.id,
+      title: `OSS-leader-${S}`,
+      serviceType: 'training',
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    const order = await prisma.order.findUniqueOrThrow({
+      where: { id: res.orderId },
+      select: { managerId: true, companyId: true, organizationId: true },
+    });
+    expect(order).toEqual({ managerId: leaderId, companyId, organizationId: companyOrg.id });
+
+    expect(
+      await createOrderDirect(prisma, leader, {
+        organizationId: foreign.id,
+        title: `OSS-leader-x-${S}`,
+        serviceType: 'training',
+      })
+    ).toEqual({ ok: false, error: 'not_found' });
+  });
 });
 
 describe('этап 6 ТЗ 13.10.2026 (`У-304`, `Р-6-3`): где настраивают статусы', () => {

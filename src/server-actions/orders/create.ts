@@ -25,5 +25,6 @@ export async function createOrderAction(
   const res = await createOrderDirect(prisma, session, parsed.data);
   if (!res.ok) return { ok: false, error: res.error };
   revalidatePath('/manager/orders');
+  revalidatePath('/leader/orders');
   return { ok: true, orderId: res.orderId };
 }
