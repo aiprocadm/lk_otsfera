@@ -186,11 +186,6 @@ export async function reactivateOrgMemberAction(formData: FormData): Promise<Act
 // trigger revalidatePath, so the UI re-renders and stale-state regressions
 // are caught visually — though without inline error text.
 
-export async function updateOrgMemberRoleFormAction(formData: FormData): Promise<void> {
-  const result = await updateOrgMemberRoleAction(formData);
-  if (!result.ok) log.warn('[organization/team] updateOrgMemberRoleFormAction failed', result);
-}
-
 export async function deactivateOrgMemberFormAction(formData: FormData): Promise<void> {
   const result = await deactivateOrgMemberAction(formData);
   if (!result.ok) log.warn('[organization/team] deactivateOrgMemberFormAction failed', result);

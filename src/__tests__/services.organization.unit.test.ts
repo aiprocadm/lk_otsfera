@@ -48,12 +48,12 @@ vi.mock('@/lib/services/commission/calculator', () => ({
 import { kpis, attention, recentEvents } from '@/lib/services/organization/dashboard';
 
 describe('organization/dashboard — kpis (unit)', () => {
-  it('returns zeros when all queries return empty (aggregate _sum null)', async () => {
+  it('returns zeros when all queries return empty', async () => {
     const prisma = {
       order: {
         count: vi.fn().mockResolvedValue(0),
-        // SUM по нулю строк в Prisma — null, не 0 (R2: outstanding через aggregate)
-        aggregate: vi.fn().mockResolvedValue({ _sum: { totalAmount: null, paidAmount: null } }),
+        // `У-329`: «К оплате» — та же функция, что «Задолженность» в «Финансах».
+        findMany: vi.fn().mockResolvedValue([]),
       },
       student: { count: vi.fn().mockResolvedValue(0) },
       document: { count: vi.fn().mockResolvedValue(0) },
@@ -66,16 +66,24 @@ describe('organization/dashboard — kpis (unit)', () => {
     expect(result.recentDocumentsCount).toBe(0);
   });
 
-  it('computes outstanding as sum(total) - sum(paid) from the aggregate', async () => {
+  it('«К оплате» = сумма заказов минус оплата — как «Задолженность» в «Финансах» (У-329)', async () => {
+    const findMany = vi.fn().mockResolvedValue([
+      // Заказ со статусом «оплачен», но оплата меньше суммы, — долг есть (Д-63).
+      {
+        organizationId: 'org-1',
+        totalAmount: new Prisma.Decimal('100000'),
+        paidAmount: new Prisma.Decimal('30000'),
+      },
+      {
+        organizationId: 'org-1',
+        totalAmount: new Prisma.Decimal('50000'),
+        paidAmount: new Prisma.Decimal('50000'),
+      },
+    ]);
     const prisma = {
       order: {
         count: vi.fn().mockResolvedValue(2),
-        aggregate: vi.fn().mockResolvedValue({
-          _sum: {
-            totalAmount: new Prisma.Decimal('150000'),
-            paidAmount: new Prisma.Decimal('80000'),
-          },
-        }),
+        findMany,
       },
       student: { count: vi.fn().mockResolvedValue(5) },
       document: { count: vi.fn().mockResolvedValue(3) },
@@ -84,6 +92,10 @@ describe('organization/dashboard — kpis (unit)', () => {
     const result = await kpis(prisma, 'org-1', null);
     expect(result.activeOrders).toBe(2);
     expect(result.outstandingAmount).toBe('70000.00');
+    // Статусы те же, что у «Задолженности»: выставлен, частично, оплачен.
+    expect(findMany.mock.calls[0][0].where.financialStatus).toEqual({
+      in: ['billed', 'partially_paid', 'paid'],
+    });
     expect(result.studentsCount).toBe(5);
     expect(result.recentDocumentsCount).toBe(3);
   });

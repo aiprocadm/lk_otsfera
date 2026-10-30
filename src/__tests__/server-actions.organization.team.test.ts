@@ -55,7 +55,6 @@ import {
   updateOrgMemberRoleAction,
   deactivateOrgMemberAction,
   reactivateOrgMemberAction,
-  updateOrgMemberRoleFormAction,
   deactivateOrgMemberFormAction,
   reactivateOrgMemberFormAction,
 } from '@/server-actions/organization/team';
@@ -262,26 +261,6 @@ describe('reactivateOrgMemberAction — validation + error mapping', () => {
 });
 
 describe('form-action wrappers (discard result, log on failure)', () => {
-  it('updateOrgMemberRoleFormAction returns void on success', async () => {
-    updateMemberRole.mockResolvedValue({ ok: true });
-    const result = await updateOrgMemberRoleFormAction(
-      fd({ organizationId: 'org-1', orgUserId: 'ou-1', newRole: 'member' })
-    );
-    expect(result).toBeUndefined();
-    expect(updateMemberRole).toHaveBeenCalled();
-  });
-
-  it('updateOrgMemberRoleFormAction logs and swallows failure', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    updateMemberRole.mockResolvedValue({ ok: false, error: 'not_found' });
-    const result = await updateOrgMemberRoleFormAction(
-      fd({ organizationId: 'org-1', orgUserId: 'gone', newRole: 'member' })
-    );
-    expect(result).toBeUndefined();
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
-  });
-
   it('deactivateOrgMemberFormAction returns void on success', async () => {
     deactivateMember.mockResolvedValue({ ok: true });
     const result = await deactivateOrgMemberFormAction(

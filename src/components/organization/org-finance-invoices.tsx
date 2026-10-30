@@ -49,6 +49,15 @@ function money(value: string | null): string {
   return value === null ? '—' : fmtMoney(value);
 }
 
+/**
+ * `У-329`: у строки «счёт по заказу» файла в кабинете нет — счёт выставлен в
+ * 1С. Говорим это словами, а не прячем кнопку молча.
+ */
+function InvoiceFileAction({ row }: { row: OrgInvoiceRow }) {
+  if (!row.hasFile) return <span className="text-xs text-gray-400">файл в 1С</span>;
+  return <OrgInvoiceDownloadButton documentId={row.id} />;
+}
+
 function orderCell(row: OrgInvoiceRow, orgId: string) {
   if (!row.orderId) return <span className="text-gray-400">—</span>;
   return (
@@ -183,7 +192,7 @@ export function OrgFinanceInvoices({
                     <StateBadge row={r} />
                   </Td>
                   <Td className="text-right">
-                    <OrgInvoiceDownloadButton documentId={r.id} />
+                    <InvoiceFileAction row={r} />
                   </Td>
                 </Tr>
               ))}
@@ -191,11 +200,7 @@ export function OrgFinanceInvoices({
           </TableShell>
           <CardList>
             {result.rows.map((r) => (
-              <Card
-                key={r.id}
-                title={r.number ?? r.name}
-                actions={<OrgInvoiceDownloadButton documentId={r.id} />}
-              >
+              <Card key={r.id} title={r.number ?? r.name} actions={<InvoiceFileAction row={r} />}>
                 <CardRow label="Дата">{fmtDate(r.issuedAt)}</CardRow>
                 <CardRow label="Заказ">{orderCell(r, orgId)}</CardRow>
                 <CardRow label="Сумма">{money(r.amountGross)}</CardRow>

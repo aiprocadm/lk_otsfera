@@ -1,7 +1,9 @@
-import type { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { PrismaClient } from '@prisma/client';
 import { organizationChannelWhere } from '@/lib/auth/documentChannelPolicy';
 import { moscowDayRange } from '@/lib/dates/calendar';
 import type { OrgOrderScope } from '@/lib/auth/organizationPolicy';
+import { BILLED_STATUSES, getOrgFinanceKpis } from '@/lib/services/organization/finance';
 import {
   invoicePaymentState,
   PAYMENT_STATE_LABELS,
@@ -54,6 +56,11 @@ export type OrgInvoiceRow = {
   matched: boolean;
   /** Был платёж, назвавший несколько счетов сразу, — деньги не разнесены. */
   ambiguous: boolean;
+  /**
+   * `У-329`: строка — документ-счёт с файлом (`true`) или заказ, по которому
+   * счёт выставлен в 1С, а файла в кабинете нет (`false`, `id` = `order:<id>`).
+   */
+  hasFile: boolean;
 };
 
 export type OrgInvoicesFilter = {
@@ -70,7 +77,11 @@ export type OrgInvoicesResult = {
   rows: OrgInvoiceRow[];
   /** Счетов за период до фильтра по состоянию. */
   total: number;
-  /** Сумма остатков по неоплаченным и частично оплаченным счетам периода, ₽. */
+  /**
+   * К оплате, ₽ — `У-329`: та же цифра, что «Задолженность» в «Финансах» и
+   * «К оплате» на главной (`getOrgFinanceKpis`, по заказам). Раньше считалась
+   * по документам-счетам и показывала 0 при долге по заказам из 1С.
+   */
   toPay: string;
   counts: Record<OrgInvoiceState, number>;
 };
@@ -119,6 +130,7 @@ function toRow(
     orderId: d.orderId,
     orderNumber: d.order?.orderNumber ?? null,
     orderTitle: d.order?.title ?? null,
+    hasFile: true,
   };
   const unknown = (amountGross: string | null): OrgInvoiceRow => ({
     ...base,
@@ -220,20 +232,85 @@ export async function listOrgInvoices(
     paymentsByOrder.set(p.orderId, list);
   }
 
-  const rows = docs.map((d) => toRow(d, paymentsByOrder));
+  // `У-329` (`Д-63`): заказ с выставленным счётом, у которого в кабинете нет
+  // документа-счёта (счёт выставлен в 1С, обменом пришёл только статус), —
+  // тоже строка списка. Иначе долг по нему был в «Задолженности», а в списке
+  // «Счетов пока нет» и «К оплате: 0».
+  const [orphanOrders, kpis] = await Promise.all([
+    prisma.order.findMany({
+      where: {
+        organizationId: filter.organizationId,
+        financialStatus: { in: BILLED_STATUSES },
+        documents: {
+          none: {
+            type: 'invoice',
+            status: { not: 'cancelled' },
+            ...organizationChannelWhere(filter.organizationId),
+          },
+        },
+        ...(filter.scope ? filter.scope.where : {}),
+        ...(dateFilter as Prisma.OrderWhereInput),
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: ORG_INVOICES_TAKE,
+      select: {
+        id: true,
+        orderNumber: true,
+        title: true,
+        createdAt: true,
+        totalAmount: true,
+        paidAmount: true,
+      },
+    }),
+    getOrgFinanceKpis(prisma, filter.organizationId, filter.scope),
+  ]);
+
+  const rows = [...docs.map((d) => toRow(d, paymentsByOrder)), ...orphanOrders.map(orderRow)].sort(
+    (a, b) => b.issuedAt.getTime() - a.issuedAt.getTime()
+  );
   const counts: Record<OrgInvoiceState, number> = {
     unpaid: 0,
     partially_paid: 0,
     paid: 0,
     unknown: 0,
   };
-  let toPayKopecks = 0;
-  for (const r of rows) {
-    counts[r.state] += 1;
-    if ((r.state === 'unpaid' || r.state === 'partially_paid') && r.due !== null) {
-      toPayKopecks += Math.round(Number(r.due) * 100);
-    }
-  }
+  for (const r of rows) counts[r.state] += 1;
   const filtered = filter.state ? rows.filter((r) => r.state === filter.state) : rows;
-  return { rows: filtered, total: rows.length, toPay: (toPayKopecks / 100).toFixed(2), counts };
+  // Отрицательный остаток (переплата) — не «к оплате».
+  const toPay = Prisma.Decimal.max(new Prisma.Decimal(kpis.outstanding), 0).toFixed(2);
+  return { rows: filtered, total: rows.length, toPay, counts };
+}
+
+/** Строка «счёт по заказу» — деньги заказа, без файла (`У-329`). */
+function orderRow(o: {
+  id: string;
+  orderNumber: string | null;
+  title: string;
+  createdAt: Date;
+  totalAmount: Prisma.Decimal;
+  paidAmount: Prisma.Decimal;
+}): OrgInvoiceRow {
+  const due = Prisma.Decimal.max(o.totalAmount.minus(o.paidAmount), 0);
+  const state: OrgInvoiceState = due.lte(0)
+    ? 'paid'
+    : o.paidAmount.gt(0)
+      ? 'partially_paid'
+      : 'unpaid';
+  return {
+    id: `order:${o.id}`,
+    number: null,
+    name: `Счёт по заказу ${o.orderNumber ?? `«${o.title}»`}`,
+    issuedAt: o.createdAt,
+    orderId: o.id,
+    orderNumber: o.orderNumber,
+    orderTitle: o.title,
+    amountGross: o.totalAmount.toFixed(2),
+    paid: o.paidAmount.toFixed(2),
+    due: due.toFixed(2),
+    state,
+    // Деньги заказа уже разнесены обменом — «платёж не найден» здесь не к месту.
+    matched: true,
+    ambiguous: false,
+    hasFile: false,
+  };
 }
