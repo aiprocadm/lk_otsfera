@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
   // Схема — только «тело — JSON-объект»: не-строки → null (str) остаётся
   // обязанностью роута (закреплено тестом), валидацию полей делает сервис.
-  const parsed = await parseJsonBody(req, z.record(z.unknown()));
+  const parsed = await parseJsonBody(req, z.record(z.string(), z.unknown()));
   if (!parsed.ok) return parsed.response;
   const body = parsed.data;
 

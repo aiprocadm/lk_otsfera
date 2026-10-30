@@ -56,7 +56,8 @@ function shapeKeys(schema: z.ZodTypeAny): string[] {
   const unwrap = (s: z.ZodTypeAny): z.ZodTypeAny => {
     let cur: z.ZodTypeAny = s;
     for (;;) {
-      if (cur instanceof z.ZodEffects) cur = cur.innerType();
+      // zod 4: `refine` схему не оборачивает, `transform`/`preprocess` — это `ZodPipe`.
+      if (cur instanceof z.ZodPipe) cur = cur.in as z.ZodTypeAny;
       else if (cur instanceof z.ZodOptional || cur instanceof z.ZodNullable)
         cur = cur.unwrap() as z.ZodTypeAny;
       else if (cur instanceof z.ZodDefault) cur = cur.removeDefault() as z.ZodTypeAny;

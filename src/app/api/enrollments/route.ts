@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   // Схема — только «тело — JSON-объект»: роут намеренно ничего не
   // интерпретирует (не-строки → null, items не-массив → []) — это
   // закреплено тестами, решение принимает валидатор сервиса.
-  const parsed = await parseJsonBody(req, z.record(z.unknown()));
+  const parsed = await parseJsonBody(req, z.record(z.string(), z.unknown()));
   if (!parsed.ok) return parsed.response;
   const body = parsed.data;
   const res = await submitEnrollmentRequest(prisma, session, {

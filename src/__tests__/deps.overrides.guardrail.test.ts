@@ -48,6 +48,9 @@ const LOCK_FLOORS: Record<string, string> = {
   // GHSA-w74x-v6f9-j3xg, GHSA-wjr9-j795-jxcr и др.: подмена схемы и хоста при
   // разборе URI (через ajv у @sentry/webpack-plugin). Уязвимы 3.0.0–3.1.8.
   'fast-uri': '3.1.9',
+  // GHSA-mrhx-c7xc-m3w5: проверка слишком больших коллекций с ограничениями
+  // исчерпывает память. Уязвима вся линия 3.x и 4.x до 4.6.6 (`У-321` ч. 2).
+  zod: '4.6.6',
 };
 
 function parse(v: string): number[] {

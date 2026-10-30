@@ -187,8 +187,8 @@
 
 | Вердикт | Кол-во |
 |---|---|
-| `✅` соответствует | **320** |
-| `⏳` запланировано | **62** |
+| `✅` соответствует | **321** |
+| `⏳` запланировано | **61** |
 | `❌` расхождение | 0 |
 | `⚠` вне объёма | 1 (см. раздел ниже) — расхождение в тексте ТЗ понятности (чинить нечего); карточка организации у администратора мимо реестра вкладок закрыта 05.09.2026 (этап 9, PR-1) |
 
@@ -225,7 +225,7 @@
 
 | Требование | Что проверять (наблюдаемое поведение) | Якорь | Вердикт | Сверено |
 |---|---|---|---|---|
-| `У-321` | `nodemailer` обновлён до версии без известных уязвимостей (мажор), заодно подняты `@sentry/*`; `npm run audit:prod` — 0 high, 0 critical; отправка писем и разбор входящей почты (`mailparser`) проходят свои тесты | [ТЗ §4](2026-10-28-tz-leader-customer-release.md) | ⏳ этап 1 | — |
+| `У-321` | `nodemailer` обновлён до версии без известных уязвимостей (мажор), заодно подняты `@sentry/*`; `npm run audit:prod` — 0 high, 0 critical; отправка писем и разбор входящей почты (`mailparser`) проходят свои тесты | [ТЗ §4](2026-10-28-tz-leader-customer-release.md) | ✅ 30.10.2026 | `npm audit --omit=dev` = 0 уязвимостей: `nodemailer` 10.2.1 (override, точно), `mailparser` 3.12.4, `imapflow` 1.7.8, `@sentry/*` 10.76.2, `fast-uri` 3.1.9 (#721), `zod` 4.6.7 (PR-3); тесты почты и входящих зелёные; страж `deps.overrides` держит пороги всех советов (мутация — lock из `main`) |
 | `У-322` | `docker-compose.prod.yml`: сервис `clamav` с проверкой здоровья и томом `clamdb`, `worker` ждёт `service_healthy`; в `.env.production.example` `CLAMAV_HOST=clamav` | [docker-compose.prod.yml](../../docker-compose.prod.yml) + страж [infra.compose-prod.guardrail](../../src/__tests__/infra.compose-prod.guardrail.test.ts) (мутация «воркер не ждёт» → падает) | ✅ | 28.10.2026 |
 | `У-323` | Токен с `aud` (мост площадки) не открывает кабинет ни через `getSession`, ни через middleware; production без `STUDENT_BRIDGE_JWT_SECRET` или с равным `JWT_SECRET` не стартует | [jwt.ts](../../src/lib/auth/jwt.ts) `verifyToken`, [middleware.ts](../../src/middleware.ts), [env.ts](../../src/lib/env.ts); тесты `auth.jwt`, `auth.middleware`, `env.validate` (три мутации → падают) | ✅ | 28.10.2026 |
 | `У-324` | `POST /api/auth/logout` при живой сессии увеличивает `sessionVersion` (старый токен перестаёт приниматься `getSession`), пишет аудит `logout`; сбой базы не мешает стереть cookie | [logout/route.ts](../../src/app/api/auth/logout/route.ts) → `endSessionOnLogout` ([sessions.ts](../../src/lib/services/auth/sessions.ts)); тесты `api.auth.logout`, `services.auth.sessions.unit` (мутация → падает) | ✅ | 28.10.2026 |

@@ -27,7 +27,7 @@ export async function PATCH(req: Request, { params }: Params) {
   // Схема — только «тело — JSON-объект»: проверка action и формы itemIds
   // остаётся в роуте (код 'validation' закреплён тестами), String()-коэрции
   // reason/externalStudentId — тоже.
-  const parsed = await parseJsonBody(req, z.record(z.unknown()));
+  const parsed = await parseJsonBody(req, z.record(z.string(), z.unknown()));
   if (!parsed.ok) return parsed.response;
   const body = parsed.data;
   const action = body.action;
