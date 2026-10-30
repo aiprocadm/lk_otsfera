@@ -27,6 +27,7 @@ function row(over: Partial<OrgInvoiceRow> = {}): OrgInvoiceRow {
     state: 'partially_paid',
     matched: true,
     ambiguous: false,
+    hasFile: true,
     ...over,
   };
 }
@@ -64,6 +65,26 @@ describe('OrgFinanceInvoices', () => {
     expect(out).toContain('md:hidden');
     expect(out).toContain('hidden md:block');
     expect(out).not.toContain('Сбросить');
+  });
+
+  // `У-329`: строка «счёт по заказу» без файла — ссылка на заказ есть,
+  // кнопки скачивания нет, вместо неё — «файл в 1С».
+  it('строка заказа без файла: ссылка на заказ, «файл в 1С», без кнопки скачивания', () => {
+    const out = html(
+      result([
+        row({
+          id: 'order:o9',
+          number: null,
+          name: 'Счёт по заказу DEMO-1',
+          orderId: 'o9',
+          hasFile: false,
+        }),
+      ])
+    );
+    expect(out).toContain('Счёт по заказу DEMO-1');
+    expect(out).toContain('href="/organization/orders/o9?org=org1"');
+    expect(out).toContain('файл в 1С');
+    expect(out).not.toContain('data-testid="dl-order:o9"');
   });
 
   it('у заказа нет номера — в ссылке название, а без названия — слово «Заказ»', () => {

@@ -1,12 +1,12 @@
 import React from 'react';
 import {
-  updateOrgMemberRoleFormAction,
   deactivateOrgMemberFormAction,
   reactivateOrgMemberFormAction,
 } from '@/server-actions/organization/team';
 import type { OrgMemberRow } from '@/lib/services/organization/team';
 import { TableShell, THead, Th, Tr, Td, EmptyState } from '@/components/ui';
 import { InviteResendButtons } from '@/components/team/invite-resend-buttons';
+import { MemberRoleForm } from '@/components/organization/member-role-form';
 import { fmtDate, fmtLastLogin } from '@/lib/format';
 
 type Props = {
@@ -88,28 +88,15 @@ export function TeamTable({ members, organizationId, currentUserId, viewerRole }
                 ) : (
                   <div className="inline-flex items-center gap-2">
                     {m.isActive && (
-                      <form
-                        action={updateOrgMemberRoleFormAction}
-                        className="inline-flex items-center gap-1"
-                      >
-                        <input type="hidden" name="organizationId" value={organizationId} />
-                        <input type="hidden" name="orgUserId" value={m.organizationUserId} />
-                        <select
-                          name="newRole"
-                          defaultValue={m.roleInOrg}
-                          className="text-xs border border-gray-200 rounded px-1.5 py-1 bg-white"
-                        >
-                          <option value="member">Сотрудник</option>
-                          <option value="leader">Руководитель</option>
-                          {viewerRole === 'admin' && <option value="admin">Администратор</option>}
-                        </select>
-                        <button
-                          type="submit"
-                          className="px-2 py-1 text-xs border border-gray-200 rounded hover:bg-gray-50"
-                        >
-                          Применить
-                        </button>
-                      </form>
+                      // `У-331`: ключ с ролью — после обновления страницы форма
+                      // берёт новую роль, а не держит выбор старой.
+                      <MemberRoleForm
+                        key={`${m.organizationUserId}:${m.roleInOrg}`}
+                        organizationId={organizationId}
+                        orgUserId={m.organizationUserId}
+                        role={m.roleInOrg}
+                        canGrantAdmin={viewerRole === 'admin'}
+                      />
                     )}
                     {m.isActive ? (
                       <form action={deactivateOrgMemberFormAction}>

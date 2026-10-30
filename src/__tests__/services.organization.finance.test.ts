@@ -10,6 +10,8 @@ import {
   getOrgIntermediaryCommission,
   getOrgIntermediaryCommissionForOrgs,
 } from '@/lib/services/manager/orgCommission';
+import { listOrgInvoices } from '@/lib/services/organization/invoices';
+import { kpis as orgDashboardKpis } from '@/lib/services/organization/dashboard';
 
 let prisma: PrismaClient;
 let partnerId: string;
@@ -351,6 +353,56 @@ describe('batch variants (менеджерская витрина: N орган�
       expect(kpis.get(org3.id)).toEqual({ billed: '0.00', paid: '0.00', outstanding: '0.00' });
     } finally {
       await prisma.organization.deleteMany({ where: { id: org3.id } });
+    }
+  });
+});
+
+// `У-329` (`Д-63`, ТЗ 28.10.2026): долг в «Финансах», «К оплате» над списком
+// счетов и «К оплате» на главной — одна цифра, а заказ со счётом без документа
+// виден в списке. На стенде было: долг 100 000 ₽, «Счетов пока нет», «К оплате 0».
+describe('один источник денег заказчика (У-329)', () => {
+  it('«Задолженность» = «К оплате» в счетах = «К оплате» на главной; заказы без документа — в списке', async () => {
+    const fin = await getOrgFinanceKpis(prisma, orgId, null);
+    const inv = await listOrgInvoices(prisma, { organizationId: orgId, scope: null });
+    const dash = await orgDashboardKpis(prisma, orgId, null);
+    expect(fin.outstanding).toBe('60000.00');
+    expect(inv.toPay).toBe(fin.outstanding);
+    expect(dash.outstandingAmount).toBe(fin.outstanding);
+
+    const orderRows = inv.rows.filter((r) => !r.hasFile);
+    expect(orderRows.map((r) => [r.orderTitle, r.state, r.due]).sort()).toEqual([
+      ['O1', 'partially_paid', '60000.00'],
+      ['O2', 'paid', '0.00'],
+    ]);
+  });
+
+  it('статус «оплачен», а денег меньше суммы (как DEMO-COMM-001 на стенде) — долг виден везде одинаково', async () => {
+    const org = await prisma.organization.create({
+      data: { name: `FinOrg-${STAMP}-u329`, companyId },
+    });
+    try {
+      await prisma.order.create({
+        data: {
+          title: 'U329',
+          organizationId: org.id,
+          companyId,
+          financialStatus: 'paid',
+          totalAmount: new Prisma.Decimal('100000'),
+          paidAmount: new Prisma.Decimal('0'),
+        },
+      });
+      const fin = await getOrgFinanceKpis(prisma, org.id, null);
+      const inv = await listOrgInvoices(prisma, { organizationId: org.id, scope: null });
+      const dash = await orgDashboardKpis(prisma, org.id, null);
+      expect([fin.outstanding, inv.toPay, dash.outstandingAmount]).toEqual([
+        '100000.00',
+        '100000.00',
+        '100000.00',
+      ]);
+      expect(inv.rows.map((r) => [r.orderTitle, r.due])).toEqual([['U329', '100000.00']]);
+    } finally {
+      await prisma.order.deleteMany({ where: { organizationId: org.id } });
+      await prisma.organization.delete({ where: { id: org.id } });
     }
   });
 });

@@ -28,9 +28,18 @@ beforeEach(() => {
   updateStudentPositionAction.mockResolvedValue({ ok: true });
 });
 
+/** `У-330`: поле открывается кнопкой «Изменить» (или «Указать», если пусто). */
+function openEdit() {
+  fireEvent.click(screen.getByText(/^(Изменить|Указать)$/));
+}
+
 describe('StudentPositionForm', () => {
   it('показывает текущую должность и скрытые поля скоупа', () => {
     const { container } = render(React.createElement(StudentPositionForm, props));
+    // В режиме просмотра — текст должности, а не поле ввода.
+    expect(screen.getByText('Инженер')).toBeTruthy();
+    expect(screen.queryByPlaceholderText(/инженер по охране труда/i)).toBeNull();
+    openEdit();
     expect(
       (screen.getByPlaceholderText(/инженер по охране труда/i) as HTMLInputElement).value
     ).toBe('Инженер');
@@ -42,6 +51,7 @@ describe('StudentPositionForm', () => {
 
   it('пустая должность допустима — форма отправляется и показывает toast', async () => {
     render(React.createElement(StudentPositionForm, { ...props, initialPosition: null }));
+    openEdit();
     const input = screen.getByPlaceholderText(/инженер по охране труда/i);
     fireEvent.change(input, { target: { value: '' } });
     fireEvent.click(screen.getByText('Сохранить'));
@@ -54,6 +64,7 @@ describe('StudentPositionForm', () => {
 
   it('сохраняет введённое значение', async () => {
     render(React.createElement(StudentPositionForm, { ...props, initialPosition: null }));
+    openEdit();
     fireEvent.change(screen.getByPlaceholderText(/инженер по охране труда/i), {
       target: { value: 'Главный энергетик' },
     });
@@ -67,6 +78,7 @@ describe('StudentPositionForm', () => {
   it('ошибка сервиса показывается по-русски', async () => {
     updateStudentPositionAction.mockResolvedValue({ ok: false, error: 'forbidden' });
     render(React.createElement(StudentPositionForm, props));
+    openEdit();
     fireEvent.click(screen.getByText('Сохранить'));
 
     await waitFor(() =>
@@ -78,6 +90,7 @@ describe('StudentPositionForm', () => {
   it('слишком длинная должность — своя подпись ошибки', async () => {
     updateStudentPositionAction.mockResolvedValue({ ok: false, error: 'validation' });
     render(React.createElement(StudentPositionForm, props));
+    openEdit();
     fireEvent.click(screen.getByText('Сохранить'));
 
     await waitFor(() =>
@@ -94,12 +107,61 @@ describe('StudentPositionForm', () => {
         })
     );
     render(React.createElement(StudentPositionForm, props));
+    openEdit();
     fireEvent.click(screen.getByText('Сохранить'));
 
     await waitFor(() => expect(screen.getByText('Сохраняем…')).toBeTruthy());
     expect((screen.getByText('Сохраняем…') as HTMLButtonElement).disabled).toBe(true);
 
     release({ ok: true });
-    await waitFor(() => expect(screen.getByText('Сохранить')).toBeTruthy());
+    // `У-330`: после успеха форма закрывается — видна кнопка «Изменить».
+    await waitFor(() => expect(screen.getByText('Изменить')).toBeTruthy());
+  });
+});
+
+// `У-330` (`Д-64`, ТЗ 28.10.2026): «строка с должностью закрепляет текст в
+// карточку, но сама строка ввода не исчезает». После сохранения поле обязано
+// закрыться и показать сохранённое значение.
+describe('StudentPositionForm: после сохранения поле закрывается (У-330)', () => {
+  it('пустая должность в просмотре — «не указана» и кнопка «Указать»', () => {
+    render(React.createElement(StudentPositionForm, { ...props, initialPosition: null }));
+    expect(screen.getByText('не указана')).toBeTruthy();
+    expect(screen.getByText('Указать')).toBeTruthy();
+  });
+
+  it('«Отмена» закрывает поле и возвращает прежнее значение', () => {
+    render(React.createElement(StudentPositionForm, props));
+    openEdit();
+    fireEvent.change(screen.getByPlaceholderText(/инженер по охране труда/i), {
+      target: { value: 'Черновик' },
+    });
+    fireEvent.click(screen.getByText('Отмена'));
+    expect(screen.queryByPlaceholderText(/инженер по охране труда/i)).toBeNull();
+    expect(screen.getByText('Инженер')).toBeTruthy();
+    expect(updateStudentPositionAction).not.toHaveBeenCalled();
+  });
+
+  it('ошибка сохранения оставляет поле открытым', async () => {
+    updateStudentPositionAction.mockResolvedValue({ ok: false, error: 'validation' });
+    render(React.createElement(StudentPositionForm, props));
+    openEdit();
+    fireEvent.click(screen.getByText('Сохранить'));
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    expect(screen.getByPlaceholderText(/инженер по охране труда/i)).toBeTruthy();
+  });
+
+  it('сохранили — поля ввода нет, видна сохранённая должность', async () => {
+    render(React.createElement(StudentPositionForm, { ...props, initialPosition: null }));
+    fireEvent.click(screen.getByText('Указать'));
+    fireEvent.change(screen.getByPlaceholderText(/инженер по охране труда/i), {
+      target: { value: 'Главный энергетик' },
+    });
+    fireEvent.click(screen.getByText('Сохранить'));
+
+    await waitFor(() =>
+      expect(screen.queryByPlaceholderText(/инженер по охране труда/i)).toBeNull()
+    );
+    expect(screen.getByText('Главный энергетик')).toBeTruthy();
+    expect(screen.getByText('Изменить')).toBeTruthy();
   });
 });

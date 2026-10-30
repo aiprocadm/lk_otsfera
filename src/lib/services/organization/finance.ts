@@ -7,7 +7,11 @@ import type { OrgOrderScope } from '@/lib/auth/organizationPolicy';
  * `refunded` are excluded from the KPI/commission aggregates; refunds remain
  * visible as individual rows in the payment ledger.
  */
-const BILLED_STATUSES: FinancialStatus[] = ['billed', 'partially_paid', 'paid'];
+/**
+ * Заказы, по которым счёт выставлен (оплачен он или нет). `У-329`: тот же набор
+ * задаёт и строки «счёт по заказу» в списке счетов заказчика — источник один.
+ */
+export const BILLED_STATUSES: FinancialStatus[] = ['billed', 'partially_paid', 'paid'];
 
 export type OrgFinanceKpis = { billed: string; paid: string; outstanding: string };
 

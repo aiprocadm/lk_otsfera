@@ -15,9 +15,16 @@ import {
 
 const findMany = vi.fn();
 const paymentFindMany = vi.fn();
+/** `У-329`: заказы без документа-счёта (`where.documents`) и задолженность по заказам. */
+const orphanOrders = vi.fn();
+const kpiOrders = vi.fn();
+const orderFindMany = vi.fn((args: { where: Record<string, unknown> }) =>
+  'documents' in args.where ? orphanOrders(args) : kpiOrders(args)
+);
 const prisma = {
   document: { findMany },
   payment: { findMany: paymentFindMany },
+  order: { findMany: orderFindMany },
 } as unknown as PrismaClient;
 
 function doc(over: Record<string, unknown> = {}) {
@@ -48,6 +55,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   findMany.mockResolvedValue([]);
   paymentFindMany.mockResolvedValue([]);
+  orphanOrders.mockResolvedValue([]);
+  kpiOrders.mockResolvedValue([]);
 });
 
 describe('listOrgInvoices — выборка', () => {
@@ -129,7 +138,6 @@ describe('listOrgInvoices — состояние оплаты', () => {
       matched: true,
       ambiguous: false,
     });
-    expect(r.toPay).toBe('600.00');
     expect(r.total).toBe(1);
     expect(r.counts).toEqual({ unpaid: 0, partially_paid: 1, paid: 0, unknown: 0 });
   });
@@ -139,7 +147,6 @@ describe('listOrgInvoices — состояние оплаты', () => {
     paymentFindMany.mockResolvedValue([payment({ amount: new Prisma.Decimal('1200.00') })]);
     const r = await listOrgInvoices(prisma, { scope: null, organizationId: 'org1' });
     expect(r.rows[0]).toMatchObject({ state: 'paid', paid: '1200.00', due: '0.00' });
-    expect(r.toPay).toBe('0.00');
   });
 
   it('платёж не сослался на счёт — не оплачен и не сопоставлен', async () => {
@@ -152,7 +159,6 @@ describe('listOrgInvoices — состояние оплаты', () => {
       paid: '0.00',
       due: '1000.00',
     });
-    expect(r.toPay).toBe('1000.00');
   });
 
   it('возврат больше оплаты: зачтено 0, остаток — не больше счёта', async () => {
@@ -199,7 +205,6 @@ describe('listOrgInvoices — состояние оплаты', () => {
     expect(byId.get('noGross')).toMatchObject({ state: 'unknown', amountGross: null });
     expect(byId.get('noNumber')).toMatchObject({ state: 'unknown', amountGross: '1000.00' });
     expect(r.counts.unknown).toBe(3);
-    expect(r.toPay).toBe('0.00');
   });
 
   it('фильтр по состоянию сужает строки, но не общий счёт и не сумму к оплате', async () => {
@@ -212,7 +217,6 @@ describe('listOrgInvoices — состояние оплаты', () => {
     });
     expect(r.rows.map((x) => x.id)).toEqual(['d2']);
     expect(r.total).toBe(2);
-    expect(r.toPay).toBe('1000.00');
     expect(r.counts).toEqual({ unpaid: 1, partially_paid: 0, paid: 1, unknown: 0 });
   });
 });
@@ -234,5 +238,94 @@ describe('разбор параметров адреса', () => {
     expect(parseInvoiceDate('2026-13-45', 'from')).toBeUndefined();
     expect(parseInvoiceDate('2026-02-30', 'to')).toBeUndefined();
     expect(parseInvoiceDate(undefined, 'from')).toBeUndefined();
+  });
+});
+
+// `У-329` (`Д-63`, ТЗ 28.10.2026): «Задолженность» считалась по заказам, а
+// список и «К оплате» — по документам-счетам. Заказ со счётом из 1С без файла
+// давал долг 100 000 ₽ при «Счетов пока нет» и «К оплате: 0».
+describe('listOrgInvoices — один источник с «Задолженностью» (У-329)', () => {
+  function order(over: Record<string, unknown> = {}) {
+    return {
+      id: 'o9',
+      orderNumber: 'DEMO-1',
+      title: 'Обучение ОТ',
+      createdAt: new Date('2026-09-05T10:00:00Z'),
+      totalAmount: new Prisma.Decimal('100000.00'),
+      paidAmount: new Prisma.Decimal('0.00'),
+      ...over,
+    };
+  }
+
+  it('«К оплате» = задолженность по заказам, даже когда документов-счетов нет', async () => {
+    kpiOrders.mockResolvedValue([
+      {
+        organizationId: 'org1',
+        totalAmount: new Prisma.Decimal('100000'),
+        paidAmount: new Prisma.Decimal('0'),
+      },
+    ]);
+    const r = await listOrgInvoices(prisma, { scope: null, organizationId: 'org1' });
+    expect(r.toPay).toBe('100000.00');
+  });
+
+  it('заказ со счётом без документа — строка списка со ссылкой на заказ и без файла', async () => {
+    orphanOrders.mockResolvedValue([order()]);
+    const r = await listOrgInvoices(prisma, { scope: null, organizationId: 'org1' });
+    expect(r.rows).toEqual([
+      expect.objectContaining({
+        id: 'order:o9',
+        name: 'Счёт по заказу DEMO-1',
+        orderId: 'o9',
+        amountGross: '100000.00',
+        paid: '0.00',
+        due: '100000.00',
+        state: 'unpaid',
+        hasFile: false,
+      }),
+    ]);
+    expect(r.total).toBe(1);
+    expect(r.counts.unpaid).toBe(1);
+    const where = orphanOrders.mock.calls[0]![0].where;
+    expect(where).toMatchObject({
+      organizationId: 'org1',
+      financialStatus: { in: ['billed', 'partially_paid', 'paid'] },
+      documents: {
+        none: { type: 'invoice', counterpartyType: 'organization', counterpartyId: 'org1' },
+      },
+    });
+  });
+
+  it('частичная и полная оплата заказа — своё состояние, переплата не уходит в минус', async () => {
+    orphanOrders.mockResolvedValue([
+      order({ id: 'a', paidAmount: new Prisma.Decimal('40000') }),
+      order({ id: 'b', paidAmount: new Prisma.Decimal('120000') }),
+    ]);
+    const r = await listOrgInvoices(prisma, { scope: null, organizationId: 'org1' });
+    const byId = Object.fromEntries(r.rows.map((x) => [x.id, x]));
+    expect([byId['order:a']!.state, byId['order:a']!.due]).toEqual(['partially_paid', '60000.00']);
+    expect([byId['order:b']!.state, byId['order:b']!.due]).toEqual(['paid', '0.00']);
+  });
+
+  it('документ-счёт и строка заказа идут вместе, свежие первыми; у документа файл есть', async () => {
+    findMany.mockResolvedValue([doc()]);
+    orphanOrders.mockResolvedValue([order({ createdAt: new Date('2026-09-10T10:00:00Z') })]);
+    const r = await listOrgInvoices(prisma, { scope: null, organizationId: 'org1' });
+    expect(r.rows.map((x) => [x.id, x.hasFile])).toEqual([
+      ['order:o9', false],
+      ['d1', true],
+    ]);
+  });
+
+  it('переплата по заказам — «К оплате» 0, а не минус', async () => {
+    kpiOrders.mockResolvedValue([
+      {
+        organizationId: 'org1',
+        totalAmount: new Prisma.Decimal('100'),
+        paidAmount: new Prisma.Decimal('150'),
+      },
+    ]);
+    const r = await listOrgInvoices(prisma, { scope: null, organizationId: 'org1' });
+    expect(r.toPay).toBe('0.00');
   });
 });

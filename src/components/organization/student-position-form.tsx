@@ -12,6 +12,11 @@ import { Button, Input } from '@/components/ui';
  * необязательное (решение заказчика §9-1 спеки: обучаться могут физлица) —
  * пустое значение допустимо и очищает должность. Значение попадает в выгрузку
  * сотрудников организации.
+ *
+ * `У-330` (`Д-64`, ТЗ 28.10.2026): поле было открыто всегда, и после
+ * сохранения текст оставался в поле ввода — непонятно, сохранилось ли.
+ * Теперь два режима: просмотр («Изменить») и правка; после сохранения форма
+ * закрывается и показывает сохранённое значение.
  */
 
 const ERROR_LABEL: Record<string, string> = {
@@ -28,14 +33,34 @@ export function StudentPositionForm({
   studentId: string;
   initialPosition: string | null;
 }) {
-  const [position, setPosition] = useState(initialPosition ?? '');
+  const [saved, setSaved] = useState(initialPosition ?? '');
+  const [position, setPosition] = useState(saved);
+  const [editing, setEditing] = useState(false);
 
   const { formAction, pending, errorText } = useFormAction<{ ok: true }>({
     action: updateStudentPositionAction,
     errorMap: ERROR_LABEL,
     refresh: true,
-    onSuccess: () => toast.success('Должность сохранена'),
+    onSuccess: () => {
+      const value = position.trim();
+      setSaved(value);
+      setPosition(value);
+      setEditing(false);
+      toast.success('Должность сохранена');
+    },
   });
+
+  if (!editing) {
+    return (
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+        <span className="text-xs text-gray-500">Должность</span>
+        <span className={saved ? 'text-gray-900' : 'text-gray-400'}>{saved || 'не указана'}</span>
+        <Button type="button" size="sm" variant="secondary" onClick={() => setEditing(true)}>
+          {saved ? 'Изменить' : 'Указать'}
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <form action={formAction} className="flex flex-col sm:flex-row sm:items-end gap-2">
@@ -49,10 +74,22 @@ export function StudentPositionForm({
           onChange={(e) => setPosition(e.target.value)}
           placeholder="например, инженер по охране труда"
           maxLength={200}
+          autoFocus
         />
       </label>
       <Button type="submit" disabled={pending}>
         {pending ? 'Сохраняем…' : 'Сохранить'}
+      </Button>
+      <Button
+        type="button"
+        variant="secondary"
+        disabled={pending}
+        onClick={() => {
+          setPosition(saved);
+          setEditing(false);
+        }}
+      >
+        Отмена
       </Button>
       {errorText && (
         <p role="alert" className="text-sm text-red-600 sm:self-center">

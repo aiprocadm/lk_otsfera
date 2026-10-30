@@ -3,10 +3,13 @@ import { renderToString } from 'react-dom/server';
 import React from 'react';
 
 vi.mock('@/server-actions/organization/team', () => ({
-  updateOrgMemberRoleFormAction: vi.fn(),
+  updateOrgMemberRoleAction: vi.fn(),
   deactivateOrgMemberFormAction: vi.fn(),
   reactivateOrgMemberFormAction: vi.fn(),
 }));
+
+// `У-331`: форма смены роли — клиентская, с useRouter.
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 // InviteResendButtons — 'use client' с server-action импортом; для SSR-string
 // тестов достаточно заглушить экшен, компонент рендерим настоящий.

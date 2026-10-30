@@ -5,6 +5,7 @@ import type { OrgOrderScope } from '@/lib/auth/organizationPolicy';
 import { fmtMoney } from '@/lib/format';
 import { EXPIRING_WITHIN_DAYS } from '@/lib/services/training/certificates';
 import { dueWithinDaysWhere } from '@/lib/tasks/due';
+import { getOrgFinanceKpis } from '@/lib/services/organization/finance';
 
 export type OrgDashboardKpis = {
   activeOrders: number;
@@ -63,16 +64,10 @@ export async function kpis(
         ...(scope ? scope.where : {}),
       },
     }),
-    // Сумма линейна → SQL SUM вместо выборки всех строк в JS (R2).
-    // Decimal-канон сохранён: Prisma возвращает _sum Decimal'ом.
-    prisma.order.aggregate({
-      where: {
-        organizationId,
-        financialStatus: { in: ['billed', 'partially_paid'] },
-        ...(scope ? scope.where : {}),
-      },
-      _sum: { totalAmount: true, paidAmount: true },
-    }),
+    // `У-329`: та же цифра, что «Задолженность» в «Финансах» и «К оплате» в
+    // списке счетов. Раньше здесь не учитывались заказы со статусом «оплачен»,
+    // у которых оплата меньше суммы, — главная показывала 0 при долге.
+    getOrgFinanceKpis(prisma, organizationId, scope),
     prisma.student.count({ where: { organizationId } }),
     prisma.document.count({
       where: {
@@ -82,9 +77,8 @@ export async function kpis(
     }),
   ]);
 
-  const outstanding = (outstandingAgg._sum.totalAmount ?? new Prisma.Decimal(0)).minus(
-    outstandingAgg._sum.paidAmount ?? new Prisma.Decimal(0)
-  );
+  // Отрицательный остаток (переплата) — не «к оплате».
+  const outstanding = Prisma.Decimal.max(new Prisma.Decimal(outstandingAgg.outstanding), 0);
 
   return {
     activeOrders,

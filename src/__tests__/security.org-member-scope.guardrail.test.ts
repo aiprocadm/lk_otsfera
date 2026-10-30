@@ -108,11 +108,16 @@ describe('страж: участник видит только свои зака
     } as unknown as PrismaClient;
 
     await kpis(prisma, 'o1', scope);
-    for (const call of [orderCount.mock.calls[0], orderAggregate.mock.calls[0]] as unknown as Array<
-      [{ where: { OR?: unknown } }]
-    >) {
-      expect(call[0].where.OR).toEqual(scope.where.OR);
-    }
+    // `У-329`: «К оплате» считается общей функцией «Задолженности» (findMany).
+    const kpiCalls = [orderCount.mock.calls[0], orderFindMany.mock.calls[0]] as unknown as Array<
+      [{ where: { OR?: unknown } }] | undefined
+    >;
+    expect(kpiCalls.every(Boolean), 'запрос счётчиков пропал — страж охранял бы пустоту').toBe(
+      true
+    );
+    for (const call of kpiCalls) expect(call![0].where.OR).toEqual(scope.where.OR);
+    expect(orderAggregate).not.toHaveBeenCalled();
+    orderFindMany.mockClear();
 
     await attention(prisma, 'o1', scope);
     const orderWheres = (
