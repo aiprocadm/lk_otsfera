@@ -19,12 +19,6 @@ const FINANCIAL_OPTIONS: { value: string; label: string }[] = [
 ];
 
 type Props = {
-  /**
-   * Организации для выпадающего списка. У админа его нет: организаций в системе
-   * тысячи, и список пришлось бы молча обрезать — вместо этого он фильтрует по
-   * компании и ищет по названию и номеру заказа.
-   */
-  orgs?: Array<{ id: string; name: string }>;
   initial: {
     search?: string;
     statusId?: string;
@@ -46,8 +40,13 @@ type Props = {
   companies?: Array<{ id: string; name: string }>;
 };
 
+/**
+ * Этап 5 ТЗ 28.10.2026 (`У-350`, РК 5): выпадающего списка организаций больше
+ * нет — в нём нельзя было набрать название, только листать. Организация
+ * ищется общей строкой поиска (сервис списка сверяет и название организации);
+ * параметр `organizationId` в адресе сервис по-прежнему понимает.
+ */
 export function ManagerOrdersFilter({
-  orgs,
   initial,
   statuses = [],
   basePath = '/manager',
@@ -75,7 +74,8 @@ export function ManagerOrdersFilter({
         type="search"
         name="search"
         defaultValue={initial.search ?? ''}
-        placeholder="Поиск по названию или номеру заказа…"
+        placeholder="Поиск по названию, номеру заказа и организации…"
+        aria-label="Поиск по названию, номеру заказа и организации"
         className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 md:min-w-64 focus:outline-none focus:border-[#F97316]"
       />
 
@@ -116,21 +116,6 @@ export function ManagerOrdersFilter({
           {companies.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
-            </option>
-          ))}
-        </select>
-      )}
-
-      {orgs && (
-        <select
-          name="organizationId"
-          defaultValue={initial.organizationId ?? ''}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#F97316]"
-        >
-          <option value="">Все организации</option>
-          {orgs.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.name}
             </option>
           ))}
         </select>

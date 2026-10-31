@@ -78,7 +78,7 @@ export default async function LeaderOrdersPage({
       </div>
       {/* `У-232`: пришли по ссылке на удалённый или чужой заказ. */}
       {isMissingObjectRequested(sp) && <MissingObjectNotice what="Заказ" />}
-      <ManagerOrdersFilter orgs={orgs} initial={sp} statuses={statusOptions} basePath="/leader" />
+      <ManagerOrdersFilter initial={sp} statuses={statusOptions} basePath="/leader" />
       <ManagerOrdersTable
         rows={rows}
         nextCursor={nextCursor}

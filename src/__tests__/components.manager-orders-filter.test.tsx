@@ -11,7 +11,6 @@ describe('ManagerOrdersFilter', () => {
   it('поле поиска name="search" и action ведёт на basePath', () => {
     const html = renderToString(
       React.createElement(ManagerOrdersFilter, {
-        orgs: [],
         initial: { search: 'abc' },
         basePath: '/leader',
       })
@@ -21,34 +20,27 @@ describe('ManagerOrdersFilter', () => {
     expect(html).toContain('value="abc"');
   });
   it('basePath по умолчанию /manager', () => {
-    const html = renderToString(
-      React.createElement(ManagerOrdersFilter, { orgs: [], initial: {} })
-    );
+    const html = renderToString(React.createElement(ManagerOrdersFilter, { initial: {} }));
     expect(html).toContain('action="/manager/orders"');
   });
 
   it('этап 4 ТЗ 13.10.2026 (`Р-4-3`): поиск внутри фокуса его не сбрасывает', () => {
     const withFocus = renderToString(
-      React.createElement(ManagerOrdersFilter, { orgs: [], initial: { focus: 'overdue' } })
+      React.createElement(ManagerOrdersFilter, { initial: { focus: 'overdue' } })
     );
     expect(withFocus).toContain('type="hidden" name="focus" value="overdue"');
-    const without = renderToString(
-      React.createElement(ManagerOrdersFilter, { orgs: [], initial: {} })
-    );
+    const without = renderToString(React.createElement(ManagerOrdersFilter, { initial: {} }));
     expect(without).not.toContain('name="focus"');
   });
 
   it('без активных фильтров ссылка "Сбросить" не рендерится', () => {
-    const html = renderToString(
-      React.createElement(ManagerOrdersFilter, { orgs: [], initial: {} })
-    );
+    const html = renderToString(React.createElement(ManagerOrdersFilter, { initial: {} }));
     expect(html).not.toContain('Сбросить');
   });
 
   it('с активным фильтром (search) рендерится ссылка "Сбросить" на {basePath}/orders', () => {
     const html = renderToString(
       React.createElement(ManagerOrdersFilter, {
-        orgs: [],
         initial: { search: 'abc' },
         basePath: '/leader',
       })
@@ -58,9 +50,7 @@ describe('ManagerOrdersFilter', () => {
   });
 
   it('чекбокс «Без менеджера» name="unassigned" value="1", по умолчанию не отмечен', () => {
-    const html = renderToString(
-      React.createElement(ManagerOrdersFilter, { orgs: [], initial: {} })
-    );
+    const html = renderToString(React.createElement(ManagerOrdersFilter, { initial: {} }));
     expect(html).toContain('Без менеджера');
     expect(html).toContain('name="unassigned"');
     expect(html).toContain('value="1"');
@@ -70,27 +60,35 @@ describe('ManagerOrdersFilter', () => {
 
   it('чекбокс отмечен при initial.unassigned="1" и активирует «Сбросить»', () => {
     const html = renderToString(
-      React.createElement(ManagerOrdersFilter, { orgs: [], initial: { unassigned: '1' } })
+      React.createElement(ManagerOrdersFilter, { initial: { unassigned: '1' } })
     );
     expect(html).toContain('checked=""');
     expect(html).toContain('Сбросить');
     expect(html).toContain('href="/manager/orders"');
   });
 
-  it('рендерит опции организаций, рабочих статусов и финансов', () => {
+  it('рендерит опции рабочих статусов и финансов', () => {
     const html = renderToString(
       React.createElement(ManagerOrdersFilter, {
-        orgs: [{ id: 'g1', name: 'Орг 1' }],
-        initial: { statusId: 'st-1', financialStatus: 'billed', organizationId: 'g1' },
+        initial: { statusId: 'st-1', financialStatus: 'billed' },
         statuses: [{ id: 'st-1', label: 'Принято в работу' }],
       })
     );
-    expect(html).toContain('Орг 1');
     // §10 ТЗ v0.5: фильтр по рабочему статусу из справочника, а не по
     // операционному (тот убран из интерфейса, решение Q3).
     expect(html).toContain('Принято в работу');
     expect(html).toContain('value="st-1" selected');
     expect(html).toContain('value="billed" selected');
-    expect(html).toContain('value="g1" selected');
+  });
+
+  it('`У-350`: организаций списком нет — она ищется строкой поиска', () => {
+    const html = renderToString(
+      React.createElement(ManagerOrdersFilter, { initial: { organizationId: 'g1' } })
+    );
+    expect(html).not.toContain('name="organizationId"');
+    expect(html).not.toContain('Все организации');
+    expect(html).toContain('placeholder="Поиск по названию, номеру заказа и организации…"');
+    // Старая закладка с ?organizationId= — фильтр активен, «Сбросить» видна.
+    expect(html).toContain('Сбросить');
   });
 });

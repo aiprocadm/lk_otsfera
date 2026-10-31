@@ -57,7 +57,7 @@ describe('listOrdersForAdmin — фильтры', () => {
     ]);
   });
 
-  it('поиск идёт и по названию, и по номеру — без учёта регистра', async () => {
+  it('поиск идёт по названию, номеру и организации — без учёта регистра (`У-350`)', async () => {
     const { db: prisma, firstArgs } = db([]);
 
     await listOrdersForAdmin(prisma, { search: 'Ромашка' });
@@ -66,6 +66,7 @@ describe('listOrdersForAdmin — фильтры', () => {
     expect(where.AND[0]?.OR).toEqual([
       { title: { contains: 'Ромашка', mode: 'insensitive' } },
       { orderNumber: { contains: 'Ромашка', mode: 'insensitive' } },
+      { organization: { name: { contains: 'Ромашка', mode: 'insensitive' } } },
     ]);
   });
 
