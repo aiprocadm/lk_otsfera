@@ -93,7 +93,14 @@ beforeEach(() => {
   mocks.listIncomingComments.mockResolvedValue({ rows: [], nextCursor: null });
   mocks.listThreads.mockResolvedValue({ ok: true, rows: [], total: 0 });
   mocks.leaderDashboard.mockResolvedValue({
-    kpis: { managers: 3, activeOrders: 5, debt: '1000', commission: '200' },
+    kpis: {
+      managers: 3,
+      activeOrders: 5,
+      debt: '1000',
+      commission: '200',
+      paidThisMonth: '0',
+      commissionPaidThisMonth: '0',
+    },
     perManager: [],
   });
   mocks.recentEvents.mockResolvedValue([]);
@@ -153,7 +160,14 @@ describe('Главная руководителя', () => {
 
   it('комиссии нет — вместо числа прочерк, а не «0 ₽»', async () => {
     mocks.leaderDashboard.mockResolvedValue({
-      kpis: { managers: 1, activeOrders: 0, debt: '0', commission: null },
+      kpis: {
+        managers: 1,
+        activeOrders: 0,
+        debt: '0',
+        commission: null,
+        paidThisMonth: '0',
+        commissionPaidThisMonth: '0',
+      },
       perManager: [],
     });
 

@@ -7,7 +7,6 @@ import { StatCard } from '@/components/dashboard/stat-card';
 import { QuickTasks } from '@/components/dashboard/quick-tasks';
 import { quickTasksFor } from '@/lib/quickTasks';
 import { fmtMoney } from '@/lib/format';
-import { LeaderManagersTable } from '@/components/leader/leader-managers-table';
 import { ManagerEventsFeed } from '@/components/manager/manager-events-feed';
 import { OverdueTasksBlock } from '@/components/leader/overdue-tasks-block';
 import { listOverdueTasks } from '@/lib/services/tasks/overdue';
@@ -39,25 +38,34 @@ export default async function LeaderDashboardPage() {
         <OverdueTasksBlock rows={overdue.rows} total={overdue.total} href="/leader/tasks" />
       )}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
-        <StatCard title="Менеджеров" value={data.kpis.managers} href="/leader/team" />
-        <StatCard title="Заказы в работе" value={data.kpis.activeOrders} href="/leader/orders" />
-        <StatCard title="Долг клиентов" value={fmtMoney(data.kpis.debt)} href="/leader/finance" />
+        {/* `У-345`: вместо «Менеджеров» (дубль «Посмотреть результаты команды») —
+            оплаты по команде за месяц; та же цифра, что «Оплачено» в аналитике. */}
         <StatCard
-          title="Комиссия (оценка)"
+          title="Оплачено по команде"
+          value={fmtMoney(data.kpis.paidThisMonth)}
+          hint="за этот месяц, все менеджеры"
+          href={
+            isFeatureEnabled('leader_analytics') ? '/leader/analytics?tab=plan' : '/leader/team'
+          }
+        />
+        <StatCard title="Заказы в работе" value={data.kpis.activeOrders} href="/leader/orders" />
+        <StatCard
+          title="Долг клиентов"
+          value={fmtMoney(data.kpis.debt)}
+          hintLink="Отдельно по организациям"
+          href="/leader/finance"
+        />
+        <StatCard
+          title="Комиссия посредников"
           value={data.kpis.commission === null ? '—' : fmtMoney(data.kpis.commission)}
+          hint={
+            data.kpis.commission === null
+              ? 'у организаций нет посредников с комиссией'
+              : `к выплате · выплачено в этом месяце: ${fmtMoney(data.kpis.commissionPaidThisMonth)}`
+          }
           href="/leader/finance"
           accent
         />
-      </div>
-      <div className="space-y-2">
-        <div>
-          <h2 className="text-lg font-semibold text-[#111111]">Менеджеры команды</h2>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Суммы — по заказам в работе у каждого менеджера; не сводятся с «Долгом клиентов» (он
-            считается по выставленным к оплате заказам компании).
-          </p>
-        </div>
-        <LeaderManagersTable rows={data.perManager} />
       </div>
       <ManagerEventsFeed events={events} />
     </div>

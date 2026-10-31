@@ -6,11 +6,23 @@ export function StatCard({
   value,
   accent,
   href,
+  hint,
+  hintLink,
 }: {
   title: string;
   value: number | string;
   accent?: boolean | undefined;
   href?: string | undefined;
+  /**
+   * `У-345`: строка под числом — что именно оно считает («к выплате ·
+   * выплачено в этом месяце …»). Без неё плитка — число без смысла.
+   */
+  hint?: string | undefined;
+  /**
+   * `У-345`: оранжевая подпись-приглашение со стрелкой («Отдельно по
+   * организациям ›») — видно, что плитка кликабельна и куда ведёт.
+   */
+  hintLink?: string | undefined;
 }) {
   const card = (
     <div
@@ -24,6 +36,14 @@ export function StatCard({
       <div className={`text-3xl font-bold ${accent ? 'text-white' : 'text-[#111111]'}`}>
         {value}
       </div>
+      {hint && (
+        <div className={`text-xs ${accent ? 'text-orange-100' : 'text-gray-500'}`}>{hint}</div>
+      )}
+      {hintLink && (
+        <div className={`text-xs font-medium ${accent ? 'text-white' : 'text-[#EA580C]'}`}>
+          {`${hintLink} ›`}
+        </div>
+      )}
     </div>
   );
   if (!href) return card;

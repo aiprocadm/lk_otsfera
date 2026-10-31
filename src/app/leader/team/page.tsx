@@ -5,6 +5,8 @@ import { getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
 import { listCompanyManagers } from '@/lib/services/manager/team';
 import { TeamVisibilityToggle } from '@/components/manager/team-visibility-toggle';
 import { ManagerRosterPanel } from '@/components/manager/manager-roster-panel';
+import { LeaderManagersTable } from '@/components/leader/leader-managers-table';
+import { leaderDashboard } from '@/lib/services/leader/dashboard';
 
 import { PageHeader } from '@/components/ui/page-header';
 export const dynamic = 'force-dynamic';
@@ -14,14 +16,26 @@ export default async function LeaderTeamPage() {
   const teamMode = session.companyId
     ? await getCompanyTeamVisibility(prisma, session.companyId)
     : false;
-  const roster = session.companyId ? await listCompanyManagers(prisma, session.companyId) : [];
+  const [roster, results] = await Promise.all([
+    session.companyId ? listCompanyManagers(prisma, session.companyId) : Promise.resolve([]),
+    // `У-346`: таблица «Менеджеры команды» переехала с главной — результаты
+    // команды смотрят здесь, а главная ведёт сюда кнопкой.
+    leaderDashboard(prisma, session),
+  ]);
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Команда"
-        subtitle="Менеджеры команды: нагрузка, планы продаж и видимость заказов"
-      />
+      <PageHeader title="Команда" subtitle="Результаты менеджеров, их нагрузка и планы продаж" />
+      <section className="space-y-2">
+        <div>
+          <h2 className="text-lg font-semibold text-[#111111]">Менеджеры команды</h2>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Суммы — по заказам в работе у каждого менеджера; не сводятся с «Долгом клиентов» (он
+            считается по выставленным к оплате заказам компании).
+          </p>
+        </div>
+        <LeaderManagersTable rows={results.perManager} />
+      </section>
       <TeamVisibilityToggle initial={teamMode} />
       {/* `У-130`: пороги SLA уехали в «Настройки → Конфигурация процессов →
           SLA входящих в работу». Здесь им было не место: это настройка

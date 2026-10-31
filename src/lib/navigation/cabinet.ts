@@ -292,7 +292,9 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     { href: '/leader/dashboard', sectionKey: 'dashboard' },
     // global_search — отдельный флаг (как role_constructor): гейтит только пункт.
     { href: '/leader/search', sectionKey: 'search', flag: 'global_search' },
-    { href: '/leader/team', group: 'Справочники', sectionKey: 'team' },
+    // `У-347`: «Команда» и «Аналитика» — в «Продажах»: следить за динамикой
+    // отдела — главная работа руководителя, а не справочная.
+    { href: '/leader/team', group: 'Продажи', sectionKey: 'team' },
     { href: '/leader/finance', group: 'Финансы', sectionKey: 'finance' },
     {
       href: '/leader/commission-corrections',
@@ -320,7 +322,7 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
     },
     {
       href: '/leader/analytics',
-      group: 'Аналитика',
+      group: 'Продажи',
       sectionKey: 'analytics',
       flag: 'leader_analytics',
     },
