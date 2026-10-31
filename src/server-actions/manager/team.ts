@@ -7,8 +7,10 @@ import { requireManagerLeader } from '@/lib/auth/requireRole';
 import {
   assignManagerAsLeader,
   deactivateAssignmentAsLeader,
+  transferOrganizationAsLeader,
   type AssignManagerAsLeaderResult,
   type DeactivateAssignmentAsLeaderResult,
+  type TransferOrganizationResult,
 } from '@/lib/services/manager/leaderTeam';
 
 function readForm(formData: FormData, key: string): string | undefined {
@@ -81,4 +83,31 @@ export async function leaderDeactivateAssignmentAction(
 
   revalidatePath('/leader/team'); // У-263: новый адрес, старый стал перенаправлением
   return { ok: true };
+}
+
+const transferSchema = z.object({
+  organizationId: z.string().min(1),
+  fromUserId: z.string().min(1),
+  toUserId: z.string().min(1),
+});
+
+export type LeaderTransferResult = TransferOrganizationResult | { ok: false; error: 'validation' };
+
+/** `У-346`: перевод организации другому менеджеру из «Команды» руководителя. */
+export async function leaderTransferOrganizationAction(
+  formData: FormData
+): Promise<LeaderTransferResult> {
+  const parsed = transferSchema.safeParse({
+    organizationId: readForm(formData, 'organizationId'),
+    fromUserId: readForm(formData, 'fromUserId'),
+    toUserId: readForm(formData, 'toUserId'),
+  });
+  if (!parsed.success) return { ok: false, error: 'validation' };
+
+  const session = await requireManagerLeader();
+  const result = await transferOrganizationAsLeader(prisma, session, parsed.data);
+  if (!result.ok) return result;
+
+  revalidatePath('/leader/team');
+  return result;
 }

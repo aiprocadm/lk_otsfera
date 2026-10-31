@@ -67,6 +67,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   organization_note_deleted: 'Удаление внутренней заметки',
   organization_note_pinned: 'Закрепление внутренней заметки',
   organization_note_updated: 'Изменение внутренней заметки',
+  organization_transferred: 'Перевод организации другому менеджеру',
   cursor_rewound: 'Откат курсора синхронизации',
   custom_field_definition_create: 'Создание дополнительного поля',
   custom_field_definition_deactivate: 'Отключение дополнительного поля',

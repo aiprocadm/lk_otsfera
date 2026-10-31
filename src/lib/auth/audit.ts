@@ -259,6 +259,8 @@ export const AUDIT_ACTIONS = [
   'organization_note_pinned',
   'organization_note_updated',
   'organization_rate_override',
+  // `У-346` (ТЗ 28.10.2026): руководитель перевёл организацию другому менеджеру.
+  'organization_transferred',
   'organization_updated',
   'partner_commission_rate_changed',
   'partner_created',
