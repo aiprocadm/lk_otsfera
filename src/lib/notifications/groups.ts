@@ -63,3 +63,23 @@ export const NOTIFICATION_TYPE_GROUP: Record<NotificationTypeKey, NotificationGr
   document_created: 'orders',
   message_created: 'communication',
 };
+
+/** Группа с узкими типами внутри — для фильтра страницы «Уведомления» (`У-348`). */
+export type NotificationGroupOption = {
+  key: NotificationGroupKey;
+  label: string;
+  types: NotificationTypeKey[];
+};
+
+/**
+ * Раскладывает типы роли по группам — в порядке `NOTIFICATION_GROUPS`, как в
+ * настройках (`У-317`). Пустые для роли группы не возвращаются: у партнёра нет
+ * задач — нет и группы «Задачи» в его фильтре.
+ */
+export function groupNotificationTypes(types: NotificationTypeKey[]): NotificationGroupOption[] {
+  return NOTIFICATION_GROUPS.map((g) => ({
+    key: g.key,
+    label: g.label,
+    types: types.filter((t) => NOTIFICATION_TYPE_GROUP[t] === g.key),
+  })).filter((g) => g.types.length > 0);
+}

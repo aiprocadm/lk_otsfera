@@ -46,8 +46,12 @@ const base = {
   unreadTotal: 1,
   page: 1,
   pageSize: 50,
-  typeOptions: ['task_assigned', 'task_due_soon'] as never[],
+  groupOptions: [
+    { key: 'communication', label: 'Коммуникация', types: ['chat_message'] },
+    { key: 'tasks', label: 'Задачи', types: ['task_assigned', 'task_due_soon'] },
+  ] as never[],
   unreadOnly: false,
+  group: null,
   type: null,
   searchParams: {},
 };
@@ -122,16 +126,20 @@ describe('NotificationsScreen', () => {
         {...base}
         rows={[row()]}
         unreadOnly
+        group={'tasks' as never}
         type={'task_assigned' as never}
       />
     );
     const current = container.querySelectorAll('a[aria-current="page"]');
     expect(current.length).toBe(2); // «Непрочитанные» и тип
+    // «Все» сохраняет группу и тип, снимает только «непрочитанные».
     expect(
-      container.querySelector('a[href="/manager/notifications?type=task_assigned"]')
+      container.querySelector('a[href="/manager/notifications?group=tasks&type=task_assigned"]')
     ).toBeTruthy();
     expect(
-      container.querySelector('a[href="/manager/notifications?unread=1&type=task_due_soon"]')
+      container.querySelector(
+        'a[href="/manager/notifications?unread=1&group=tasks&type=task_due_soon"]'
+      )
     ).toBeTruthy();
   });
 
@@ -147,7 +155,7 @@ describe('NotificationsScreen', () => {
         {...base}
         basePath="/student/notifications"
         homeHref="/student"
-        typeOptions={[]}
+        groupOptions={[]}
         total={0}
         rows={[]}
       />
@@ -181,12 +189,125 @@ describe('NotificationsScreen', () => {
         {...base}
         basePath="/student/notifications"
         homeHref="/student"
-        typeOptions={[]}
+        groupOptions={[]}
         rows={[row()]}
       />
     );
     expect(screen.queryByText('Тип')).toBeNull();
     expect(container.querySelector('a[href="/manager/tasks/t1"]')).toBeNull();
+  });
+
+  describe('фильтр по группам (этап 4 ТЗ 28.10.2026, `У-348`)', () => {
+    const groupNav = (c: HTMLElement) =>
+      c.querySelector('nav[aria-label="Группа уведомлений"]') as HTMLElement | null;
+    const typeNav = (c: HTMLElement) =>
+      c.querySelector('nav[aria-label^="Типы уведомлений"]') as HTMLElement | null;
+
+    it('сначала только группы роли в порядке настроек; узких типов не видно', () => {
+      const { container } = render(<NotificationsScreen role="manager" {...base} rows={[row()]} />);
+      const nav = groupNav(container);
+      expect(nav).toBeTruthy();
+      const links = Array.from(nav!.querySelectorAll('a')).map((a) => a.textContent);
+      expect(links).toEqual(['любая', 'Коммуникация', 'Задачи']);
+      expect(nav!.querySelector('a[aria-current="page"]')?.textContent).toBe('любая');
+      expect(typeNav(container)).toBeNull();
+      expect(container.textContent).not.toMatch(/Срок задачи подходит/);
+    });
+
+    it('выбрана группа: внизу — только её типы и «все «Задачи»»; ссылки помнят группу', () => {
+      const { container } = render(
+        <NotificationsScreen role="manager" {...base} rows={[row()]} group={'tasks' as never} />
+      );
+      const types = typeNav(container);
+      expect(types?.getAttribute('aria-label')).toBe('Типы уведомлений: Задачи');
+      const labels = Array.from(types!.querySelectorAll('a')).map((a) => a.textContent);
+      expect(labels[0]).toBe('все «Задачи»');
+      expect(labels).toHaveLength(3);
+      expect(types!.textContent).not.toMatch(/Новое сообщение в чате/);
+      expect(types!.querySelector('a[aria-current="page"]')?.textContent).toBe('все «Задачи»');
+      expect(
+        types!.querySelector('a[href="/manager/notifications?group=tasks&type=task_due_soon"]')
+      ).toBeTruthy();
+      // Группа залита: выбрана она сама, без узкого типа.
+      const tasks = Array.from(groupNav(container)!.querySelectorAll('a')).find(
+        (a) => a.textContent === 'Задачи'
+      );
+      expect(tasks?.getAttribute('aria-current')).toBe('page');
+    });
+
+    it('выбран тип: группа обведена (current), залит тип; «любая» снимает оба', () => {
+      const { container } = render(
+        <NotificationsScreen
+          role="manager"
+          {...base}
+          rows={[row()]}
+          group={'tasks' as never}
+          type={'task_assigned' as never}
+        />
+      );
+      const tasks = Array.from(groupNav(container)!.querySelectorAll('a')).find(
+        (a) => a.textContent === 'Задачи'
+      );
+      expect(tasks?.getAttribute('aria-current')).toBe('true');
+      expect(typeNav(container)!.querySelector('a[aria-current="page"]')?.textContent).toMatch(
+        /Назначена задача/
+      );
+      expect(
+        groupNav(container)!.querySelector('a[href="/manager/notifications"]')?.textContent
+      ).toBe('любая');
+    });
+
+    it('«Непрочитанные» сохраняются при смене группы', () => {
+      const { container } = render(
+        <NotificationsScreen role="manager" {...base} rows={[row()]} unreadOnly />
+      );
+      expect(
+        groupNav(container)!.querySelector(
+          'a[href="/manager/notifications?unread=1&group=communication"]'
+        )
+      ).toBeTruthy();
+    });
+
+    it('одна группа у роли: ряда «Группа» нет, сразу типы, в адресе без group', () => {
+      const { container } = render(
+        <NotificationsScreen
+          role="student"
+          {...base}
+          basePath="/student/notifications"
+          homeHref="/student"
+          groupOptions={[
+            {
+              key: 'enrollments',
+              label: 'Заявки на обучение',
+              types: ['training_assigned', 'certificate_expiring'],
+            },
+          ]}
+          rows={[]}
+          total={0}
+        />
+      );
+      expect(groupNav(container)).toBeNull();
+      const types = typeNav(container);
+      expect(types?.querySelector('a[aria-current="page"]')?.textContent).toBe('любой');
+      expect(
+        types?.querySelector('a[href="/student/notifications?type=training_assigned"]')
+      ).toBeTruthy();
+      expect(container.innerHTML).not.toContain('group=');
+    });
+
+    it('пусто по группе — это фильтр: «Снимите фильтр», а не «Пока тихо»', () => {
+      render(
+        <NotificationsScreen
+          role="manager"
+          {...base}
+          rows={[]}
+          total={0}
+          group={'tasks' as never}
+        />
+      );
+      expect(screen.getByText(/Снимите фильтр/)).toBeTruthy();
+      expect(screen.queryByText('Пока тихо')).toBeNull();
+    });
   });
 
   it('постраничность появляется только когда строк больше страницы', () => {

@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { NOTIFICATION_TYPES } from '@/lib/notifications/registry';
-import { NOTIFICATION_GROUPS, NOTIFICATION_TYPE_GROUP } from '@/lib/notifications/groups';
+import {
+  groupNotificationTypes,
+  NOTIFICATION_GROUPS,
+  NOTIFICATION_TYPE_GROUP,
+} from '@/lib/notifications/groups';
 
 /**
  * Страж полноты групп уведомлений (`У-317`): у каждого типа реестра — группа
@@ -24,5 +28,26 @@ describe('группы уведомлений', () => {
       'Заказы',
       'Заявки на обучение',
     ]);
+  });
+});
+
+describe('groupNotificationTypes (`У-348`)', () => {
+  it('раскладывает типы по группам в порядке настроек; пустые группы не возвращает', () => {
+    expect(
+      groupNotificationTypes([
+        'order_status_changed',
+        'task_assigned',
+        'chat_message',
+        'task_comment',
+      ])
+    ).toEqual([
+      { key: 'communication', label: 'Коммуникация', types: ['chat_message'] },
+      { key: 'tasks', label: 'Задачи', types: ['task_assigned', 'task_comment'] },
+      { key: 'orders', label: 'Заказы', types: ['order_status_changed'] },
+    ]);
+  });
+
+  it('без типов — без групп (фильтра на экране нет)', () => {
+    expect(groupNotificationTypes([])).toEqual([]);
   });
 });

@@ -61,8 +61,10 @@ vi.mock('@/components/notifications/notifications-screen', () => ({
     basePath: string;
     homeHref: string;
     unreadOnly: boolean;
+    group: string | null;
     type: string | null;
     total: number;
+    groupOptions: unknown[];
   }) =>
     React.createElement('div', {
       'data-testid': 'screen',
@@ -70,7 +72,9 @@ vi.mock('@/components/notifications/notifications-screen', () => ({
       'data-base': props.basePath,
       'data-home': props.homeHref,
       'data-unread': String(props.unreadOnly),
+      'data-group': props.group ?? '',
       'data-type': props.type ?? '',
+      'data-groups': JSON.stringify(props.groupOptions),
       'data-total': String(props.total),
     }),
 }));
@@ -89,7 +93,8 @@ const DATA = {
   unreadTotal: 1,
   page: 1,
   pageSize: 50,
-  typeOptions: [],
+  groupOptions: [{ key: 'tasks', label: 'Задачи', types: ['task_assigned'] }],
+  group: 'tasks',
   type: null,
 };
 
@@ -142,14 +147,20 @@ describe.each(CABINETS)('страница «Уведомления» — $name',
     expect(el.getAttribute('data-base')).toBe(`/${role}/notifications`);
     expect(el.getAttribute('data-home')).toBe(`/${role}`);
     expect(el.getAttribute('data-total')).toBe('3');
+    // `У-348`: группы и применённая группа — из сервиса, страница их не пересчитывает.
+    expect(el.getAttribute('data-group')).toBe('tasks');
+    expect(JSON.parse(el.getAttribute('data-groups') ?? '[]')).toEqual(DATA.groupOptions);
   });
 
   it('фильтры из адреса доезжают до сервиса', async () => {
     await renderServerComponent(
-      await Page({ searchParams: sp({ unread: '1', type: 'task_assigned', page: '2' }) })
+      await Page({
+        searchParams: sp({ unread: '1', group: 'tasks', type: 'task_assigned', page: '2' }),
+      })
     );
     expect(listNotificationsPage.mock.calls[0][2]).toEqual({
       unread: true,
+      group: 'tasks',
       type: 'task_assigned',
       page: 2,
     });
