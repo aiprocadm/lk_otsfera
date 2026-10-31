@@ -266,17 +266,28 @@ describe('Коммуникации', () => {
 
 describe('Источники', () => {
   // Порядок важен: сервис спрашивает лиды, потом сделки, потом заказы.
-  function db(leads: unknown[], deals: unknown[], promoted: unknown[], requests: unknown[]) {
+  function db(
+    leads: unknown[],
+    deals: unknown[],
+    promoted: unknown[],
+    requests: unknown[],
+    messages: unknown[] = [],
+    inboundCalls = 0
+  ) {
     const leadGroupBy = vi
       .fn()
       .mockResolvedValueOnce(leads)
       .mockResolvedValueOnce(deals)
       .mockResolvedValueOnce(promoted);
+    const messageGroupBy = vi.fn<(args: unknown) => Promise<unknown[]>>(async () => messages);
+    const callCount = vi.fn<(args: unknown) => Promise<number>>(async () => inboundCalls);
     const prisma = {
       lead: { groupBy: leadGroupBy },
       clientRequest: { groupBy: vi.fn(async () => requests) },
+      inboundMessage: { groupBy: messageGroupBy },
+      call: { count: callCount },
     } as unknown as PrismaClient;
-    return { prisma, leadGroupBy };
+    return { prisma, leadGroupBy, messageGroupBy, callCount };
   }
 
   it('ничего не было — пусто, а не ошибка', async () => {
@@ -323,6 +334,39 @@ describe('Источники', () => {
       { assignedManager: { companyId: 'c1' } },
       { organization: { companyId: 'c1' } },
     ]);
+  });
+
+  // `У-334` (`Д-68`, ТЗ 28.10.2026): на стенде в октябре 5 вопросов из
+  // кабинета, а «Воронка» показывала 2 обращения — считались только заявки.
+  it('обращения по источникам — это и сообщения по каналам, и входящие звонки', async () => {
+    const { prisma, messageGroupBy, callCount } = db(
+      [],
+      [],
+      [],
+      [{ source: 'organization_cabinet', _count: { _all: 1 } }],
+      [
+        { channel: 'cabinet', _count: { _all: 5 } },
+        { channel: 'telegram', _count: { _all: 2 } },
+      ],
+      3
+    );
+    const res = await getSources(prisma, PERIOD);
+    expect(res.requests.map((r) => [r.label, r.requests])).toEqual([
+      ['Из кабинета', 5],
+      ['Звонки', 3],
+      ['Telegram', 2],
+      ['Кабинет заказчика', 1],
+    ]);
+    // Граница компании и период — в каждом новом запросе.
+    expect(messageGroupBy.mock.calls[0]![0]).toMatchObject({ where: { companyId: 'c1' } });
+    expect(callCount.mock.calls[0]![0]).toMatchObject({
+      where: { companyId: 'c1', direction: 'inbound' },
+    });
+  });
+
+  it('звонков не было — строки «Звонки» нет', async () => {
+    const { prisma } = db([], [], [], [], [], 0);
+    expect((await getSources(prisma, PERIOD)).requests).toEqual([]);
   });
 
   it('незнакомый источник показывается как есть, а не прячется', async () => {

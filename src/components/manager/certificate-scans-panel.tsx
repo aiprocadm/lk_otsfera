@@ -136,7 +136,9 @@ export function CertificateScansPanel({
         <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wider">
           Сканы удостоверений
         </h2>
-        {missingScans > 0 ? (
+        {/* `У-333` (`Д-67`): без единого удостоверения «все сканы загружены» —
+            неправда (пустое «все»), и плашка висела сразу после создания заказа. */}
+        {withCertificate.length === 0 ? null : missingScans > 0 ? (
           <Badge tone="warning">Без скана: {missingScans}</Badge>
         ) : (
           <Badge tone="success">Все сканы загружены</Badge>
@@ -145,7 +147,9 @@ export function CertificateScansPanel({
 
       {withCertificate.length === 0 ? (
         <p className="text-sm text-gray-500">
-          Сканы можно загрузить после того, как слушателям выданы удостоверения.
+          Сканы можно загрузить после того, как слушателям выданы удостоверения. Выдайте их в списке
+          слушателей выше — кнопка «Выдать удостоверение» у каждого, — затем загрузите сканы здесь.
+          Заказчик увидит и скачает их в разделе «Удостоверения».
         </p>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-3">

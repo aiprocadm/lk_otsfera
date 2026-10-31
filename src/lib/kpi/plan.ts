@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import type { PrismaClient } from '@prisma/client';
 import { moscowMonthRange } from '@/lib/dates/calendar';
 import {
@@ -120,7 +121,21 @@ export async function getKpiPlanFact(
       }
     }
 
-    const totalPlan = planByKey.get(`${key}:`) ?? null;
+    // `У-334` (`Д-68`, ТЗ 28.10.2026): руководитель задаёт план каждому
+    // менеджеру, а отдельного плана «на команду» нет — и «Итого по команде»
+    // показывало прочерк, хотя таблица планов ниже уже сложила их в «Итого».
+    // Явный план на команду главнее; без него — сумма планов менеджеров.
+    const teamPlan = planByKey.get(`${key}:`) ?? null;
+    const managersPlans = metric.perManager
+      ? managers
+          .map((m) => planByKey.get(`${key}:${m.id}`))
+          .filter((v): v is string => v !== undefined)
+      : [];
+    const totalPlan =
+      teamPlan ??
+      (managersPlans.length
+        ? managersPlans.reduce((s, v) => s.plus(v), new Prisma.Decimal(0)).toFixed(2)
+        : null);
     rows.push({
       metric: key,
       metricLabel: metric.label,

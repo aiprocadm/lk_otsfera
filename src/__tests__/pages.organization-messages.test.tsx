@@ -61,6 +61,22 @@ vi.mock('@/components/chat/order-thread-inbox', () => ({
 }));
 vi.mock('@/components/chat/unread-badge', () => ({ UnreadBadge: () => null }));
 
+// `У-332`: переписка по заказам (комментарии) — своя выборка и свой список.
+const { listOrgOrderConversations, orgOrderScope } = vi.hoisted(() => ({
+  listOrgOrderConversations: vi.fn(),
+  orgOrderScope: vi.fn(),
+}));
+vi.mock('@/lib/services/organization/orderConversations', () => ({ listOrgOrderConversations }));
+vi.mock('@/lib/services/organization/memberScope', () => ({ orgOrderScope }));
+vi.mock('@/components/organization/org-order-conversations', () => ({
+  OrgOrderConversations: (props: { rows: unknown[]; orgId: string }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'order-conversations' },
+      `${props.orgId}|${props.rows.length}`
+    ),
+}));
+
 import OrganizationMessagesPage from '@/app/organization/messages/page';
 
 /**
@@ -88,6 +104,8 @@ beforeEach(() => {
   listCabinetDialogs.mockResolvedValue([{ id: 'd1' }, { id: 'd2' }]);
   getCabinetDialog.mockResolvedValue({ ok: true, dialog: { id: 'd1' } });
   listThreads.mockResolvedValue({ ok: true, rows: [], total: 3 });
+  listOrgOrderConversations.mockResolvedValue([{ orderId: 'o1' }]);
+  orgOrderScope.mockResolvedValue(null);
 });
 
 describe('OrganizationMessagesPage', () => {
@@ -118,17 +136,28 @@ describe('OrganizationMessagesPage', () => {
     expect(shell?.textContent).toContain('Сообщения');
   });
 
-  it('только переписка: обе вкладки не рисуются, чат не грузится', async () => {
+  it('без чата: переписка с менеджером, а «По заказам» — комментарии к заказам (У-332)', async () => {
     flags({ cabinet_questions: true });
     const { container } = await render();
     expect(container.textContent).toContain('Сообщения');
     expect(container.querySelector('[data-testid="cabinet-panel"]')?.textContent).toBe('2|none');
     expect(listThreads).not.toHaveBeenCalled();
+    // Вкладка «По заказам» есть и без флага чата: комментарии — не чат (CLAUDE.md §5).
+    const orders = await render({ tab: 'orders' });
+    expect(orders.container.querySelector('[data-testid="order-conversations"]')?.textContent).toBe(
+      'org-1|1'
+    );
+    expect(orders.container.querySelector('[data-testid="order-threads"]')).toBeNull();
+    expect(listThreads).not.toHaveBeenCalled();
+    // Граница видимости участника — в выборке переписки.
+    expect(orgOrderScope).toHaveBeenCalledWith({}, SESSION, 'org-1');
+    expect(listOrgOrderConversations).toHaveBeenCalledWith({}, 'org-1', null);
   });
 
   it('только чат: открывается вкладка «По заказам», переписка не грузится', async () => {
     flags({ chat: true });
     const { container } = await render();
+    expect(container.querySelector('[data-testid="order-conversations"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="order-threads"]')?.textContent).toBe('3');
     expect(listCabinetDialogs).not.toHaveBeenCalled();
   });
@@ -160,7 +189,9 @@ describe('OrganizationMessagesPage', () => {
     flags({ chat: true });
     listThreads.mockResolvedValue({ ok: false, error: 'forbidden' });
     const { container } = await render({ tab: 'orders' });
-    expect(container.querySelector('[data-testid="order-threads"]')?.textContent).toBe('0');
+    // Чаты не показываются, а переписка по заказам — на месте.
+    expect(container.querySelector('[data-testid="order-threads"]')).toBeNull();
+    expect(container.querySelector('[data-testid="order-conversations"]')).toBeTruthy();
   });
 
   it('пришёл по недоступной ссылке — объяснение на экране', async () => {
