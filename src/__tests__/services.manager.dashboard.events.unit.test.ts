@@ -276,6 +276,77 @@ describe('recentEvents', () => {
     expect(result[0]!.text).toContain('ord-fb');
   });
 
+  it('лента руководителя ведёт в его кабинет, а не менеджера (прогон №52, этап 4 ТЗ 28.10.2026)', async () => {
+    const t = (h: number) => new Date(`2026-06-10T${String(h).padStart(2, '0')}:00:00Z`);
+    const p = emptyPrisma({
+      document: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'd1',
+            name: 'a.pdf',
+            createdAt: t(1),
+            orderId: 'ord-1',
+            order: { orderNumber: 'O-1' },
+          },
+          { id: 'd2', name: 'b.pdf', createdAt: t(2), orderId: null, order: null },
+        ]),
+      },
+      payment: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'p1',
+            amount: 1,
+            paidAt: t(3),
+            orderId: 'ord-1',
+            order: { orderNumber: 'O-1' },
+            organization: { id: 'org-1', name: 'Org' },
+          },
+          {
+            id: 'p2',
+            amount: 1,
+            paidAt: t(4),
+            orderId: null,
+            order: null,
+            organization: { id: 'org-1', name: 'Org' },
+          },
+        ]),
+      },
+      auditLog: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'a1',
+            action: 'order_status_changed',
+            entityId: 'ord-1',
+            createdAt: t(5),
+            meta: null,
+          },
+        ]),
+      },
+      order: { findMany: vi.fn().mockResolvedValue([{ id: 'ord-1', orderNumber: 'O-1' }]) },
+      comment: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'c1',
+            createdAt: t(6),
+            body: 'x',
+            orderId: 'ord-1',
+            author: null,
+            order: { orderNumber: 'O-1' },
+          },
+        ]),
+      },
+    });
+    const result = await recentEvents(p, SESSION, 20, true, 'leader');
+    expect(result.map((e) => e.href).sort()).toEqual([
+      '/leader/dashboard',
+      '/leader/documents',
+      '/leader/orders/ord-1',
+      '/leader/orders/ord-1',
+      '/leader/orders/ord-1',
+      '/leader/orders/ord-1',
+    ]);
+  });
+
   it('sorts events by timestamp desc and slices to `take`', async () => {
     const comments = [
       {

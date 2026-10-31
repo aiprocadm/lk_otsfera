@@ -19,8 +19,9 @@ export default async function LeaderDashboardPage() {
   const session = await requireManagerLeader();
   const [data, events, overdue] = await Promise.all([
     leaderDashboard(prisma, session),
-    // company-wide always: teamModeOverride=true (4th arg, after default `take`)
-    recentEvents(prisma, session, undefined, true),
+    // company-wide always: teamModeOverride=true (4th arg, after default `take`);
+    // ссылки событий — в кабинет руководителя, а не менеджера (прогон №52).
+    recentEvents(prisma, session, undefined, true, 'leader'),
     // `У-225`: просроченные задачи команды. Раздел задач может быть выключен —
     // тогда блока нет, иначе он вёл бы на недоступный экран.
     isFeatureEnabled('internal_tasks')
