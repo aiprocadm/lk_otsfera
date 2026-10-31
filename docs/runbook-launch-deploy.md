@@ -146,7 +146,7 @@ npx prisma migrate status          # ожидание: "Database schema is up to
 - **Фичи волны** — выставить соответствующий `FEATURE_*=0` (или `unset` для opt-in) → redeploy web+worker. Кабинеты partner/admin/student не затронуты.
 - **1С** — `ONE_C_ADAPTER=fake` → restart worker.
 - **Миграции откатывать НЕ нужно.** Partial-unique (C-01) и `EnrollmentRequest` (T5) безвредны при выключенных фичах; данные read-only. Общий принцип для будущих волн: миграции этого проекта аддитивны; при деструктивной миграции точка отката — снапшот/дамп из §3.2.
-- **Код** — образ тегируется `lk-otsfera:prod` без версии, поэтому откат кода = `git checkout <прошлый tag/SHA>` → `docker build -t lk-otsfera:prod .` → `up -d`. (Рекомендация: начать тегировать образы SHA, чтобы откат был мгновенным `docker tag`.)
+- **Код** — образ тегируется версией (`У-338`), откат кода = `./scripts/deploy/deploy.sh <прежний тег>` без пересборки и без отката схемы ([RUNBOOK.md](RUNBOOK.md) §3.1).
 - **Reverse-proxy контракт** — login-лимитер и Mango IP-allowlist доверяют `x-forwarded-for` только потому, что наружу смотрит один Caddy, который его перезаписывает. Не выставлять web (порт 3000) наружу в обход Caddy.
 
 ---

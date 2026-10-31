@@ -60,6 +60,7 @@ if (process.env.SENTRY_DSN) {
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
     environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV,
+    ...(process.env.SENTRY_RELEASE ? { release: process.env.SENTRY_RELEASE } : {}),
     tracesSampleRate: 0,
     sendDefaultPii: false,
     beforeSend: (event) => scrubSentryEvent(event),

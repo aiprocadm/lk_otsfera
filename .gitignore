@@ -5,6 +5,10 @@ tsconfig.tsbuildinfo
 .env.local
 .env.*.local
 .env.production
+# Выкладка (`У-339`/`У-340`): живут только на сервере
+.deploy.env
+deploy.log
+caddy-staging-users
 
 # Local-only assistant/session state — never commit
 .claude/

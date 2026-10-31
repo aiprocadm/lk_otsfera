@@ -38,6 +38,7 @@ export const ENV_ONLY: Record<string, string> = {
   // --- наблюдаемость ---
   SENTRY_DSN: 'инфраструктура: DSN Sentry (пусто = no-op)',
   SENTRY_ENVIRONMENT: 'инфраструктура: имя окружения в Sentry',
+  SENTRY_RELEASE: 'инфраструктура: релиз в Sentry = тег образа, подставляет compose (У-340)',
   LOG_LEVEL: 'инфраструктура: уровень логов pino',
   LOG_FORMAT: 'инфраструктура: транспорт логов (json|console)',
 

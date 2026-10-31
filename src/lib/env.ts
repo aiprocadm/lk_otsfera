@@ -176,9 +176,19 @@ export interface EnvValidationResult {
 
 export function validateProductionEnv(env: NodeJS.ProcessEnv = process.env): EnvValidationResult {
   const parsed = productionEnvSchema.safeParse(env);
-  if (parsed.success) return { ok: true, issues: [] };
-  const issues = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
-  return { ok: false, issues };
+  const issues = parsed.success
+    ? []
+    : parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
+  // `У-340` (ДП §5): заглушка из примера в ЛЮБОЙ переменной — не только в
+  // перечисленных схемой — значит, файл собран не до конца (токен 1С, пароль
+  // IMAP, ключи Mango, секрет моста). Схема знает лишь обязательные ключи.
+  const reported = new Set(issues.map((s) => s.split(':', 1)[0]));
+  for (const [key, value] of Object.entries(env)) {
+    if (value && !reported.has(key) && !notPlaceholder(value)) {
+      issues.push(`${key}: ${PLACEHOLDER_MSG}`);
+    }
+  }
+  return { ok: issues.length === 0, issues };
 }
 
 /**

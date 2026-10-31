@@ -36,12 +36,14 @@ describe('register', () => {
     vi.stubEnv('SENTRY_DSN', 'https://k@sentry.example.ru/1');
     vi.stubEnv('NEXT_RUNTIME', 'nodejs');
     vi.stubEnv('SENTRY_ENVIRONMENT', 'staging');
+    vi.stubEnv('SENTRY_RELEASE', 'v0.12.0');
     await register();
     expect(init).toHaveBeenCalledTimes(1);
     const opts = init.mock.calls[0][0];
     expect(opts).toMatchObject({
       dsn: 'https://k@sentry.example.ru/1',
       environment: 'staging',
+      release: 'v0.12.0',
       tracesSampleRate: 0,
       sendDefaultPii: false,
     });
@@ -55,10 +57,13 @@ describe('register', () => {
     vi.stubEnv('SENTRY_DSN', 'https://k@sentry.example.ru/1');
     vi.stubEnv('NEXT_RUNTIME', 'edge');
     vi.stubEnv('SENTRY_ENVIRONMENT', '');
+    vi.stubEnv('SENTRY_RELEASE', '');
     vi.stubEnv('NODE_ENV', 'test');
     await register();
     expect(init).toHaveBeenCalledTimes(1);
     expect(init.mock.calls[0][0].environment).toBe('test');
+    // без SENTRY_RELEASE ключа нет — Sentry определит релиз сам
+    expect(init.mock.calls[0][0]).not.toHaveProperty('release');
   });
 
   it('DSN + неизвестный runtime (клиентский бандл) — init не вызывается', async () => {

@@ -12,7 +12,7 @@
 | PR | Требования | Суть |
 |---|---|---|
 | **PR-1** | `У-341`, `У-342` | Страж совместимости миграций; правила ДП §8 в CLAUDE.md, шаблон PR, блок «Миграции и совместимость» в CHANGELOG |
-| PR-2 | `У-338`, `У-339`, `У-340` | Образ по тегу в прод-compose, `deploy.sh <тег>`, Caddy стейджинга, `.env.production.example` по таблице ДП §5, переменные Sentry |
+| **PR-2** | `У-338`, `У-339`, `У-340` | Образ по тегу в прод-compose, `deploy.sh <тег>`, Caddy стейджинга, `.env.production.example` по таблице ДП §5, переменные Sentry |
 | PR-3 | `У-343`, `У-344` | Ранбук `docs/runbook-release.md` (фазы A–E), выключенные заготовки `staging → main` |
 
 ## PR-1 — что сделано
@@ -48,6 +48,61 @@
   них 10 с разрушающими операциями до стража; сессии, окружение production, зависимости).
   Страж `docs.changelog-compat-block` требует блок у `[Unreleased]` и у каждого релиза новее
   0.11.0 (исторические записи не переписываются). Мутация — блок переименован → красный.
+
+## PR-2 — что сделано
+
+### `У-338` — образ по тегу
+
+`docker-compose.prod.yml`: `migrate`/`web`/`worker` — `${IMAGE_REPO:-lk-otsfera}:${IMAGE_TAG:?…}`.
+Без тега compose не стартует. **Находка:** обязательный тег ломал бы и служебные команды
+(`docker compose ps/logs/restart` тоже подставляют переменные) — поэтому `deploy.sh` после удачной
+выкладки пишет работающий тег (и `COMPOSE_FILE`) в `.env` стека, который compose читает сам; при
+осечке там остаётся прежний тег. Страж `infra.compose-prod` (мутация — старый compose → красный).
+
+### `У-339` — `scripts/deploy/deploy.sh <тег>`
+
+Один скрипт на обе среды (ДП §7): проверка тега (только `[A-Za-z0-9._-]`), образ локальный или из
+реестра, `up -d --wait` (миграции — сервисом `migrate` до приложения), `/api/health/live`, тег в
+`deploy.log`. При осечке печатает команду отката на прежний тег, но **сам не откатывает** — решение за
+человеком (ДП §7 п. 6). Среда задаётся `.deploy.env` стека (`COMPOSE_FILE`, `IMAGE_REPO`).
+Тест `scripts.deploy-sh` запускает скрипт с двойниками `docker`/`curl` (12 случаев); мутации —
+без проверки тега и запись журнала до проверки здоровья — красные.
+
+**Сверка с `npm run deploy:stand` (ДП §7):** `update-stand.sh` обновляет тестовый стенд из
+исходников (systemd, без Docker) — другая топология; он остаётся для стенда, стейджинг и прод
+выкладываются только `deploy.sh`. Это записано в шапке скрипта.
+
+### `У-340` — конфигурация сред
+
+- `.env.production.example` — один шаблон на прод и стейджинг с пометками «прод: … / стейджинг: …»
+  по таблице ДП §5; добавлены `TRUSTED_PROXY_HOPS=1`, `FEATURE_STAFF_2FA=1`, `SENTRY_RELEASE`.
+- **Расхождение с ДП:** для стейджинга ДП пишет `ONE_C_ADAPTER=mock`, а код знает только `fake` и
+  `rest` (`getOneCAdapter` бросает на неизвестном) — в шаблоне `fake`.
+- **`NEXT_PUBLIC_SENTRY_DSN` не нужен:** клиентской части Sentry в проекте нет (ДП просил сверить).
+  Добавлять её — новая функция с вопросом ПДн, не входит в этап. `SENTRY_RELEASE` читают
+  `instrumentation.ts` и воркер; compose подставляет его из `IMAGE_TAG`.
+- `env.ts`: заглушка (`replace_with…`/`replace_me`/`changeme`) в **любой** переменной — не только в
+  обязательных — не даёт стартовать (раньше пропускались токен 1С, пароль IMAP, ключи Mango, общий
+  секрет моста). Перед этим проверено, что в настройках стенда заглушек нет. Мутация — красная.
+- `Caddyfile.staging` + `docker-compose.staging.yml`: всё за паролем, кроме `/api/integrations/*` и
+  `/api/public/*`; `X-Robots-Tag: noindex`. Хеш пароля не в репозитории — `import` файла
+  `caddy-staging-users` с сервера (нет файла — Caddy не стартует, стейджинг не открывается без
+  пароля). Страж `infra.staging` (мутации: открыт весь `/api/*`, пароль закомментирован — красные).
+- Ранбуки `RUNBOOK.md` §3.1, `runbook-prod-infra-rf.md`, `runbook-launch-deploy.md` переведены с
+  `lk-otsfera:prod` на тег и `deploy.sh`.
+
+### Живая проверка PR-2 (Docker 29.6 на агентском сервере)
+
+- `docker compose config`: без `IMAGE_TAG` — отказ «required variable IMAGE_TAG is missing»; с тегом —
+  три сервиса на `lk-otsfera:v0.12.0` и `SENTRY_RELEASE: v0.12.0` у web/worker; надстройка стейджинга
+  заменяет `/etc/caddy/Caddyfile` и монтирует `staging-users`, образы из реестра; `.env` стека
+  позволяет `docker compose config --services` без тега; `IMAGE_TAG=v0.11.0` в окружении сильнее
+  `.env` (откат).
+- `caddy:2-alpine`: `caddy validate` — «Valid configuration»; без файла пользователей — «File to
+  import not found» (стейджинг не откроется без пароля). Живой запрос: `/`, `/login`,
+  `/api/auth/login` без пароля — 401; `/api/integrations/telegram/webhook`, `/api/public/requests` —
+  проходят (502: приложение в пробе не поднято); верный пароль — проходит, неверный — 401;
+  `X-Robots-Tag: noindex, nofollow`.
 
 ## Тестовая стратегия
 

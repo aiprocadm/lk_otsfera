@@ -2,21 +2,29 @@
 # files live in S3 — both reached only via env in .env.production. TLS/reverse-proxy
 # is terminated by the `caddy` service (SP3); web stays on loopback and is reached
 # by caddy over the internal compose network.
+# `У-338` (ТЗ 28.10.2026, ДП §5): migrate/web/worker берут ОДИН образ по тегу —
+# `IMAGE_TAG` (версия `vX.Y.Z` на проде, `staging-<sha>` на стейджинге),
+# `IMAGE_REPO` — репозиторий в реестре (по умолчанию локальный `lk-otsfera`).
+# Откат — `deploy.sh <прежний тег>` (или `IMAGE_TAG=<прежний> docker compose
+# up -d web worker`) без пересборки. Без тега compose не стартует.
 services:
   # R0.3: one-shot миграции ДО старта приложений — `docker compose up` больше
   # не полагается на ручной шаг `prisma migrate deploy` из runbook (шаг остаётся
   # в runbook как объяснение, но забыть его теперь нельзя: web/worker ждут
   # успешного завершения этого сервиса).
   migrate:
-    image: lk-otsfera:prod
+    image: ${IMAGE_REPO:-lk-otsfera}:${IMAGE_TAG:?IMAGE_TAG is required}
     command: ['npx', 'prisma', 'migrate', 'deploy']
     env_file: .env.production
     restart: 'no'
 
   web:
-    image: lk-otsfera:prod
+    image: ${IMAGE_REPO:-lk-otsfera}:${IMAGE_TAG:?IMAGE_TAG is required}
     command: ['npm', 'run', 'start']
     env_file: .env.production
+    # `У-340`: релиз в Sentry = тег образа — ошибки после выкладки видны по версии.
+    environment:
+      SENTRY_RELEASE: ${IMAGE_TAG}
     ports: ['127.0.0.1:3000:3000']
     depends_on:
       redis:
@@ -38,9 +46,11 @@ services:
     restart: unless-stopped
 
   worker:
-    image: lk-otsfera:prod
+    image: ${IMAGE_REPO:-lk-otsfera}:${IMAGE_TAG:?IMAGE_TAG is required}
     command: ['npm', 'run', 'worker']
     env_file: .env.production
+    environment:
+      SENTRY_RELEASE: ${IMAGE_TAG}
     depends_on:
       redis:
         condition: service_healthy
