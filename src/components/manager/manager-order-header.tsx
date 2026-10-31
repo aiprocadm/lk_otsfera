@@ -1,8 +1,9 @@
 import React from 'react';
 import type { ManagerOrderDetail } from '@/lib/services/manager/orders';
-import { orderStage, orderWorkingStage, WORKING_STAGE_LABELS } from '@/lib/orders/humanStage';
+import { orderStage } from '@/lib/orders/humanStage';
 import { OrderStageBadge } from '@/components/partner/order-stage-badge';
-import { OrderStageStepper } from '@/components/orders/order-stage-stepper';
+import { OrderStatusStepper } from '@/components/orders/order-status-stepper';
+import type { StatusSteps } from '@/lib/orders/statusSteps';
 
 import { PageHeader } from '@/components/ui/page-header';
 /**
@@ -14,18 +15,17 @@ import { PageHeader } from '@/components/ui/page-header';
  * `getOrder(prisma, session, orderId)` — `stage` is computed locally from the
  * two-dimensional execution/financial statuses via `orderStage`.
  */
-export function ManagerOrderHeader({ order }: { order: ManagerOrderDetail }) {
+export function ManagerOrderHeader({
+  order,
+  steps,
+}: {
+  order: ManagerOrderDetail;
+  /** Шкала этапов из справочника статусов (`У-353`) — приходит с панелью статуса. */
+  steps: StatusSteps | null;
+}) {
   const stage = orderStage({
     executionStatus: order.executionStatus,
     financialStatus: order.financialStatus,
-    amount: Number(order.totalAmount),
-    paidTotal: Number(order.paidAmount),
-  });
-  const workingStage = orderWorkingStage({
-    executionStatus: order.executionStatus,
-    contractSignedAt: order.contractSignedAt,
-    completedAt: order.completedAt,
-    closedAt: order.closedAt,
     amount: Number(order.totalAmount),
     paidTotal: Number(order.paidAmount),
   });
@@ -53,9 +53,11 @@ export function ManagerOrderHeader({ order }: { order: ManagerOrderDetail }) {
           ) : null
         }
       />
-      <div className="mt-4">
-        <OrderStageStepper stage={workingStage} labels={[...WORKING_STAGE_LABELS]} />
-      </div>
+      {steps && (
+        <div className="mt-4">
+          <OrderStatusStepper {...steps} />
+        </div>
+      )}
       {order.productMix.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {order.productMix.map((p) => (

@@ -6,7 +6,14 @@ vi.mock('next/link', () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) =>
     React.createElement('a', { href }, children),
 }));
-vi.mock('@/components/manager/manager-order-header', () => ({ ManagerOrderHeader: () => null }));
+vi.mock('@/components/manager/manager-order-header', () => ({
+  ManagerOrderHeader: (props: { steps: { steps: Array<{ label: string }> } | null }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'order-header' },
+      props.steps ? props.steps.steps.map((s) => s.label).join('|') : 'no-steps'
+    ),
+}));
 vi.mock('@/components/manager/manager-order-amounts', () => ({ ManagerOrderAmounts: () => null }));
 vi.mock('@/components/manager/manager-order-timeline', () => ({
   ManagerOrderTimeline: () => null,
@@ -34,7 +41,8 @@ vi.mock('@/components/partner/documents-list', () => ({ DocumentsList: () => nul
 // `У-158`: форма загрузки — клиентская (нужен роутер), деталку она не
 // касается по существу: здесь проверяется состав блоков.
 vi.mock('@/components/manager/manager-doc-upload-form', () => ({
-  ManagerDocUploadForm: () => null,
+  ManagerDocUploadForm: (props: { embedded?: boolean }) =>
+    React.createElement('div', { 'data-testid': 'doc-upload' }, `embedded=${props.embedded}`),
 }));
 vi.mock('@/components/training/order-items-section', () => ({ OrderItemsSection: () => null }));
 vi.mock('@/components/orders/order-custom-fields', () => ({ OrderCustomFields: () => null }));
@@ -109,6 +117,50 @@ function makeData(overrides: Record<string, unknown>) {
 }
 
 describe('ManagerOrderDetailView', () => {
+  it('`У-351`: один блок «Документы» — список, затем выпуск, затем загрузка', () => {
+    const html = renderToString(
+      React.createElement(ManagerOrderDetailView, {
+        data: makeData({}),
+        backHref: '/manager/orders',
+        directions: [],
+        students: [],
+        generatePanel: React.createElement('div', { 'data-testid': 'generate-panel' }),
+      })
+    );
+    const docs = html.indexOf('Документы');
+    const issue = html.indexOf('data-testid="generate-panel"');
+    const upload = html.indexOf('data-testid="doc-upload"');
+    expect(docs).toBeGreaterThan(-1);
+    expect(issue).toBeGreaterThan(docs);
+    expect(upload).toBeGreaterThan(issue);
+    expect(html).toContain('embedded=true');
+    // Отдельной карточки «Документы по заказу» над списком больше нет.
+    expect(html).not.toContain('Документы по заказу');
+  });
+
+  it('`У-353`: шапка получает шаги от панели статуса; «Статус заказа» — первым справа', () => {
+    const html = renderToString(
+      React.createElement(ManagerOrderDetailView, {
+        data: makeData({}),
+        backHref: '/manager/orders',
+        directions: [],
+        students: [],
+        statusPanel: {
+          steps: {
+            steps: [{ id: 's1', label: 'Принято в работу', state: 'current' }],
+            terminalLabel: null,
+            offPipelineLabel: null,
+          },
+        } as never,
+        contactPanel: React.createElement('div', { 'data-testid': 'contact-panel' }),
+      })
+    );
+    expect(html).toContain('data-testid="order-header">Принято в работу');
+    expect(html.indexOf('data-testid="status-panel"')).toBeLessThan(
+      html.indexOf('data-testid="contact-panel"')
+    );
+  });
+
   it('BackLink ведёт на переданный backHref', () => {
     const html = renderToString(
       React.createElement(ManagerOrderDetailView, {

@@ -30,6 +30,14 @@ function pickFile(input: HTMLInputElement, file: File): void {
 }
 
 describe('ManagerDocUploadForm (SSR structure)', () => {
+  it('`У-351`: встроенная — подраздел «Загрузить документ» без своей рамки', () => {
+    const { container } = render(
+      React.createElement(ManagerDocUploadForm, { orderId: 'o1', embedded: true })
+    );
+    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe('Загрузить документ');
+    expect((container.firstChild as HTMLElement).className).toBe('');
+  });
+
   it('renders file input, type select, recipient select and submit button', () => {
     const html = renderToString(React.createElement(ManagerDocUploadForm, { orderId: 'o1' }));
     expect(html).toContain('type="file"');

@@ -104,13 +104,41 @@ vi.mock('@/components/admin/assign-order-manager-form', () => ({
     ),
 }));
 
-vi.mock('@/components/orders/order-stage-stepper', () => ({
-  OrderStageStepper: (props: { stage: unknown; labels: unknown[] }) =>
+// Этап 5 ТЗ 28.10.2026 (`У-353`): шкала этапов — из справочника статусов, через
+// панель статуса, которой у администратора в карточке раньше не было вовсе.
+const { getOrderStatusPanel } = vi.hoisted(() => ({
+  getOrderStatusPanel: vi.fn(async () => ({
+    current: null,
+    forward: [],
+    backward: [],
+    terminal: null,
+    history: [],
+    statusesHref: '/admin/settings/catalogs/application-statuses',
+    steps: {
+      steps: [
+        { id: 's1', label: 'Принято в работу', state: 'current' },
+        { id: 's2', label: 'Оплата поступила', state: 'upcoming' },
+      ],
+      terminalLabel: null,
+      offPipelineLabel: null,
+    },
+  })),
+}));
+vi.mock('@/lib/services/orderStatuses', () => ({ getOrderStatusPanel }));
+vi.mock('@/components/orders/order-status-stepper', () => ({
+  OrderStatusStepper: (props: { steps: Array<{ label: string }> }) =>
     React.createElement(
       'div',
-      { 'data-testid': 'stage-stepper' },
-      String(props.stage),
-      JSON.stringify(props.labels)
+      { 'data-testid': 'status-stepper' },
+      props.steps.map((s) => s.label).join('|')
+    ),
+}));
+vi.mock('@/components/orders/order-status-panel', () => ({
+  OrderStatusPanel: (props: { orderId: string; statusesHref: string | null }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'status-panel' },
+      `${props.orderId}:${props.statusesHref}`
     ),
 }));
 
@@ -166,6 +194,26 @@ describe('AdminOrderDetailPage', () => {
     getOrderContactPanel.mockReset().mockResolvedValue(null);
     getDocumentGenerationPanel.mockReset();
     nav.redirect.mockClear();
+  });
+
+  it('`У-353`: шкала этапов из справочника и панель статуса; плашки «Исполнение» нет', async () => {
+    requireAdmin.mockResolvedValue(SESSION);
+    getOrderForAdmin.mockResolvedValue(BASE_ORDER);
+    listManagerCandidates.mockResolvedValue([]);
+    getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
+
+    const { container } = await renderServerComponent(
+      AdminOrderDetailPage({ params: Promise.resolve({ id: 'order-1' }) })
+    );
+
+    expect(getOrderStatusPanel).toHaveBeenCalledWith(expect.anything(), SESSION, 'order-1');
+    expect(container.querySelector('[data-testid="status-stepper"]')?.textContent).toBe(
+      'Принято в работу|Оплата поступила'
+    );
+    expect(container.querySelector('[data-testid="status-panel"]')?.textContent).toBe(
+      'order-1:/admin/settings/catalogs/application-statuses'
+    );
+    expect(container.textContent).not.toContain('Исполнение');
   });
 
   it('монтирует блок «Состав и стоимость», когда сервис отдал строки', async () => {

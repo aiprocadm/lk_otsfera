@@ -2,20 +2,19 @@ import React from 'react';
 import Link from 'next/link';
 import type { PartnerOrderDetail } from '@/lib/services/partner/orderDetail';
 import { orderTypeRu } from '@/lib/i18n/labels';
-import { orderWorkingStage, WORKING_STAGE_LABELS } from '@/lib/orders/humanStage';
-import { OrderStageStepper } from '@/components/orders/order-stage-stepper';
+import { OrderStatusStepper } from '@/components/orders/order-status-stepper';
+import type { StatusSteps } from '@/lib/orders/statusSteps';
 import { PageHeader } from '@/components/ui/page-header';
 import { OrderStageBadge } from './order-stage-badge';
 
-export function PartnerOrderHeader({ deal }: { deal: PartnerOrderDetail }) {
-  const workingStage = orderWorkingStage({
-    executionStatus: deal.executionStatus,
-    contractSignedAt: deal.contractSignedAt,
-    completedAt: deal.completedAt,
-    closedAt: deal.closedAt,
-    amount: deal.totalAmount,
-    paidTotal: deal.paidAmount,
-  });
+/** `steps` — шкала этапов из справочника статусов (`У-353`); `null` — шкалы нет. */
+export function PartnerOrderHeader({
+  deal,
+  steps,
+}: {
+  deal: PartnerOrderDetail;
+  steps: StatusSteps | null;
+}) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
       {/* `У-120`: зеркало карточки заказа у менеджера и заказчика. */}
@@ -51,9 +50,11 @@ export function PartnerOrderHeader({ deal }: { deal: PartnerOrderDetail }) {
           ) : null
         }
       />
-      <div className="mt-4">
-        <OrderStageStepper stage={workingStage} labels={[...WORKING_STAGE_LABELS]} />
-      </div>
+      {steps && (
+        <div className="mt-4">
+          <OrderStatusStepper {...steps} />
+        </div>
+      )}
       {deal.productMix.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {deal.productMix.map((p) => (

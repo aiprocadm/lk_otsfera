@@ -79,6 +79,7 @@ export default async function LeaderOrderDetailPage({
     });
     generatePanel = (
       <GenerateDocumentsPanel
+        embedded
         orderId={id}
         counterpartyName={panel.counterpartyName}
         orderLines={panel.orderLines}
@@ -152,8 +153,9 @@ export default async function LeaderOrderDetailPage({
         }
         dealPanel={
           deal ? (
-            /* Лидов в кабинете руководителя нет — имя лида остаётся текстом. */
-            <OrderDealPanel deal={deal} dealsHref="/leader/deals" leadHrefBase={null} />
+            /* С этапа 4 ТЗ 28.10.2026 (`У-349`) «Лиды» у руководителя есть, а
+               карточка лида одна — в кабинете менеджера (`Р-Л-3`). */
+            <OrderDealPanel deal={deal} dealsHref="/leader/deals" leadHrefBase="/manager/leads" />
           ) : null
         }
         dialogsPanel={

@@ -28,9 +28,13 @@ const DOC_TYPE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'other', label: 'Прочее' },
 ];
 
-type Props = { orderId: string };
+type Props = {
+  orderId: string;
+  /** `У-351`: подраздел общего блока «Документы» — без своей рамки. */
+  embedded?: boolean;
+};
 
-export function ManagerDocUploadForm({ orderId }: Props) {
+export function ManagerDocUploadForm({ orderId, embedded = false }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [docType, setDocType] = useState<string>('other');
   const [recipient, setRecipient] = useState<'organization' | 'partner'>('organization');
@@ -76,8 +80,12 @@ export function ManagerDocUploadForm({ orderId }: Props) {
   const error = localError ?? errorText;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5">
-      <h2 className="text-sm font-semibold text-[#111111] mb-3">Загрузить документ</h2>
+    <div className={embedded ? '' : 'bg-white border border-gray-200 rounded-xl p-5'}>
+      {embedded ? (
+        <h3 className="text-sm font-medium text-[#111111] mb-3">Загрузить документ</h3>
+      ) : (
+        <h2 className="text-sm font-semibold text-[#111111] mb-3">Загрузить документ</h2>
+      )}
       <form action={guardedAction} className="flex flex-col gap-3">
         <Field
           htmlFor="mgr-doc-file"

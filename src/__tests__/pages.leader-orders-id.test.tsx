@@ -489,15 +489,14 @@ describe('LeaderOrderDetailPage', () => {
       expect(container.innerHTML).toContain('/leader/deals');
     });
 
-    it('лидов в кабинете руководителя нет — имя лида остаётся текстом, без ссылки', async () => {
+    it('лид открывается: «Лиды» у руководителя есть (`У-349`), карточка лида — одна, у менеджера', async () => {
       isFeatureEnabled.mockImplementation((flag: string) => flag === 'deals_pipeline');
       loadOrderDeal.mockResolvedValue(DEAL);
 
       const { container } = await render();
 
       expect(container.textContent).toContain('ООО «Ромашка»');
-      expect(container.innerHTML).not.toContain('/leader/leads');
-      expect(container.innerHTML).not.toContain('/manager/leads');
+      expect(container.querySelector('a[href="/manager/leads/l1"]')).not.toBeNull();
     });
 
     it('у заказа без номера крошка берёт его название', async () => {

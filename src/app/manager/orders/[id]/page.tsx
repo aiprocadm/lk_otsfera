@@ -81,6 +81,7 @@ export default async function ManagerOrderDetailPage({
     });
     generatePanel = (
       <GenerateDocumentsPanel
+        embedded
         orderId={id}
         counterpartyName={panel.counterpartyName}
         orderLines={panel.orderLines}

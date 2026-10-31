@@ -125,7 +125,7 @@ vi.mock('@/components/orders/merge-external-order-button', () => ({
   MergeExternalOrderButton: () => null,
 }));
 vi.mock('@/components/orders/order-custom-fields', () => ({ OrderCustomFields: () => null }));
-vi.mock('@/components/orders/order-stage-stepper', () => ({ OrderStageStepper: () => null }));
+vi.mock('@/components/orders/order-status-stepper', () => ({ OrderStatusStepper: () => null }));
 // Панель документов администратора — клиентская и со своим состоянием; в этом
 // тесте она только шумела бы предупреждениями React.
 vi.mock('@/components/documents/documents-panel', () => ({ DocumentsPanel: () => null }));

@@ -1,7 +1,7 @@
 import React from 'react';
 import type { AuditLog } from '@prisma/client';
 import type { ManagerOrderDetail } from '@/lib/services/manager/orders';
-import { fmtDate, fmtDateTime } from '@/lib/format';
+import { fmtDateTime } from '@/lib/format';
 
 const HIDDEN_ACTIONS = new Set<string>([
   // Partner-economics events: managers never see commission/rate audit rows
@@ -52,75 +52,37 @@ function summarizeAudit(
 }
 
 /**
- * Manager-side sibling of `org-order-timeline.tsx`. In addition to the static
- * milestone rows the org version shows, this variant renders a filtered slice
- * of the order's audit log so a manager can see operator activity (status
- * changes, document uploads, comments) without leaving the page.
+ * Блок «Журнал изменений» карточки заказа сотрудника: срез журнала аудита —
+ * загрузка документов, комментарии, смена ответственного, смены статуса с
+ * «кто сделал» (`meta.after.actor`: менеджер, система, 1С).
  *
- * Filtering rules (per plan):
- *   - HIDE rows whose `action` is in {partner_commission_*, partner_rate_changed}.
- *     Partner economics are out of manager scope.
- *   - SHOW `order_status_changed` with the before→after transition and the
- *     `actor` label from `meta.after.actor` when present (e.g. "manager",
- *     "system", "1c-sync"), so managers can tell whether the change came from
- *     a peer manager or from the 1С sync.
+ * Скрыты строки экономики партнёра (`partner_commission_*`,
+ * `partner_rate_changed`) — менеджеру она не видна.
+ *
+ * Этап 5 ТЗ 28.10.2026 (`У-353`, РК 9): прежний блок «Даты» (создан, договор,
+ * дедлайн, завершён, оплачен, закрыт) убран — даты переходов есть в «Истории
+ * статусов» панели статуса, а фиксированные вехи со статусами заказа не
+ * совпадали. У заказчика и партнёра «Даты» остаются: истории статусов у них
+ * нет (их хронологию решает `У-366` этапа 7).
  */
 export function ManagerOrderTimeline({
   order,
   auditEntries,
   userNames = {},
 }: {
-  order: ManagerOrderDetail;
+  order: Pick<ManagerOrderDetail, 'lastSyncedAt'>;
   auditEntries: AuditLog[];
   /** `У-283`: имена для строк смены ответственного. */
   userNames?: Record<string, string>;
 }) {
-  const milestones: { label: string; date: Date | null; tone?: 'success' | 'warning' }[] = [
-    { label: 'Создан', date: order.createdAt },
-    { label: 'Договор подписан', date: order.contractSignedAt },
-    { label: 'Дедлайн', date: order.deadline, tone: 'warning' },
-    { label: 'Завершён', date: order.completedAt, tone: 'success' },
-    { label: 'Оплачен', date: order.paidAt, tone: 'success' },
-    { label: 'Закрыт', date: order.closedAt },
-  ];
-
   const visibleAudit = auditEntries.filter((e) => !HIDDEN_ACTIONS.has(e.action));
+  if (visibleAudit.length === 0 && !order.lastSyncedAt) return null;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-      <h2 className="text-sm font-semibold text-[#111111]">Даты</h2>
-      <ul className="space-y-2">
-        {milestones.map((e) => {
-          const passed = e.date !== null;
-          return (
-            <li key={e.label} className="flex items-center gap-3 text-sm">
-              <span
-                className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                  !passed
-                    ? 'bg-gray-200'
-                    : e.tone === 'success'
-                      ? 'bg-green-500'
-                      : e.tone === 'warning'
-                        ? 'bg-orange-400'
-                        : 'bg-gray-400'
-                }`}
-              />
-              <span className={`flex-1 ${passed ? 'text-[#111111]' : 'text-gray-400'}`}>
-                {e.label}
-              </span>
-              <span className={`text-xs ${passed ? 'text-gray-500 font-medium' : 'text-gray-300'}`}>
-                {e.date ? fmtDate(e.date) : '—'}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-
+      <h2 className="text-sm font-semibold text-[#111111]">Журнал изменений</h2>
       {visibleAudit.length > 0 && (
-        <div className="pt-3 border-t border-gray-100 space-y-2">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            Активность
-          </h3>
+        <div className="space-y-2">
           <ul className="space-y-2">
             {visibleAudit.map((entry) => {
               const { label, detail } = summarizeAudit(entry, userNames);

@@ -27,7 +27,18 @@ const UPLOAD_ERROR_RU: Record<string, string> = {
 /** Ответ `/api/documents`: срез и полный счётчик по тому же условию. */
 type DocumentListResponse = { rows: DocumentItem[]; total: number };
 
-export function DocumentsPanel({ orderId: fixedOrderId }: { orderId?: string } = {}) {
+export function DocumentsPanel({
+  orderId: fixedOrderId,
+  issueSlot = null,
+}: {
+  orderId?: string;
+  /**
+   * Этап 5 ТЗ 28.10.2026 (`У-351`, РК 6): на карточке заказа — подраздел
+   * «Выпустить новый документ» между списком и загрузкой (готовая панель
+   * выпуска во встроенном режиме). На общем экране «Документы» не нужен.
+   */
+  issueSlot?: React.ReactNode;
+} = {}) {
   // `У-112`: на карточке заказа панель показывает документы ЭТОГО заказа и не
   // спрашивает его номер — он уже известен. На общем экране всё как было.
   //
@@ -85,6 +96,111 @@ export function DocumentsPanel({ orderId: fixedOrderId }: { orderId?: string } =
     window.open(downloadUrl, '_blank', 'noopener,noreferrer');
   }
 
+  const uploadForm = (
+    <form onSubmit={onUpload} className="space-y-3">
+      {!fixedOrderId && (
+        <input
+          value={orderId}
+          onChange={(e) => setOrderId(e.target.value)}
+          placeholder="ID заказа"
+          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent"
+        />
+      )}
+      <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center hover:border-[#F97316] transition-colors">
+        <input
+          type="file"
+          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          className="w-full text-sm text-gray-500"
+        />
+        {file && <p className="text-xs text-[#F97316] mt-1">{file.name}</p>}
+      </div>
+      {uploadError && (
+        <div
+          className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2"
+          role="alert"
+        >
+          {uploadError}
+        </div>
+      )}
+      <button
+        type="submit"
+        disabled={uploading}
+        className="bg-[#F97316] hover:bg-[#EA580C] text-white font-medium rounded-lg px-4 py-2.5 text-sm transition-colors disabled:opacity-60"
+      >
+        {uploading ? 'Загружаем...' : 'Загрузить'}
+      </button>
+    </form>
+  );
+
+  const listBody = (
+    <>
+      {downloadError && (
+        <div
+          className="mx-5 mt-3 text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2"
+          role="alert"
+        >
+          {downloadError}
+        </div>
+      )}
+      {docs.length === 0 ? (
+        <div className="px-5 py-10 text-center text-gray-400 text-sm">Документов пока нет</div>
+      ) : (
+        <div className="divide-y divide-gray-50">
+          {docs.map((doc) => (
+            <div
+              key={doc.id}
+              className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-gray-400 text-xl">📄</span>
+                <div>
+                  <div className="text-sm font-medium text-[#111111]">{doc.name}</div>
+                  <div className="text-xs text-gray-400">
+                    {doc.mimeType} · {fmtDateTime(new Date(doc.createdAt))}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => onDownload(doc.id)}
+                className="text-xs border border-gray-300 hover:border-[#F97316] hover:text-[#F97316] text-gray-600 rounded-lg px-3 py-1.5 transition-colors"
+              >
+                Скачать
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="px-5 pb-3">
+        <ListCapNotice
+          shown={docs.length}
+          total={total}
+          hint="Здесь только новейшие; полный список — в разделе «Документы»."
+        />
+      </div>
+    </>
+  );
+
+  // `У-351`: на карточке заказа — один блок «Документы» в порядке «список →
+  // выпустить → загрузить», как у менеджера и руководителя (правило зеркала).
+  if (fixedOrderId) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h2 className="text-sm font-semibold text-[#111111]">
+            Документы <span className="text-gray-400 font-normal">({total})</span>
+          </h2>
+        </div>
+        {listBody}
+        {issueSlot && <div className="border-t border-gray-100 px-5 py-4">{issueSlot}</div>}
+        <div className="border-t border-gray-100 px-5 py-4">
+          <h3 className="text-sm font-medium text-[#111111] mb-3">Загрузить документ</h3>
+          {uploadForm}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Upload form */}
@@ -95,40 +211,7 @@ export function DocumentsPanel({ orderId: fixedOrderId }: { orderId?: string } =
           </span>
           Загрузить документ
         </h2>
-        <form onSubmit={onUpload} className="space-y-3">
-          {!fixedOrderId && (
-            <input
-              value={orderId}
-              onChange={(e) => setOrderId(e.target.value)}
-              placeholder="ID заказа"
-              className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:border-transparent"
-            />
-          )}
-          <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center hover:border-[#F97316] transition-colors">
-            <input
-              type="file"
-              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="w-full text-sm text-gray-500"
-            />
-            {file && <p className="text-xs text-[#F97316] mt-1">{file.name}</p>}
-          </div>
-          {uploadError && (
-            <div
-              className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2"
-              role="alert"
-            >
-              {uploadError}
-            </div>
-          )}
-          <button
-            type="submit"
-            disabled={uploading}
-            className="bg-[#F97316] hover:bg-[#EA580C] text-white font-medium rounded-lg px-4 py-2.5 text-sm transition-colors disabled:opacity-60"
-          >
-            {uploading ? 'Загружаем...' : 'Загрузить'}
-          </button>
-        </form>
+        {uploadForm}
       </div>
 
       {/* Documents list */}
@@ -140,49 +223,7 @@ export function DocumentsPanel({ orderId: fixedOrderId }: { orderId?: string } =
           <span className="font-semibold text-[#111111]">Документы</span>
           <span className="ml-auto text-xs text-gray-400">{docs.length} файлов</span>
         </div>
-        {downloadError && (
-          <div
-            className="mx-5 mt-3 text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2"
-            role="alert"
-          >
-            {downloadError}
-          </div>
-        )}
-        {docs.length === 0 ? (
-          <div className="px-5 py-10 text-center text-gray-400 text-sm">Документов пока нет</div>
-        ) : (
-          <div className="divide-y divide-gray-50">
-            {docs.map((doc) => (
-              <div
-                key={doc.id}
-                className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-gray-400 text-xl">📄</span>
-                  <div>
-                    <div className="text-sm font-medium text-[#111111]">{doc.name}</div>
-                    <div className="text-xs text-gray-400">
-                      {doc.mimeType} · {fmtDateTime(new Date(doc.createdAt))}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => onDownload(doc.id)}
-                  className="text-xs border border-gray-300 hover:border-[#F97316] hover:text-[#F97316] text-gray-600 rounded-lg px-3 py-1.5 transition-colors"
-                >
-                  Скачать
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="px-5 pb-3">
-          <ListCapNotice
-            shown={docs.length}
-            total={total}
-            hint="Здесь только новейшие; полный список — в разделе «Документы»."
-          />
-        </div>
+        {listBody}
       </div>
     </div>
   );

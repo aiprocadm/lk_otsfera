@@ -19,6 +19,7 @@ import { orgOrderScope } from '@/lib/services/organization/memberScope';
 import { getValuesForEntity } from '@/lib/services/customFields';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { missingObjectHref } from '@/lib/navigation/missingObject';
+import { getOrderStatusSteps } from '@/lib/services/orderStatuses';
 
 type Params = { id: string };
 type SearchParams = { org?: string };
@@ -59,6 +60,9 @@ export default async function OrganizationOrderDetailPage({
     redirect(missingObjectHref(listHref));
   }
 
+  // `У-353`: шкала этапов — статусы справочника; читается ПОСЛЕ проверок доступа.
+  const steps = await getOrderStatusSteps(prisma, order.id);
+
   const [comments, customFieldsResult] = await Promise.all([
     listOrgOrderComments(prisma, order.id),
     getValuesForEntity(prisma, ctx.session, 'order', order.id),
@@ -84,7 +88,7 @@ export default async function OrganizationOrderDetailPage({
           )}
         />
 
-        <OrgOrderHeader order={order} />
+        <OrgOrderHeader order={order} steps={steps} />
 
         <div className="grid gap-4 md:grid-cols-3">
           <div className="md:col-span-2 space-y-4">

@@ -7,13 +7,10 @@ import { missingObjectHref } from '@/lib/navigation/missingObject';
 import { requireAdmin } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { AssignOrderManagerForm } from '@/components/admin/assign-order-manager-form';
-import {
-  executionStage,
-  paymentStage,
-  orderWorkingStage,
-  WORKING_STAGE_LABELS,
-} from '@/lib/orders/humanStage';
-import { OrderStageStepper } from '@/components/orders/order-stage-stepper';
+import { paymentStage } from '@/lib/orders/humanStage';
+import { OrderStatusStepper } from '@/components/orders/order-status-stepper';
+import { OrderStatusPanel } from '@/components/orders/order-status-panel';
+import { getOrderStatusPanel } from '@/lib/services/orderStatuses';
 import { getValuesForEntity } from '@/lib/services/customFields';
 import { getOrderForAdmin } from '@/lib/services/admin/orders';
 import { listManagerCandidates } from '@/lib/services/admin/users';
@@ -68,6 +65,10 @@ export default async function AdminOrderDetailPage({
   // Этап 5 (`У-139`, `У-140`): состав и стоимость. Тот же блок, что у
   // менеджера и руководителя — правило зеркала (§0.2).
   const linesPanel = await getOrderLinesPanel(prisma, session, id);
+  // Этап 5 ТЗ 28.10.2026 (`У-353`): у администратора в карточке не было панели
+  // статуса вовсе — сменить статус отсюда он не мог, хотя сервис панели его
+  // пускает (и даёт ссылку на справочник). Шкала этапов — из неё же.
+  const statusPanel = await getOrderStatusPanel(prisma, session, id);
 
   // `У-144`: панель выпуска документов — ТОТ ЖЕ компонент, что у менеджера и
   // руководителя (правило зеркала §0.2). До этапа 6 админ выпустить документ
@@ -109,18 +110,10 @@ export default async function AdminOrderDetailPage({
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <OrderStageStepper
-          stage={orderWorkingStage({
-            executionStatus: order.executionStatus,
-            contractSignedAt: order.contractSignedAt,
-            completedAt: order.completedAt,
-            closedAt: order.closedAt,
-            amount: Number(order.totalAmount),
-            paidTotal: Number(order.paidAmount),
-          })}
-          labels={[...WORKING_STAGE_LABELS]}
-        />
+        <OrderStatusStepper {...statusPanel.steps} />
       </div>
+
+      <OrderStatusPanel orderId={order.id} {...statusPanel} />
 
       <div className="grid gap-3 md:grid-cols-3">
         <div className="bg-white border border-gray-200 rounded-xl p-4">
@@ -148,13 +141,10 @@ export default async function AdminOrderDetailPage({
         </div>
       </div>
 
+      {/* §10 ТЗ v0.5, решение Q3: операционный статус убран из интерфейса — у
+          заказа один видимый статус, из справочника (панель выше). Плашка
+          «Исполнение» показывала его администратору; снята на этапе 5. */}
       <div className="grid gap-3 md:grid-cols-2">
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="text-xs text-gray-500">Исполнение</div>
-          <div className="text-sm font-medium text-[#111111] mt-1">
-            {executionStage(order.executionStatus).label}
-          </div>
-        </div>
         <div className="bg-white border border-gray-200 rounded-xl p-4">
           <div className="text-xs text-gray-500">Финансы</div>
           <div className="text-sm font-medium text-[#111111] mt-1">
@@ -220,24 +210,28 @@ export default async function AdminOrderDetailPage({
           ни доски, ни карточки лида админу отсюда не предлагаем. */}
       {deal && <OrderDealPanel deal={deal} dealsHref={null} leadHrefBase={null} />}
 
-      {documentsPanel && (
-        <GenerateDocumentsPanel
-          orderId={order.id}
-          counterpartyName={documentsPanel.counterpartyName}
-          orderLines={documentsPanel.orderLines}
-          missingByType={documentsPanel.missingByType}
-          baseDocuments={documentsPanel.baseDocuments}
-          hasInvoice={documentsPanel.hasInvoice}
-          hasContract={documentsPanel.hasContract}
-          cabinet="admin"
-          organizationId={order.organizationId}
-          organizationRequisites={documentsPanel.organizationRequisites}
-        />
-      )}
-
-      {/* `У-112`: тот же состав блоков, что у менеджера — список документов и
-          загрузка, причём номер заказа панель берёт сама. */}
-      <DocumentsPanel orderId={order.id} />
+      {/* `У-112`: тот же состав, что у менеджера; `У-351`: один блок «Документы» —
+          список, «Выпустить новый документ», «Загрузить документ». */}
+      <DocumentsPanel
+        orderId={order.id}
+        issueSlot={
+          documentsPanel ? (
+            <GenerateDocumentsPanel
+              embedded
+              orderId={order.id}
+              counterpartyName={documentsPanel.counterpartyName}
+              orderLines={documentsPanel.orderLines}
+              missingByType={documentsPanel.missingByType}
+              baseDocuments={documentsPanel.baseDocuments}
+              hasInvoice={documentsPanel.hasInvoice}
+              hasContract={documentsPanel.hasContract}
+              cabinet="admin"
+              organizationId={order.organizationId}
+              organizationRequisites={documentsPanel.organizationRequisites}
+            />
+          ) : null
+        }
+      />
 
       <OrderCustomFields fields={customFields} orderId={order.id} editable={true} />
 

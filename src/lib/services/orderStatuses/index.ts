@@ -9,4 +9,4 @@ export {
 
 export { transitionOrderStatus } from './transitions';
 
-export { getOrderStatusPanel } from './panel';
+export { getOrderStatusPanel, getOrderStatusSteps } from './panel';
