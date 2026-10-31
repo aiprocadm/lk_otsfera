@@ -82,6 +82,13 @@ beforeEach(() => {
 });
 
 describe('GenerateDocumentsPanel', () => {
+  it('`У-351`: встроенная — подраздел «Выпустить новый документ» без своей рамки', () => {
+    const { container } = panel({ embedded: true });
+    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe('Выпустить новый документ');
+    expect(screen.queryByText('Документы по заказу')).toBeNull();
+    expect((container.firstChild as HTMLElement).className).toBe('');
+  });
+
   it('главная кнопка открывает форму выпуска с предзаполненным контрагентом', () => {
     panel();
     fireEvent.click(screen.getByRole('button', { name: 'Выпустить документ' }));

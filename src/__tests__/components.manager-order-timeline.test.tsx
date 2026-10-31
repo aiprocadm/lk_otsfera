@@ -29,49 +29,22 @@ function makeAudit(overrides: Partial<AuditLog>): AuditLog {
 }
 
 describe('ManagerOrderTimeline', () => {
-  it('renders all milestone labels', () => {
-    const order = makeOrder({});
+  it('`У-353`: блока «Даты» с вехами больше нет — даты переходов в «Истории статусов»', () => {
+    const order = makeOrder({
+      contractSignedAt: new Date('2026-01-05'),
+      deadline: new Date('2026-02-01'),
+      completedAt: new Date('2026-02-10'),
+    });
     const html = renderToString(
-      React.createElement(ManagerOrderTimeline, { order, auditEntries: [] })
+      React.createElement(ManagerOrderTimeline, {
+        order,
+        auditEntries: [makeAudit({ action: 'document_uploaded' })],
+      })
     );
-    expect(html).toContain('Создан');
-    expect(html).toContain('Договор подписан');
-    expect(html).toContain('Дедлайн');
-    expect(html).toContain('Завершён');
-    expect(html).toContain('Оплачен');
-    expect(html).toContain('Закрыт');
-  });
-
-  it('passed milestone (createdAt set): success/neutral coloring and formatted date', () => {
-    const order = makeOrder({ createdAt: new Date('2026-01-15') });
-    const html = renderToString(
-      React.createElement(ManagerOrderTimeline, { order, auditEntries: [] })
-    );
-    expect(html).toContain('15.01.2026');
-  });
-
-  it('unpassed milestone (deadline null): renders — placeholder and gray dot', () => {
-    const order = makeOrder({ deadline: null });
-    const html = renderToString(
-      React.createElement(ManagerOrderTimeline, { order, auditEntries: [] })
-    );
-    expect(html).toContain('bg-gray-200');
-  });
-
-  it('warning-tone milestone (deadline set): orange dot', () => {
-    const order = makeOrder({ deadline: new Date('2026-03-01') });
-    const html = renderToString(
-      React.createElement(ManagerOrderTimeline, { order, auditEntries: [] })
-    );
-    expect(html).toContain('bg-orange-400');
-  });
-
-  it('success-tone milestone (completedAt set): green dot', () => {
-    const order = makeOrder({ completedAt: new Date('2026-03-01') });
-    const html = renderToString(
-      React.createElement(ManagerOrderTimeline, { order, auditEntries: [] })
-    );
-    expect(html).toContain('bg-green-500');
+    expect(html).toContain('Журнал изменений');
+    for (const gone of ['Даты', 'Договор подписан', 'Дедлайн', 'Завершён', 'Оплачен']) {
+      expect(html).not.toContain(gone);
+    }
   });
 
   it('no visible audit entries: activity section omitted', () => {
@@ -79,7 +52,8 @@ describe('ManagerOrderTimeline', () => {
     const html = renderToString(
       React.createElement(ManagerOrderTimeline, { order, auditEntries: [] })
     );
-    expect(html).not.toContain('Активность');
+    // Нечего показать — блока нет вовсе, а не пустая рамка с заголовком.
+    expect(html).toBe('');
   });
 
   it('filters out partner-economics audit actions (HIDDEN_ACTIONS)', () => {
@@ -93,7 +67,8 @@ describe('ManagerOrderTimeline', () => {
     const html = renderToString(
       React.createElement(ManagerOrderTimeline, { order, auditEntries: entries })
     );
-    expect(html).not.toContain('Активность');
+    // Скрытые строки не считаются — показать нечего, блока нет.
+    expect(html).toBe('');
   });
 
   it('shows a known action label (order_status_changed) with a before→after transition and actor', () => {

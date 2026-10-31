@@ -19,6 +19,7 @@ import { OrderCustomFields } from '@/components/orders/order-custom-fields';
 import { DealActivityThread } from '@/components/manager/deal-activity/deal-activity-thread';
 import { OrderClientThread } from '@/components/orders/order-client-thread';
 import type { ManagerOrderDetailData } from '@/lib/services/manager/orderDetail';
+import type { StatusSteps } from '@/lib/orders/statusSteps';
 import type { FieldWithValue } from '@/lib/services/customFields';
 import type { ActivityItem } from '@/lib/services/manager/dealActivity';
 
@@ -61,7 +62,7 @@ export function ManagerOrderDetailView({
    */
   linesSection?: React.ReactNode;
   /** §10 ТЗ v0.5: данные панели рабочего статуса (страница считает их сервером). */
-  statusPanel?: Omit<OrderStatusPanelProps, 'orderId'> | null;
+  statusPanel?: (Omit<OrderStatusPanelProps, 'orderId'> & { steps?: StatusSteps }) | null;
   /** Этап 12 (ФТ-5.1/5.2): блок «Готовность к передаче». */
   readinessPanel?: React.ReactNode;
   /** Этап 12 PR-2 (ФТ-5.3): массовая загрузка сканов удостоверений (только обучение). */
@@ -86,7 +87,8 @@ export function ManagerOrderDetailView({
         <BackLink href={backHref} label="Все заказы" />
       </div>
 
-      <ManagerOrderHeader order={order} />
+      {/* `У-353`: шкала этапов — статусы справочника, данные с панели статуса. */}
+      <ManagerOrderHeader order={order} steps={statusPanel?.steps ?? null} />
 
       {/* A2 (§5.3 self-assign): сам компонент скрывается при managerId != null. */}
       <ClaimOrderButton orderId={order.id} managerId={order.managerId} />
@@ -101,9 +103,12 @@ export function ManagerOrderDetailView({
 
           {readinessPanel}
           {certificateScansPanel}
-          {generatePanel}
 
-          <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+          {/* Этап 5 ТЗ 28.10.2026 (`У-351`, РК 6): один блок «Документы» —
+              (1) список выпущенных и прикреплённых, (2) «Выпустить новый
+              документ», (3) «Загрузить документ». Раньше выпуск стоял отдельной
+              карточкой «Документы по заказу» над похожей карточкой «Документы». */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
             <h2 className="text-sm font-semibold text-[#111111]">
               Документы{' '}
               {documentRows.length > 0 && (
@@ -120,7 +125,10 @@ export function ManagerOrderDetailView({
                 подписанный скан. Здесь же, где список: положить документ и
                 увидеть его — одно действие. Кабинет руководителя рисует ту же
                 деталку, значит форма появляется и у него (правило зеркала). */}
-            <ManagerDocUploadForm orderId={order.id} />
+            {generatePanel && <div className="border-t border-gray-100 pt-4">{generatePanel}</div>}
+            <div className="border-t border-gray-100 pt-4">
+              <ManagerDocUploadForm orderId={order.id} embedded />
+            </div>
           </div>
 
           <ManagerPaymentsList payments={order.payments} />
@@ -144,6 +152,9 @@ export function ManagerOrderDetailView({
         </div>
 
         <div className="space-y-4">
+          {/* `У-353` (РК 9): работа со статусом — одна из самых частых, поэтому
+              «Статус заказа» — первым в правой колонке, а не под датами. */}
+          {statusPanel && <OrderStatusPanel orderId={order.id} {...statusPanel} />}
           {contactPanel}
           {/* `У-310`: всё, что видит клиент, — отдельным блоком; диалоги
               мессенджеров — его частью. */}
@@ -161,11 +172,6 @@ export function ManagerOrderDetailView({
             auditEntries={auditEntries}
             userNames={data.userNames}
           />
-          {/* §10 ТЗ v0.5, решение заказчика Q3: операционный статус
-              (`executionStatus`) убран из интерфейса — у заявки один видимый
-              статус, из справочника. Само поле осталось в базе ради
-              совместимости и внутренних выборок. */}
-          {statusPanel && <OrderStatusPanel orderId={order.id} {...statusPanel} />}
           <OrderLifecyclePanel
             orderId={order.id}
             accountingSigned={order.accountingSignedAt != null}

@@ -23,6 +23,16 @@ vi.mock('@/lib/services/customFields', () => ({ getValuesForEntity }));
 // интеграционно в services.organization.orders.test.ts. Ключ `comment` в мок-
 // prisma оставлен: страница прокидывает тот же клиент в getValuesForEntity.
 vi.mock('@/lib/db/prisma', () => ({ prisma: { comment: {} } }));
+
+// Этап 5 ТЗ 28.10.2026 (`У-353`): шкала этапов — статусы справочника, только чтение.
+const { getOrderStatusSteps } = vi.hoisted(() => ({
+  getOrderStatusSteps: vi.fn(async () => ({
+    steps: [{ id: 's1', label: 'Принято в работу', state: 'current' }],
+    terminalLabel: null,
+    offPipelineLabel: null,
+  })),
+}));
+vi.mock('@/lib/services/orderStatuses', () => ({ getOrderStatusSteps }));
 // Настройка «участники видят только свои заказы» (`У-236`) читается из базы;
 // здесь prisma — пустышка, а сама граница проверяется своим стражем.
 vi.mock('@/lib/services/organization/memberScope', () => ({
@@ -138,6 +148,7 @@ describe('OrganizationOrderDetailPage', () => {
     getOrgPageContext.mockResolvedValue(CTX);
     getOrgOrder.mockResolvedValue(BASE_ORDER);
     canSeeOrder.mockReturnValue(false);
+    getOrderStatusSteps.mockClear();
 
     await expect(
       renderServerComponent(
@@ -154,6 +165,8 @@ describe('OrganizationOrderDetailPage', () => {
       expect.objectContaining({ organizationId: 'org-1' }),
       false
     );
+    // `У-353`: статус чужого заказа не читается — шаги идут ПОСЛЕ проверок доступа.
+    expect(getOrderStatusSteps).not.toHaveBeenCalled();
   });
 
   it('renders the full order detail with comments, custom fields, крошки с org-scoped ссылкой раздела, and a document count badge', async () => {

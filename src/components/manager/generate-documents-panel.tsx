@@ -35,6 +35,7 @@ export function GenerateDocumentsPanel({
   cabinet = 'manager',
   organizationId = null,
   organizationRequisites = null,
+  embedded = false,
 }: {
   orderId: string;
   counterpartyName: string;
@@ -51,6 +52,12 @@ export function GenerateDocumentsPanel({
   /** `У-278`: организация заказа — реквизиты дозаполняются прямо отсюда. */
   organizationId?: string | null;
   organizationRequisites?: OrgRequisitesDefaults | null;
+  /**
+   * Этап 5 ТЗ 28.10.2026 (`У-351`, РК 6): внутри общего блока «Документы»
+   * панель — подраздел «Выпустить новый документ» без своей рамки. Раньше
+   * «Документы по заказу» и «Документы» стояли двумя похожими карточками.
+   */
+  embedded?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [reqOpen, setReqOpen] = useState(false);
@@ -112,8 +119,12 @@ export function GenerateDocumentsPanel({
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 p-4">
-      <h2 className="text-sm font-semibold text-[#111111]">Документы по заказу</h2>
+    <div className={embedded ? '' : 'rounded-xl border border-gray-200 p-4'}>
+      {embedded ? (
+        <h3 className="text-sm font-medium text-[#111111]">Выпустить новый документ</h3>
+      ) : (
+        <h2 className="text-sm font-semibold text-[#111111]">Документы по заказу</h2>
+      )}
       <p className="text-xs text-gray-500 mt-1 mb-3">
         Счёт, акт, договор и доп. соглашение — с предпросмотром до выпуска.
       </p>

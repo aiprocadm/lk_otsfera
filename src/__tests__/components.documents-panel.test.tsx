@@ -44,6 +44,28 @@ describe('DocumentsPanel', () => {
     expect(useClientResource).toHaveBeenCalledWith('/api/documents?orderId=o-42');
   });
 
+  it('`У-351`: на карточке заказа — один блок «Документы»: список, выпуск, загрузка', () => {
+    useClientResource.mockReturnValue({
+      data: { rows: docs, total: docs.length },
+      loading: false,
+      error: false,
+      refetch,
+    });
+    const { container } = render(
+      <DocumentsPanel orderId="o1" issueSlot={<div data-testid="issue-slot">выпуск</div>} />
+    );
+    const html = container.innerHTML;
+    const list = html.indexOf('file.pdf');
+    const issue = html.indexOf('data-testid="issue-slot"');
+    const upload = html.indexOf('Загрузить документ');
+    expect(list).toBeGreaterThan(-1);
+    expect(issue).toBeGreaterThan(list);
+    expect(upload).toBeGreaterThan(issue);
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('Документы (1)');
+    // Номер заказа на карточке не спрашивается.
+    expect(container.querySelector('input[placeholder="ID заказа"]')).toBeNull();
+  });
+
   it('без заказа панель просит общий список', () => {
     useClientResource.mockReturnValue({
       data: { rows: docs, total: docs.length },

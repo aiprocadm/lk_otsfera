@@ -7,6 +7,16 @@ vi.mock('@/lib/auth/requireRole', () => ({ requirePartner }));
 
 vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 
+// Этап 5 ТЗ 28.10.2026 (`У-353`): шкала этапов — статусы справочника, только чтение.
+const { getOrderStatusSteps } = vi.hoisted(() => ({
+  getOrderStatusSteps: vi.fn(async () => ({
+    steps: [{ id: 's1', label: 'Принято в работу', state: 'current' }],
+    terminalLabel: null,
+    offPipelineLabel: null,
+  })),
+}));
+vi.mock('@/lib/services/orderStatuses', () => ({ getOrderStatusSteps }));
+
 const { getPartnerOrderDetail } = vi.hoisted(() => ({ getPartnerOrderDetail: vi.fn() }));
 vi.mock('@/lib/services/partner/orderDetail', () => ({ getPartnerOrderDetail }));
 
@@ -92,12 +102,15 @@ describe('PartnerDealDetailPage', () => {
     });
     getValuesForEntity.mockResolvedValue({ ok: true, fields: [] });
     canPartnerAccessOrg.mockResolvedValue(false);
+    getOrderStatusSteps.mockClear();
 
     await expect(
       renderServerComponent(PartnerDealDetailPage({ params: Promise.resolve({ id: 'deal-1' }) }))
     ).rejects.toThrow('REDIRECT:/partner/orders?missing=1');
 
     expect(canPartnerAccessOrg).toHaveBeenCalledWith(SESSION, 'org-1');
+    // `У-353`: статус заказа закрытой организации не читается.
+    expect(getOrderStatusSteps).not.toHaveBeenCalled();
   });
 
   it('renders the full deal detail with custom fields when organization is null (no access re-check)', async () => {

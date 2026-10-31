@@ -1,19 +1,18 @@
 import React from 'react';
 import type { OrgOrderDetail } from '@/lib/services/organization/orders';
 import { OrderStageBadge } from '@/components/partner/order-stage-badge';
-import { orderWorkingStage, WORKING_STAGE_LABELS } from '@/lib/orders/humanStage';
-import { OrderStageStepper } from '@/components/orders/order-stage-stepper';
+import { OrderStatusStepper } from '@/components/orders/order-status-stepper';
+import type { StatusSteps } from '@/lib/orders/statusSteps';
 
 import { PageHeader } from '@/components/ui/page-header';
-export function OrgOrderHeader({ order }: { order: OrgOrderDetail }) {
-  const workingStage = orderWorkingStage({
-    executionStatus: order.executionStatus,
-    contractSignedAt: order.contractSignedAt,
-    completedAt: order.completedAt,
-    closedAt: order.closedAt,
-    amount: order.totalAmount,
-    paidTotal: order.paidAmount,
-  });
+/** `steps` — шкала этапов из справочника статусов (`У-353`); `null` — шкалы нет. */
+export function OrgOrderHeader({
+  order,
+  steps,
+}: {
+  order: OrgOrderDetail;
+  steps: StatusSteps | null;
+}) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
       {/* `У-120`: зеркало менеджерской карточки заказа — та же шапка. */}
@@ -35,9 +34,11 @@ export function OrgOrderHeader({ order }: { order: OrgOrderDetail }) {
           ) : null
         }
       />
-      <div className="mt-4">
-        <OrderStageStepper stage={workingStage} labels={[...WORKING_STAGE_LABELS]} />
-      </div>
+      {steps && (
+        <div className="mt-4">
+          <OrderStatusStepper {...steps} />
+        </div>
+      )}
       {order.productMix.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {order.productMix.map((p) => (

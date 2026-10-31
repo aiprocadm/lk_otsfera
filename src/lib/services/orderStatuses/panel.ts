@@ -10,6 +10,7 @@ import type { PrismaClient } from '@prisma/client';
 import { isStaffManagerSide } from '@/lib/auth/roleModel';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { isManagerLeader } from '@/lib/auth/managerPolicy';
+import { buildStatusSteps, type StatusSteps } from '@/lib/orders/statusSteps';
 import { getOrderedStatuses } from './definitions';
 import { listStatusHistory } from './transitions';
 
@@ -39,6 +40,11 @@ export type OrderStatusPanelData = {
    * менеджеру — `null`: панель скажет словами, кто и где их настраивает.
    */
   statusesHref: string | null;
+  /**
+   * Этап 5 ТЗ 28.10.2026 (`У-353`): шкала этапов шапки карточки — из того же
+   * справочника и того же текущего статуса, что и кнопки панели.
+   */
+  steps: StatusSteps;
 };
 
 /** Справочник статусов в «Настройках» — у тех, кто вправе его править. */
@@ -102,6 +108,7 @@ export async function getOrderStatusPanel(
     backward,
     terminal: staff && terminalRow ? view(terminalRow) : null,
     statusesHref: statusesHrefFor(session),
+    steps: buildStatusSteps(all, order?.statusId ?? null),
     history: historyRows.map((h) => ({
       id: h.id,
       createdAt: h.createdAt,
@@ -111,4 +118,20 @@ export async function getOrderStatusPanel(
       reason: h.reason,
     })),
   };
+}
+
+/**
+ * Шкала этапов для карточек заказчика и партнёра (`У-353`): только чтение, без
+ * кнопок и истории. Доступ к заказу проверяет страница своим сервисом ДО этого
+ * вызова — здесь читается лишь статус уже разрешённого заказа.
+ */
+export async function getOrderStatusSteps(
+  prisma: PrismaClient,
+  orderId: string
+): Promise<StatusSteps> {
+  const [order, all] = await Promise.all([
+    prisma.order.findUnique({ where: { id: orderId }, select: { statusId: true } }),
+    getOrderedStatuses(prisma),
+  ]);
+  return buildStatusSteps(all, order?.statusId ?? null);
 }

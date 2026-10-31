@@ -16,6 +16,7 @@ import { OrderCustomFields } from '@/components/orders/order-custom-fields';
 import { getValuesForEntity } from '@/lib/services/customFields';
 import { buildCabinetBreadcrumbs } from '@/lib/navigation/breadcrumbs';
 import { missingObjectHref } from '@/lib/navigation/missingObject';
+import { getOrderStatusSteps } from '@/lib/services/orderStatuses';
 
 export default async function PartnerDealDetailPage({
   params,
@@ -44,6 +45,9 @@ export default async function PartnerDealDetailPage({
     if (!accessible) redirect(missingObjectHref('/partner/orders'));
   }
 
+  // `У-353`: шкала этапов — статусы справочника; читается ПОСЛЕ проверок доступа.
+  const steps = await getOrderStatusSteps(prisma, deal.id);
+
   return (
     <div className="space-y-4">
       <div className="text-sm">
@@ -55,7 +59,7 @@ export default async function PartnerDealDetailPage({
         />
       </div>
 
-      <PartnerOrderHeader deal={deal} />
+      <PartnerOrderHeader deal={deal} steps={steps} />
 
       <div className="grid gap-4 md:grid-cols-3">
         <div className="md:col-span-2 space-y-4">
