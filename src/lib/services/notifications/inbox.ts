@@ -2,6 +2,12 @@ import type { Notification, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { buildNotificationScopeWhere } from '@/lib/services/notifications/scope';
 import {
+  groupNotificationTypes,
+  NOTIFICATION_TYPE_GROUP,
+  type NotificationGroupKey,
+  type NotificationGroupOption,
+} from '@/lib/notifications/groups';
+import {
   notificationTypesForRole,
   type NotificationRoleKey,
   type NotificationTypeKey,
@@ -83,6 +89,11 @@ export const NOTIFICATIONS_PAGE_SIZE = 50;
 export type NotificationsPageFilters = {
   /** Только непрочитанные. */
   unread?: boolean | undefined;
+  /**
+   * Группа (`У-348`): «Системные», «Коммуникация»… Чужая для роли или
+   * неизвестная — игнорируется, как и тип.
+   */
+  group?: string | null | undefined;
   /** Тип из реестра; чужой роли или неизвестный — игнорируется, а не 404. */
   type?: string | null | undefined;
   /** Номер страницы, с единицы. */
@@ -96,8 +107,13 @@ export type NotificationsPage = {
   unreadTotal: number;
   page: number;
   pageSize: number;
-  /** Типы, доступные роли, — для фильтра; у слушателя пусто. */
-  typeOptions: NotificationTypeKey[];
+  /**
+   * Типы роли по группам, в порядке настроек (`У-317`, `У-348`); пустые для
+   * роли группы не попадают. Фильтр экрана строится по нему.
+   */
+  groupOptions: NotificationGroupOption[];
+  /** Какая группа реально применена: из типа, если он выбран, иначе из адреса. */
+  group: NotificationGroupKey | null;
   /** Какой тип реально применён (после проверки по реестру). */
   type: NotificationTypeKey | null;
 };
@@ -106,7 +122,7 @@ export type NotificationsPage = {
  * Страница «Уведомления» (`У-228`): тот же скоуп, что у колокольчика, плюс
  * фильтры и честный `total`.
  *
- * Фильтр по типу сверяется с реестром ДЛЯ РОЛИ: партнёр не отфильтрует
+ * Фильтр по группе и типу сверяется с реестром ДЛЯ РОЛИ: партнёр не отфильтрует
  * `sla_escalation`, даже подставив его в адрес, — чужие типы не показываются
  * и не предлагаются (пакет §8). Неизвестный тип — просто «без фильтра».
  */
@@ -117,14 +133,22 @@ export async function listNotificationsPage(
 ): Promise<NotificationsPage> {
   const scope = await buildNotificationScopeWhere(prisma, session);
   const typeOptions = notificationTypesForRole(session.role as NotificationRoleKey);
+  const groupOptions = groupNotificationTypes(typeOptions);
   const type =
     filters.type && (typeOptions as string[]).includes(filters.type)
       ? (filters.type as NotificationTypeKey)
       : null;
+  // Выбранный тип сам называет свою группу: `?group=orders&type=task_assigned`
+  // покажет «Задачи», а не «Заказы» с чужим типом внутри (`У-348`).
+  const groupOption = type
+    ? groupOptions.find((g) => g.key === NOTIFICATION_TYPE_GROUP[type])
+    : groupOptions.find((g) => g.key === filters.group);
+  const group = groupOption?.key ?? null;
+  const typeFilter = type ? [{ type }] : groupOption ? [{ type: { in: groupOption.types } }] : [];
 
   const page = Math.max(1, Math.floor(filters.page ?? 1));
   const where = {
-    AND: [scope, ...(filters.unread ? [{ isRead: false }] : []), ...(type ? [{ type }] : [])],
+    AND: [scope, ...(filters.unread ? [{ isRead: false }] : []), ...typeFilter],
   };
 
   const [rows, total, unreadTotal] = await Promise.all([
@@ -149,7 +173,8 @@ export async function listNotificationsPage(
     unreadTotal,
     page,
     pageSize: NOTIFICATIONS_PAGE_SIZE,
-    typeOptions,
+    groupOptions,
+    group,
     type,
   };
 }

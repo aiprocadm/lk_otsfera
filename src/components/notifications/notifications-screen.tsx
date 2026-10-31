@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { fmtDateTime } from '@/lib/format';
 import { notificationHref, type NotificationRole } from '@/lib/notifications/href';
 import { notificationRoute } from '@/lib/notifications/routes';
+import type { NotificationGroupKey, NotificationGroupOption } from '@/lib/notifications/groups';
 import {
   NOTIFICATION_TYPES,
   type NotificationRoleKey,
@@ -34,9 +35,14 @@ export type NotificationsScreenProps = {
   unreadTotal: number;
   page: number;
   pageSize: number;
-  typeOptions: NotificationTypeKey[];
+  /**
+   * Типы роли по группам, как в настройках (`У-317`, `У-348`); пусто — фильтра
+   * типов нет вовсе.
+   */
+  groupOptions: NotificationGroupOption[];
   /** Применённые фильтры — чтобы подсветить активный и собрать ссылки. */
   unreadOnly: boolean;
+  group: NotificationGroupKey | null;
   type: NotificationTypeKey | null;
   searchParams: Record<string, string | string[] | undefined>;
   /** Куда ведёт кнопка из пустого состояния. */
@@ -63,9 +69,12 @@ const STUDENT_COPY: ScreenCopy = {
   emptyText: 'Сюда придут напоминания о назначенных обучениях, их сроках и удостоверениях.',
 };
 
-function filterHref(basePath: string, params: { unread?: boolean; type?: string | null }): string {
+type FilterParams = { unread?: boolean; group?: string | null; type?: string | null };
+
+function filterHref(basePath: string, params: FilterParams): string {
   const q = new URLSearchParams();
   if (params.unread) q.set('unread', '1');
+  if (params.group) q.set('group', params.group);
   if (params.type) q.set('type', params.type);
   const qs = q.toString();
   return qs ? `${basePath}?${qs}` : basePath;
@@ -86,10 +95,10 @@ function typeLabel(type: string): string {
 }
 
 export function NotificationsScreen(props: NotificationsScreenProps) {
-  const { basePath, rows, total, unreadTotal, page, pageSize, typeOptions, unreadOnly, type } =
-    props;
+  const { basePath, rows, total, unreadTotal, page, pageSize, groupOptions, unreadOnly } = props;
+  const { group, type } = props;
   const skip = (page - 1) * pageSize;
-  const hasFilter = unreadOnly || type !== null;
+  const hasFilter = unreadOnly || group !== null || type !== null;
   const copy = props.role === 'student' ? STUDENT_COPY : COPY;
 
   return (
@@ -101,24 +110,22 @@ export function NotificationsScreen(props: NotificationsScreenProps) {
       />
 
       <nav aria-label="Фильтры уведомлений" className="flex flex-wrap items-center gap-2 text-sm">
-        <FilterLink href={filterHref(basePath, { type })} active={!unreadOnly}>
+        <FilterLink href={filterHref(basePath, { group, type })} active={!unreadOnly}>
           Все
         </FilterLink>
-        <FilterLink href={filterHref(basePath, { unread: true, type })} active={unreadOnly}>
+        <FilterLink href={filterHref(basePath, { unread: true, group, type })} active={unreadOnly}>
           Непрочитанные{unreadTotal > 0 ? ` (${unreadTotal})` : ''}
         </FilterLink>
-        {typeOptions.length > 0 && (
-          <label className="ml-auto flex items-center gap-2 text-gray-600">
-            <span>Тип</span>
-            <TypeSelect
-              basePath={basePath}
-              unreadOnly={unreadOnly}
-              type={type}
-              typeOptions={typeOptions}
-            />
-          </label>
-        )}
       </nav>
+      {groupOptions.length > 0 && (
+        <TypeFilter
+          basePath={basePath}
+          unreadOnly={unreadOnly}
+          group={group}
+          type={type}
+          groupOptions={groupOptions}
+        />
+      )}
 
       {rows.length === 0 ? (
         <EmptyState
@@ -195,23 +202,32 @@ export function NotificationsScreen(props: NotificationsScreenProps) {
   );
 }
 
+/**
+ * `active` — фильтр применён ровно этой ссылкой (залитая плашка). `current` —
+ * ссылка «содержит» применённый фильтр: группа, внутри которой выбран узкий
+ * тип, — обведена, чтобы было видно, где находишься.
+ */
 function FilterLink({
   href,
   active,
+  current = false,
   children,
 }: {
   href: string;
   active: boolean;
+  current?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <Link
       href={href}
-      aria-current={active ? 'page' : undefined}
+      aria-current={active ? 'page' : current ? 'true' : undefined}
       className={
         active
           ? 'rounded-full bg-[#F97316] px-3 py-1 text-white'
-          : 'rounded-full border border-gray-200 px-3 py-1 text-gray-700 hover:bg-gray-50'
+          : current
+            ? 'rounded-full border border-[#F97316] px-3 py-1 text-[#EA580C] hover:bg-orange-50'
+            : 'rounded-full border border-gray-200 px-3 py-1 text-gray-700 hover:bg-gray-50'
       }
     >
       {children}
@@ -220,35 +236,79 @@ function FilterLink({
 }
 
 /**
- * Выбор типа — обычными ссылками, без клиентского состояния: страница
- * серверная, фильтр живёт в адресе, и «назад» в браузере возвращает
- * прежний фильтр.
+ * Фильтр типов в два шага (этап 4 ТЗ 28.10.2026, `У-348`): сначала группа — те
+ * же «Системные», «Коммуникация», «Задачи», «Заказы», «Заявки на обучение», что
+ * в настройках (`У-317`), — потом узкий тип внутри неё. Раньше это был сплошной
+ * ряд из всех типов роли (у руководителя — три десятка).
+ *
+ * Ряд групп не рисуется, когда группа у роли одна (у слушателя — только
+ * обучение): выбирать из одного нечего, сразу видны типы.
+ *
+ * Всё — обычными ссылками, без клиентского состояния: страница серверная,
+ * фильтр живёт в адресе, и «назад» в браузере возвращает прежний фильтр.
  */
-function TypeSelect({
+function TypeFilter({
   basePath,
   unreadOnly,
+  group,
   type,
-  typeOptions,
+  groupOptions,
 }: {
   basePath: string;
   unreadOnly: boolean;
+  group: NotificationGroupKey | null;
   type: NotificationTypeKey | null;
-  typeOptions: NotificationTypeKey[];
+  groupOptions: NotificationGroupOption[];
 }) {
+  const single = groupOptions.length === 1 ? groupOptions[0] : undefined;
+  const open = single ?? groupOptions.find((g) => g.key === group);
   return (
-    <span className="flex flex-wrap gap-1">
-      <FilterLink href={filterHref(basePath, { unread: unreadOnly })} active={type === null}>
-        любой
-      </FilterLink>
-      {typeOptions.map((key) => (
-        <FilterLink
-          key={key}
-          href={filterHref(basePath, { unread: unreadOnly, type: key })}
-          active={type === key}
+    <div className="space-y-2 text-sm">
+      {!single && (
+        <nav aria-label="Группа уведомлений" className="flex flex-wrap items-center gap-1">
+          <span className="mr-1 text-gray-600">Группа</span>
+          <FilterLink href={filterHref(basePath, { unread: unreadOnly })} active={group === null}>
+            любая
+          </FilterLink>
+          {groupOptions.map((g) => (
+            <FilterLink
+              key={g.key}
+              href={filterHref(basePath, { unread: unreadOnly, group: g.key })}
+              active={group === g.key && type === null}
+              current={group === g.key}
+            >
+              {g.label}
+            </FilterLink>
+          ))}
+        </nav>
+      )}
+      {open && (
+        <nav
+          aria-label={`Типы уведомлений: ${open.label}`}
+          className="flex flex-wrap items-center gap-1"
         >
-          {typeIcon(key)} {typeLabel(key)}
-        </FilterLink>
-      ))}
-    </span>
+          <span className="mr-1 text-gray-600">Тип</span>
+          <FilterLink
+            href={filterHref(basePath, { unread: unreadOnly, group: single ? null : open.key })}
+            active={type === null}
+          >
+            {single ? 'любой' : `все «${open.label}»`}
+          </FilterLink>
+          {open.types.map((key) => (
+            <FilterLink
+              key={key}
+              href={filterHref(basePath, {
+                unread: unreadOnly,
+                group: single ? null : open.key,
+                type: key,
+              })}
+              active={type === key}
+            >
+              {typeIcon(key)} {typeLabel(key)}
+            </FilterLink>
+          ))}
+        </nav>
+      )}
+    </div>
   );
 }

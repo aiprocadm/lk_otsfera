@@ -35,8 +35,9 @@ export default async function NotificationsPage({
       unreadTotal={data.unreadTotal}
       page={data.page}
       pageSize={data.pageSize}
-      typeOptions={data.typeOptions}
+      groupOptions={data.groupOptions}
       unreadOnly={filters.unread === true}
+      group={data.group}
       type={data.type}
       searchParams={sp}
     />

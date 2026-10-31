@@ -94,3 +94,62 @@ describe('страж: страница и «отметить все» не вы�
     expect(findMany.mock.calls[0][0].skip).toBe(0);
   });
 });
+
+/**
+ * СТРАЖ `У-348` (этап 4 ТЗ 28.10.2026): фильтр по группе — тоже только
+ * сужение и только в пределах типов роли.
+ *
+ * Группа превращается в `type IN (типы группы ЭТОЙ роли)` поверх скоупа. У
+ * партнёра нет задач — `?group=tasks` в его адресе ничего не фильтрует и не
+ * открывает чужих типов. Выбранный тип сам называет группу: экран не покажет
+ * «Заказы» с задачей внутри.
+ */
+describe('страж: фильтр по группе (`У-348`)', () => {
+  it('группа роли → фильтр «тип из группы» поверх скоупа, ровно её типы', async () => {
+    const res = await listNotificationsPage(prisma, admin, { group: 'tasks' });
+    expect(res.group).toBe('tasks');
+    const tasks = res.groupOptions.find((g) => g.key === 'tasks')!.types;
+    expect(tasks).toContain('task_assigned');
+    expect(tasks).not.toContain('chat_message');
+    const where = findMany.mock.calls[0][0].where;
+    expect(where.AND[0]).toEqual({ userId: 'u-admin' });
+    expect(where.AND).toContainEqual({ type: { in: tasks } });
+    expect(count.mock.calls[0][0].where).toEqual(where);
+  });
+
+  it('группы, которой у роли нет, — не применяется (у партнёра нет задач)', async () => {
+    const res = await listNotificationsPage(prisma, partner, { group: 'tasks' });
+    expect(res.group).toBeNull();
+    expect(res.groupOptions.map((g) => g.key)).not.toContain('tasks');
+    expect(findMany.mock.calls[0][0].where.AND).toHaveLength(1); // только скоуп
+  });
+
+  it('выдуманная группа — без фильтра, а не ошибка', async () => {
+    const res = await listNotificationsPage(prisma, admin, { group: 'всё-сразу' });
+    expect(res.group).toBeNull();
+    expect(findMany.mock.calls[0][0].where.AND).toHaveLength(1);
+  });
+
+  it('тип побеждает несовпадающую группу: ?group=orders&type=task_assigned → «Задачи»', async () => {
+    const res = await listNotificationsPage(prisma, admin, {
+      group: 'orders',
+      type: 'task_assigned',
+    });
+    expect(res.type).toBe('task_assigned');
+    expect(res.group).toBe('tasks');
+    const where = findMany.mock.calls[0][0].where;
+    expect(where.AND).toContainEqual({ type: 'task_assigned' });
+    expect(JSON.stringify(where)).not.toContain('"in"');
+  });
+
+  it('группы для экрана — в порядке настроек, без пустых для роли', async () => {
+    const res = await listNotificationsPage(prisma, partner, {});
+    expect(res.groupOptions.map((g) => g.key)).toEqual([
+      'system',
+      'communication',
+      'orders',
+      'enrollments',
+    ]);
+    for (const g of res.groupOptions) expect(g.types.length).toBeGreaterThan(0);
+  });
+});
