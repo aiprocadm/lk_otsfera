@@ -187,8 +187,8 @@
 
 | Вердикт | Кол-во |
 |---|---|
-| `✅` соответствует | **333** |
-| `⏳` запланировано | **49** |
+| `✅` соответствует | **335** |
+| `⏳` запланировано | **47** |
 | `❌` расхождение | 0 |
 | `⚠` вне объёма | 1 (см. раздел ниже) — расхождение в тексте ТЗ понятности (чинить нечего); карточка организации у администратора мимо реестра вкладок закрыта 05.09.2026 (этап 9, PR-1) |
 
@@ -255,8 +255,8 @@
 | `У-338` | `docker-compose.prod.yml`: сервисы `migrate`, `web`, `worker` берут образ по тегу `${IMAGE_TAG:?…}` из реестра; откат — запуск предыдущего тега без пересборки | [docker-compose.prod.yml](../../docker-compose.prod.yml) | ⏳ этап 3 | — |
 | `У-339` | Скрипт выкладки `deploy.sh <тег>` — одинаковый для стейджинга и прода (pull, `up -d --wait`, проверка `/api/health/live`, журнал `deploy.log`); `npm run deploy:stand` и `scripts/stand/update-stand.sh` сверены с ним: переведены на него или различие описано | [ТЗ §4](2026-10-28-tz-leader-customer-release.md) | ⏳ этап 3 | — |
 | `У-340` | Отдельный Caddyfile стейджинга (пароль на всё, кроме `/api/integrations/*` и `/api/public/*`, `X-Robots-Tag: noindex, nofollow`); `.env.production.example` перечисляет переменные таблицы ДП §5 с пометкой «прод / стейджинг»; `src/lib/env.ts` не даёт… | [ТЗ §4](2026-10-28-tz-leader-customer-release.md) | ⏳ этап 3 | — |
-| `У-341` | Страж миграций: unit-тест падает, если новая `migration.sql` содержит `DROP TABLE`, `DROP COLUMN`, `RENAME`, `ALTER COLUMN … TYPE`, `SET NOT NULL` или ограничение без `NOT VALID` и в файле нет пометки `-- contract: <ссылка>`; уже применённые миграции — в… | [ТЗ §4](2026-10-28-tz-leader-customer-release.md) | ⏳ этап 3 | — |
-| `У-342` | Правила совместимости ДП §8 (три фазы, JSON с версией, клеймы, задачи очередей, стабильные строки, внешние адреса) — в CLAUDE.md; шаблон PR `.github/pull_request_template.md` с чек-листом ДП §7 и §8; в `CHANGELOG.md` у каждого релиза — блок «Миграции и… | [ТЗ §4](2026-10-28-tz-leader-customer-release.md) | ⏳ этап 3 | — |
+| `У-341` | Страж миграций: unit-тест падает, если новая `migration.sql` содержит `DROP TABLE`, `DROP COLUMN`, `RENAME`, `ALTER COLUMN … TYPE`, `SET NOT NULL` или ограничение без `NOT VALID` и в файле нет пометки `-- contract: <ссылка>`; уже применённые миграции — в… | [prisma.migrations-compat.guardrail.test.ts](../../src/__tests__/prisma.migrations-compat.guardrail.test.ts) | ✅ 31.10.2026 | Страж: DROP/RENAME/смена типа/SET NOT NULL/ограничение без NOT VALID на существующую таблицу — только с `-- contract:`; 49 применённых — в замороженном списке; мутации (DROP COLUMN, FK без NOT VALID) красные |
+| `У-342` | Правила совместимости ДП §8 (три фазы, JSON с версией, клеймы, задачи очередей, стабильные строки, внешние адреса) — в CLAUDE.md; шаблон PR `.github/pull_request_template.md` с чек-листом ДП §7 и §8; в `CHANGELOG.md` у каждого релиза — блок «Миграции и… | [CLAUDE.md §2c](../../CLAUDE.md), [шаблон PR](../../.github/pull_request_template.md) | ✅ 31.10.2026 | Правила ДП §8 в CLAUDE.md §2c; шаблон PR с чек-листом совместимости; блок «Миграции и совместимость» в CHANGELOG и страж `docs.changelog-compat-block` (мутация красная) |
 | `У-343` | Ранбук выкладки `docs/runbook-release.md`: фазы A–E ДП (инфраструктура, сборка, конфигурация, первый запуск со смоук-чек-листом, регламент релизов и отката, хотфикс прода), сверенный с README «Финальный release checklist»; прежние ранбуки выкладки… | [ТЗ §4](2026-10-28-tz-leader-customer-release.md) | ⏳ этап 3 | — |
 | `У-344` | Заготовки схемы веток `staging → main` лежат в репозитории, но **не включены** до `Н-9`: `CODEOWNERS` для чувствительных путей, джоб `source-branch` в `ci.yml` (срабатывает только на PR в `main`), `deploy-staging.yml` (срабатывает только на push в… | [ТЗ §4](2026-10-28-tz-leader-customer-release.md) | ⏳ этап 3 | — |
 
