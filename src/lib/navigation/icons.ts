@@ -33,7 +33,6 @@ export const NAV_ICONS = {
   leads: '📬',
   requests: '📮',
   intake: '📥',
-  funnel: '📈',
   deals: '🤝',
   tasks: '✅',
   calendar: '📅',

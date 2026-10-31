@@ -2,36 +2,23 @@ import React from 'react';
 import { notFound } from 'next/navigation';
 import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { isFeatureEnabled } from '@/lib/featureFlags';
-import { prisma } from '@/lib/db/prisma';
-import { getFunnelBoard } from '@/lib/services/funnel/board';
-import { FunnelBoard } from '@/components/funnel/funnel-board';
-import { StageConfig } from '@/components/funnel/stage-config';
+import { FunnelMovedNotice } from '@/components/funnel/funnel-moved-notice';
 
-import { PageHeader } from '@/components/ui/page-header';
-import { ListCapNotice } from '@/components/ui';
 export const dynamic = 'force-dynamic';
 
-export default async function LeaderFunnelPage() {
+/**
+ * Старый адрес «Воронки продаж» руководителя (этап 4 ТЗ 28.10.2026, `У-349`,
+ * зеркало `У-312` менеджера): воронка стала видом внутри «Лидов», пункт меню
+ * убран. Гарды прежние — флаг `sales_funnel` (выключен — 404) и контур
+ * руководителя.
+ */
+export default async function LeaderFunnelMovedPage() {
   if (!isFeatureEnabled('sales_funnel')) notFound();
-  const session = await requireManagerLeader();
-  const board = await getFunnelBoard(prisma, session);
-  const isDefault = board.stages.length > 0 && board.stages[0]!.id.startsWith('default:');
-
+  await requireManagerLeader();
   return (
-    <div className="space-y-8">
-      <div>
-        <PageHeader
-          title="Воронка продаж"
-          subtitle="Перетаскивайте карточки между стадиями. «Передано в работу» создаёт заказ, «Отказ» требует причину."
-        />
-      </div>
-      <FunnelBoard board={board} />
-      <ListCapNotice
-        shown={board.shown}
-        total={board.total}
-        hint="Живые лиды идут первыми и не теряются; за пределом — самые старые обработанные, их видно в карточке организации (вкладка «Лиды»)."
-      />
-      <StageConfig stages={board.stages} isDefault={isDefault} />
-    </div>
+    <FunnelMovedNotice
+      leadsHref="/leader/leads"
+      note="Настройка стадий воронки — там же, под доской."
+    />
   );
 }

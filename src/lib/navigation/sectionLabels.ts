@@ -25,7 +25,6 @@ export type SectionKey =
   | 'leads'
   | 'requests'
   | 'intake'
-  | 'funnel'
   | 'deals'
   | 'tasks'
   | 'calendar'
@@ -83,14 +82,12 @@ export const SECTIONS: Record<SectionKey, SectionMeta> = {
 
   // ── Работа и продажи ──────────────────────────────────────────────────────
   orders: { label: 'Заказы', iconKey: 'orders' },
-  // Пункт-мост из кабинета руководителя в менеджерский. Снимается в PR-3
-  // этапа 3 (`У-111`) вместе с появлением переключателя кабинетов в шапке.
+  // «Лиды» — у менеджера и руководителя; «Воронка продаж» — вид внутри них
+  // (`У-312`, `У-349`), своего пункта меню и ключа раздела у неё больше нет.
   leads: { label: 'Лиды', iconKey: 'leads' },
   requests: { label: 'Обращения', iconKey: 'requests' },
   // `У-318`: было «Входящие в работу»; теперь только внешние каналы.
   intake: { label: 'Входящие обращения', iconKey: 'intake' },
-  // `У-107`: было «Воронка» — не сказано, воронка чего.
-  funnel: { label: 'Воронка продаж', iconKey: 'funnel' },
   deals: { label: 'Сделки', iconKey: 'deals' },
   tasks: { label: 'Задачи', iconKey: 'tasks' },
   calendar: { label: 'Календарь', iconKey: 'calendar' },

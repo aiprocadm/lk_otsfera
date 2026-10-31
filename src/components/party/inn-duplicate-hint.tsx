@@ -5,15 +5,19 @@ import type { InnDuplicates } from '@/lib/services/duplicates/findByInn';
 
 /**
  * Информационная плашка антидублей по ИНН (этап 5 PR-2, ФТ-13.4) — ТОЛЬКО для
- * staff-форм (manager/admin): роут /api/duplicates/by-inn отдаёт клиентским
+ * staff-форм (manager/leader/admin): роут /api/duplicates/by-inn отдаёт клиентским
  * ролям 403, и клиентские формы этот компонент не подключают (факт
  * существования ИНН в базе клиентам не раскрывается). Плашка не блокирует
  * сабмит; 403/429/сбой сети → молча ничего не показываем.
  */
 
+/** Карточки организаций кабинета сотрудника (руководитель — с `У-349`, «Лиды»). */
+export type OrgCardHrefBase =
+  '/manager/organizations' | '/leader/organizations' | '/admin/organizations';
+
 export type InnDuplicateHintProps = {
   inn: string;
-  cardHrefBase: '/manager/organizations' | '/admin/organizations';
+  cardHrefBase: OrgCardHrefBase;
   /** Не показывать саму редактируемую организацию как «дубль» самой себя. */
   excludeOrganizationId?: string;
 };

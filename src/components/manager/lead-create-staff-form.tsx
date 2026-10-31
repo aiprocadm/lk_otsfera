@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Dialog, Field, Input, Select, Textarea } from '@/components/ui';
 import { PartyAutocomplete } from '@/components/party/party-autocomplete';
-import { InnDuplicateHint } from '@/components/party/inn-duplicate-hint';
+import { InnDuplicateHint, type OrgCardHrefBase } from '@/components/party/inn-duplicate-hint';
 import { toast } from '@/lib/ui/toast';
 import { createLeadByStaffAction } from '@/server-actions/manager/create-lead';
 
@@ -15,7 +15,14 @@ export type LeadCreateOrgOption = { id: string; name: string };
  * «Создать лид» + Dialog с полями как у обращения клиента, примечанием и
  * необязательным выбором организации компании.
  */
-export function LeadCreateStaffForm({ organizations }: { organizations: LeadCreateOrgOption[] }) {
+export function LeadCreateStaffForm({
+  organizations,
+  orgCardHrefBase,
+}: {
+  organizations: LeadCreateOrgOption[];
+  /** Карточки организаций своего кабинета — для подсказки «такой ИНН уже есть» (`У-349`). */
+  orgCardHrefBase: OrgCardHrefBase;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -113,7 +120,7 @@ export function LeadCreateStaffForm({ organizations }: { organizations: LeadCrea
             <Field htmlFor="lcs-inn" label="ИНН">
               <Input id="lcs-inn" value={inn} onChange={(e) => setInn(e.target.value)} />
               {/* ФТ-13.4: информационная плашка антидублей, сабмит не блокирует. */}
-              <InnDuplicateHint inn={inn} cardHrefBase="/manager/organizations" />
+              <InnDuplicateHint inn={inn} cardHrefBase={orgCardHrefBase} />
             </Field>
             <Field htmlFor="lcs-contact" label="Контактное лицо *">
               <Input

@@ -11,6 +11,7 @@ import { Paginator } from '@/components/ui';
 import { PageHeader } from '@/components/ui/page-header';
 import { IntakeChannelFilter } from '@/components/intake/intake-channel-filter';
 import { parseIntakeView } from '@/lib/intake/intakeView';
+import { INBOUND_SECTION_LINE } from '@/lib/help/inboundSections';
 export const dynamic = 'force-dynamic';
 
 const TAKE = 50;
@@ -44,10 +45,7 @@ export default async function LeaderIntakePage({
     <div className="space-y-6">
       <div>
         {/* `У-318`: «Входящие обращения» — только внешние каналы. */}
-        <PageHeader
-          title="Входящие обращения"
-          subtitle="Неразобранные сообщения, письма и звонки всей команды. Важное и залежавшееся — сверху."
-        />
+        <PageHeader title="Входящие обращения" subtitle={INBOUND_SECTION_LINE.intake} />
       </div>
       <IntakeFilters
         managers={managers.filter((m) => m.isActive).map((m) => ({ id: m.id, name: m.name }))}

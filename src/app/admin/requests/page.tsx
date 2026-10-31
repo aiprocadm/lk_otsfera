@@ -5,6 +5,7 @@ import { listClientRequests } from '@/lib/services/clientRequests/list';
 import { ClientRequestQueue } from '@/components/client-requests/client-request-queue';
 
 import { PageHeader } from '@/components/ui/page-header';
+import { INBOUND_SECTION_LINE } from '@/lib/help/inboundSections';
 export const dynamic = 'force-dynamic';
 
 /** Очередь триажа обращений клиентов — админ (этап 5, Model A: видит всё). */
@@ -13,10 +14,7 @@ export default async function AdminRequestsPage() {
   const { rows } = await listClientRequests(prisma, session, {});
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Обращения"
-        subtitle="Вопросы и запросы клиентов — то, с чего обычно начинается работа"
-      />
+      <PageHeader title="Обращения" subtitle={INBOUND_SECTION_LINE.requests} />
       <ClientRequestQueue rows={rows} cardHrefBase="/admin/requests" />
     </div>
   );

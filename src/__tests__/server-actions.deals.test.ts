@@ -271,7 +271,7 @@ describe('convertLeadToDealAction (PR-2)', () => {
     await convertLeadToDealAction(form({ leadId: 'l1' }));
     // `У-312`: воронка менеджера живёт в «Лидах».
     expect(revalidatePath).toHaveBeenCalledWith('/manager/leads');
-    expect(revalidatePath).toHaveBeenCalledWith('/leader/funnel');
+    expect(revalidatePath).toHaveBeenCalledWith('/leader/leads');
     expect(revalidatePath).not.toHaveBeenCalledWith('/manager/funnel');
   });
 

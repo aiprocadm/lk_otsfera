@@ -7,21 +7,33 @@ import { CardList, Card, CardRow } from '@/components/ui/card-list';
 import { fmtMoney } from '@/lib/format';
 
 type Props = {
+  /** Адрес «Лидов» своего кабинета — для «Дальше →» (`У-349`). */
+  basePath: string;
   rows: ManagerLeadRow[];
   nextCursor: string | null;
   query: Record<string, string | undefined>;
 };
 
-function buildNextHref(query: Record<string, string | undefined>, cursor: string): string {
+function buildNextHref(
+  basePath: string,
+  query: Record<string, string | undefined>,
+  cursor: string
+): string {
   const params = new URLSearchParams();
   if (query.status) params.set('status', query.status);
   if (query.q) params.set('q', query.q);
   if (query.assignedToMe) params.set('assignedToMe', query.assignedToMe);
   params.set('cursor', cursor);
-  return `/manager/leads?${params.toString()}`;
+  return `${basePath}?${params.toString()}`;
 }
 
-export function ManagerLeadsTable({ rows, nextCursor, query }: Props) {
+/**
+ * Карточка лида одна — в кабинете менеджера (`/manager/leads/<id>`): туда же
+ * ведут лиды из карточки организации, поиска, заявок и входящих. Руководителю
+ * кабинет менеджера открыт (`Р-Л-3`, «играющий тренер»), вторая копия карточки
+ * с действиями и проверками разъехалась бы с первой (`У-349`).
+ */
+export function ManagerLeadsTable({ basePath, rows, nextCursor, query }: Props) {
   if (rows.length === 0) {
     return <EmptyState icon="📬" message="По выбранным фильтрам заявок нет" />;
   }
@@ -94,7 +106,7 @@ export function ManagerLeadsTable({ rows, nextCursor, query }: Props) {
       {nextCursor && (
         <div className="flex justify-center">
           <Link
-            href={buildNextHref(query, nextCursor)}
+            href={buildNextHref(basePath, query, nextCursor)}
             className="px-4 py-2 text-sm border border-gray-200 rounded-lg text-gray-700 hover:border-[#F97316] hover:text-[#F97316]"
           >
             Дальше →

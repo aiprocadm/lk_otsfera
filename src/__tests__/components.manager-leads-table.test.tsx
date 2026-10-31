@@ -39,7 +39,12 @@ function makeRow(overrides: Partial<ManagerLeadRow>): ManagerLeadRow {
 describe('ManagerLeadsTable', () => {
   it('empty: renders the EmptyState message', () => {
     const html = renderToString(
-      React.createElement(ManagerLeadsTable, { rows: [], nextCursor: null, query: {} })
+      React.createElement(ManagerLeadsTable, {
+        basePath: '/manager/leads',
+        rows: [],
+        nextCursor: null,
+        query: {},
+      })
     );
     expect(html).toContain('По выбранным фильтрам заявок нет');
   });
@@ -47,7 +52,12 @@ describe('ManagerLeadsTable', () => {
   it('non-empty: renders lead row with client, subject, partner, amount, manager', () => {
     const rows = [makeRow({})];
     const html = renderToString(
-      React.createElement(ManagerLeadsTable, { rows, nextCursor: null, query: {} })
+      React.createElement(ManagerLeadsTable, {
+        basePath: '/manager/leads',
+        rows,
+        nextCursor: null,
+        query: {},
+      })
     );
     expect(html).toContain('href="/manager/leads/l1"');
     expect(html).toContain('ООО Клиент');
@@ -61,7 +71,12 @@ describe('ManagerLeadsTable', () => {
   it('пустые ИНН, оценка и менеджер: в таблице строки нет, в карточке — прочерк', () => {
     const rows = [makeRow({ clientInn: null, estimatedAmount: null, assignedManagerName: null })];
     const html = renderToString(
-      React.createElement(ManagerLeadsTable, { rows, nextCursor: null, query: {} })
+      React.createElement(ManagerLeadsTable, {
+        basePath: '/manager/leads',
+        rows,
+        nextCursor: null,
+        query: {},
+      })
     );
     // `У-18`: рядом с таблицей живёт карточный вид для телефона. В таблице
     // строка ИНН не рисуется вовсе, а карточка по правилу примитива
@@ -73,7 +88,12 @@ describe('ManagerLeadsTable', () => {
   it('заполненный ИНН виден и в таблице, и в карточке', () => {
     const rows = [makeRow({ clientInn: '7712345678' })];
     const html = renderToString(
-      React.createElement(ManagerLeadsTable, { rows, nextCursor: null, query: {} })
+      React.createElement(ManagerLeadsTable, {
+        basePath: '/manager/leads',
+        rows,
+        nextCursor: null,
+        query: {},
+      })
     );
     expect(html.split('7712345678').length - 1).toBe(2);
   });
@@ -82,6 +102,7 @@ describe('ManagerLeadsTable', () => {
     const rows = [makeRow({})];
     const html = renderToString(
       React.createElement(ManagerLeadsTable, {
+        basePath: '/manager/leads',
         rows,
         nextCursor: 'cur1',
         query: { status: 'qualified', q: 'abc', assignedToMe: '1' },
@@ -97,8 +118,26 @@ describe('ManagerLeadsTable', () => {
   it('does not render "Дальше" link when nextCursor is null', () => {
     const rows = [makeRow({})];
     const html = renderToString(
-      React.createElement(ManagerLeadsTable, { rows, nextCursor: null, query: {} })
+      React.createElement(ManagerLeadsTable, {
+        basePath: '/manager/leads',
+        rows,
+        nextCursor: null,
+        query: {},
+      })
     );
     expect(html).not.toContain('Дальше');
+  });
+
+  it('`У-349`: «Дальше →» у руководителя — в /leader/leads, карточка лида — одна, у менеджера', () => {
+    const html = renderToString(
+      React.createElement(ManagerLeadsTable, {
+        basePath: '/leader/leads',
+        rows: [makeRow({})],
+        nextCursor: 'cur1',
+        query: {},
+      })
+    );
+    expect(html).toContain('href="/leader/leads?cursor=cur1"');
+    expect(html).toContain('href="/manager/leads/l1"');
   });
 });

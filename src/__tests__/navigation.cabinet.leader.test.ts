@@ -40,7 +40,9 @@ describe('канон leader', () => {
       '/leader/organizations',
       // Этап 1 ТЗ 12.09.2026 (`У-178`): справочник контактов, свой флаг `contacts`.
       '/leader/contacts',
-      '/leader/funnel',
+      // Этап 4 ТЗ 28.10.2026 (`У-349`): «Лиды» вместо «Воронки продаж» — воронка
+      // стала видом внутри «Лидов», как у менеджера (`У-312`).
+      '/leader/leads',
       '/leader/deals',
       '/leader/analytics',
       '/leader/tasks',
@@ -63,7 +65,7 @@ describe('канон leader', () => {
     ]);
   });
 
-  it('пункты leader-меню без flag, кроме «Поиска», «Заявок», «Обращений клиентов», «Ролей», «Воронки», «Сделок», «Аналитики», «Задач» и «Календаря» (свои opt-in флаги)', () => {
+  it('пункты leader-меню без flag, кроме «Поиска», «Заявок», «Обращений клиентов», «Ролей», «Сделок», «Аналитики», «Задач» и «Календаря» (свои opt-in флаги)', () => {
     for (const item of navByRole.leader) {
       // Этап 5 ТЗ 12.09.2026 (`У-228`): «Уведомления» — свой поведенческий флаг.
       if (item.href === '/leader/notifications') {
@@ -83,8 +85,10 @@ describe('канон leader', () => {
       } else if (item.href === '/leader/intake') {
         // `У-262`: флага у «Входящих в работу» больше нет.
         expect(item.flag).toBeUndefined();
-      } else if (item.href === '/leader/funnel') {
-        expect(item.flag).toBe('sales_funnel');
+      } else if (item.href === '/leader/leads') {
+        // «Лиды» есть всегда, как у менеджера; флаг `sales_funnel` гейтит только
+        // вид «Воронка» внутри раздела.
+        expect(item.flag).toBeUndefined();
       } else if (item.href === '/leader/analytics') {
         expect(item.flag).toBe('leader_analytics');
       } else if (item.href === '/leader/tasks') {
@@ -114,7 +118,7 @@ describe('канон leader', () => {
     }
   });
 
-  it('navItemsFor("leader") при выключенных флагах скрывает «Поиск», «Воронку», «Аналитику», «Задачи», «Календарь», «Контакты» и «Уведомления»', () => {
+  it('navItemsFor("leader") при выключенных флагах скрывает «Поиск», «Аналитику», «Задачи», «Календарь», «Контакты» и «Уведомления»', () => {
     // Прогон №37: эти функции включены по умолчанию, флаг — аварийный тормоз.
     // Поэтому «выключено» здесь задаётся явно, а не отсутствием переменной.
     for (const flag of LEADER_READY_FLAGS) process.env[flag] = '0';
@@ -123,7 +127,8 @@ describe('канон leader', () => {
     // флаги сняты, разделы есть всегда и от окружения больше не зависят.
     expect(hrefs).toContain('/leader/enrollments');
     expect(hrefs).toContain('/leader/requests');
-    expect(hrefs).not.toContain('/leader/funnel');
+    // `У-349`: «Лиды» от флага воронки не зависят — выключен лишь вид «Воронка».
+    expect(hrefs).toContain('/leader/leads');
     // `У-262`: «Сделки» из этого списка ушли — флаг снят, раздел есть всегда.
     expect(hrefs).toContain('/leader/deals');
     expect(hrefs).not.toContain('/leader/analytics');
@@ -134,7 +139,7 @@ describe('канон leader', () => {
     expect(hrefs).toContain('/leader/intake');
     expect(hrefs).not.toContain('/leader/contacts');
     expect(hrefs).not.toContain('/leader/notifications');
-    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 7);
+    expect(navItemsFor('leader')).toHaveLength(navByRole.leader.length - 6);
   });
 
   it('navItemsFor("leader") без единой переменной FEATURE_* показывает всё меню (§0.3)', () => {
@@ -144,7 +149,7 @@ describe('канон leader', () => {
     const hrefs = navItemsFor('leader').map((i) => i.href);
     for (const href of [
       '/leader/search',
-      '/leader/funnel',
+      '/leader/leads',
       '/leader/analytics',
       '/leader/tasks',
       '/leader/calendar',
@@ -170,7 +175,7 @@ describe('канон leader', () => {
     expect(hrefs).toContain('/leader/contacts');
     expect(hrefs).toContain('/leader/enrollments');
     expect(hrefs).toContain('/leader/requests');
-    expect(hrefs).toContain('/leader/funnel');
+    expect(hrefs).toContain('/leader/leads');
     expect(hrefs).toContain('/leader/deals');
     expect(hrefs).toContain('/leader/analytics');
     expect(hrefs).toContain('/leader/tasks');

@@ -102,7 +102,12 @@ describe('ManagerLeadsPage', () => {
       })
     );
 
+    // Этап 4 ТЗ 28.10.2026 (`У-349`): сессия доезжает до выборки — по ней сервис
+    // применяет охват лидов из профиля доступа (own/assigned/all). До этапа
+    // страница звала список без сессии и показывала всю очередь даже тем, кому
+    // профиль разрешал только свои лиды (API и воронка охват соблюдали).
     expect(listManagerLeads).toHaveBeenCalledWith(expect.anything(), {
+      session: SESSION,
       status: 'new',
       search: 'ООО',
       assignedToUserId: 'u1',

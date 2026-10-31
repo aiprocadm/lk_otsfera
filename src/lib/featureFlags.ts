@@ -30,7 +30,8 @@ export const FEATURE_FLAGS = [
   'notif_queue',
   // Трек G1: конструктор ролей (UI). Гейтит /leader/roles + /admin/roles.
   'role_constructor',
-  // Трек G2: воронка продаж / канбан. Гейтит /leader/funnel + /manager/funnel.
+  // Трек G2: воронка продаж / канбан. Гейтит вид «Воронка» в «Лидах» и старые
+  // адреса /leader/funnel + /manager/funnel («раздел переехал», `У-312`, `У-349`).
   'sales_funnel',
   // M3: аналитика руководителя (план/факт продаж). Гейтит /leader/analytics
   // (middleware FEATURE_PREFIXES + nav-пункт + page notFound-гейт).

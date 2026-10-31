@@ -68,13 +68,23 @@ describe('LeadCreateStaffForm', () => {
   });
 
   it('кнопка «Создать лид» есть, диалог по умолчанию закрыт', () => {
-    render(React.createElement(LeadCreateStaffForm, { organizations: orgs }));
+    render(
+      React.createElement(LeadCreateStaffForm, {
+        orgCardHrefBase: '/manager/organizations',
+        organizations: orgs,
+      })
+    );
     expect(screen.getAllByRole('button', { name: 'Создать лид' }).length).toBeGreaterThan(0);
     expect(showModal).not.toHaveBeenCalled();
   });
 
   it('клик по кнопке открывает диалог «Новый лид» с полями и списком организаций', async () => {
-    render(React.createElement(LeadCreateStaffForm, { organizations: orgs }));
+    render(
+      React.createElement(LeadCreateStaffForm, {
+        orgCardHrefBase: '/manager/organizations',
+        organizations: orgs,
+      })
+    );
     openDialog();
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
     expect(screen.getByText('Новый лид')).toBeTruthy();
@@ -92,7 +102,12 @@ describe('LeadCreateStaffForm', () => {
 
   it('happy path: server-action получает все поля (пустые → null), диалог закрыт, тост, refresh, форма сброшена', async () => {
     createLeadAction.mockResolvedValue({ ok: true, leadId: 'lead-1' });
-    render(React.createElement(LeadCreateStaffForm, { organizations: orgs }));
+    render(
+      React.createElement(LeadCreateStaffForm, {
+        orgCardHrefBase: '/manager/organizations',
+        organizations: orgs,
+      })
+    );
     openDialog();
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
 
@@ -125,7 +140,12 @@ describe('LeadCreateStaffForm', () => {
 
   it('выбранная организация уходит в organizationId', async () => {
     createLeadAction.mockResolvedValue({ ok: true, leadId: 'lead-2' });
-    render(React.createElement(LeadCreateStaffForm, { organizations: orgs }));
+    render(
+      React.createElement(LeadCreateStaffForm, {
+        orgCardHrefBase: '/manager/organizations',
+        organizations: orgs,
+      })
+    );
     openDialog();
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
 
@@ -143,7 +163,12 @@ describe('LeadCreateStaffForm', () => {
       error: 'validation',
       messages: ['Укажите телефон или email', 'ИНН — 10 или 12 цифр'],
     });
-    render(React.createElement(LeadCreateStaffForm, { organizations: orgs }));
+    render(
+      React.createElement(LeadCreateStaffForm, {
+        orgCardHrefBase: '/manager/organizations',
+        organizations: orgs,
+      })
+    );
     openDialog();
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
 
@@ -161,7 +186,12 @@ describe('LeadCreateStaffForm', () => {
 
   it('forbidden без messages → «Не удалось создать лид — недостаточно прав»', async () => {
     createLeadAction.mockResolvedValue({ ok: false, error: 'forbidden' });
-    render(React.createElement(LeadCreateStaffForm, { organizations: orgs }));
+    render(
+      React.createElement(LeadCreateStaffForm, {
+        orgCardHrefBase: '/manager/organizations',
+        organizations: orgs,
+      })
+    );
     openDialog();
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
 
@@ -176,7 +206,12 @@ describe('LeadCreateStaffForm', () => {
 
   it('исключение server-action → «Сетевая ошибка — попробуйте ещё раз»', async () => {
     createLeadAction.mockRejectedValue(new Error('down'));
-    render(React.createElement(LeadCreateStaffForm, { organizations: orgs }));
+    render(
+      React.createElement(LeadCreateStaffForm, {
+        orgCardHrefBase: '/manager/organizations',
+        organizations: orgs,
+      })
+    );
     openDialog();
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
 
@@ -190,7 +225,12 @@ describe('LeadCreateStaffForm', () => {
 
   it('пустой список организаций: селекта «Организация» нет, submit шлёт organizationId=null', async () => {
     createLeadAction.mockResolvedValue({ ok: true, leadId: 'lead-3' });
-    render(React.createElement(LeadCreateStaffForm, { organizations: [] }));
+    render(
+      React.createElement(LeadCreateStaffForm, {
+        orgCardHrefBase: '/manager/organizations',
+        organizations: [],
+      })
+    );
     openDialog();
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
     expect(screen.queryByLabelText('Организация')).toBeNull();
@@ -223,7 +263,12 @@ describe('LeadCreateStaffForm', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
     try {
-      render(React.createElement(LeadCreateStaffForm, { organizations: orgs }));
+      render(
+        React.createElement(LeadCreateStaffForm, {
+          orgCardHrefBase: '/manager/organizations',
+          organizations: orgs,
+        })
+      );
       openDialog();
 
       fireEvent.change(input('Название компании *'), { target: { value: 'ромашка' } });
@@ -247,7 +292,12 @@ describe('LeadCreateStaffForm', () => {
   it('Escape закрывает диалог так же, как «Отмена»', async () => {
     // Кнопка «Отмена» и Escape — две разные точки закрытия: у кнопки свой
     // обработчик, Escape идёт через onClose самого диалога. Обе должны работать.
-    render(React.createElement(LeadCreateStaffForm, { organizations: orgs }));
+    render(
+      React.createElement(LeadCreateStaffForm, {
+        orgCardHrefBase: '/manager/organizations',
+        organizations: orgs,
+      })
+    );
     openDialog();
     expect(screen.getByLabelText('Название компании *')).toBeTruthy();
 
@@ -260,7 +310,12 @@ describe('LeadCreateStaffForm', () => {
 
   it('«Отмена» закрывает диалог и сбрасывает список ошибок', async () => {
     createLeadAction.mockResolvedValue({ ok: false, error: 'forbidden' });
-    render(React.createElement(LeadCreateStaffForm, { organizations: orgs }));
+    render(
+      React.createElement(LeadCreateStaffForm, {
+        orgCardHrefBase: '/manager/organizations',
+        organizations: orgs,
+      })
+    );
     openDialog();
     await waitFor(() => expect(showModal).toHaveBeenCalledTimes(1));
     fillRequired();

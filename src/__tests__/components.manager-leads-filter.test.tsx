@@ -18,7 +18,9 @@ import { ManagerLeadsFilter } from '@/components/manager/manager-leads-filter';
 
 describe('ManagerLeadsFilter', () => {
   it('default query: "Все" tab is active, "Мои лиды" is inactive', () => {
-    const html = renderToString(React.createElement(ManagerLeadsFilter, { query: {} }));
+    const html = renderToString(
+      React.createElement(ManagerLeadsFilter, { basePath: '/manager/leads', query: {} })
+    );
     expect(html).toContain('bg-[#F97316] text-white border-[#F97316]');
     expect(html).toContain('Мои лиды');
     expect(html).not.toContain('✓ Мои лиды');
@@ -28,7 +30,10 @@ describe('ManagerLeadsFilter', () => {
 
   it('status=in_review: matching tab is active, others are not', () => {
     const html = renderToString(
-      React.createElement(ManagerLeadsFilter, { query: { status: 'in_review' } })
+      React.createElement(ManagerLeadsFilter, {
+        basePath: '/manager/leads',
+        query: { status: 'in_review' },
+      })
     );
     expect(html).toContain('На рассмотрении');
     // Active tab wraps around in_review link
@@ -38,7 +43,10 @@ describe('ManagerLeadsFilter', () => {
 
   it('assignedToMe=1: shows the checked "Мои лиды" state and hidden input', () => {
     const html = renderToString(
-      React.createElement(ManagerLeadsFilter, { query: { assignedToMe: '1' } })
+      React.createElement(ManagerLeadsFilter, {
+        basePath: '/manager/leads',
+        query: { assignedToMe: '1' },
+      })
     );
     expect(html).toContain('✓ Мои лиды');
     expect(html).toContain('name="assignedToMe"');
@@ -47,7 +55,10 @@ describe('ManagerLeadsFilter', () => {
 
   it('carries status hidden input and default value for search text when set', () => {
     const html = renderToString(
-      React.createElement(ManagerLeadsFilter, { query: { status: 'qualified', q: 'ИНН 123' } })
+      React.createElement(ManagerLeadsFilter, {
+        basePath: '/manager/leads',
+        query: { status: 'qualified', q: 'ИНН 123' },
+      })
     );
     expect(html).toContain('name="status"');
     expect(html).toContain('value="qualified"');
@@ -56,10 +67,25 @@ describe('ManagerLeadsFilter', () => {
 
   it('toggling assignedToMe off (href patch) omits the "1" query param from the link', () => {
     const html = renderToString(
-      React.createElement(ManagerLeadsFilter, { query: { assignedToMe: '1' } })
+      React.createElement(ManagerLeadsFilter, {
+        basePath: '/manager/leads',
+        query: { assignedToMe: '1' },
+      })
     );
     // The "Мои лиды" link should now point to assignedToMe='' (i.e. omitted from querystring)
     expect(html).toContain('href="/manager/leads"');
+  });
+
+  it('`У-349`: у руководителя вкладки, «Мои лиды» и поиск остаются в /leader/leads', () => {
+    const html = renderToString(
+      React.createElement(ManagerLeadsFilter, {
+        basePath: '/leader/leads',
+        query: { q: 'ООО' },
+      })
+    );
+    expect(html).toContain('href="/leader/leads?status=new&amp;q=%D0%9E%D0%9E%D0%9E"');
+    expect(html).toContain('action="/leader/leads"');
+    expect(html).not.toContain('/manager/leads');
   });
 });
 
