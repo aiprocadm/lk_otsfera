@@ -885,7 +885,7 @@ describe('server-actions — error-mapping branches', () => {
         form({ leadId: lead.id, toStageId: 'default:in_review' })
       );
       expect(res).toEqual({ ok: true });
-      expect(revalidatePath).toHaveBeenCalledWith('/leader/funnel');
+      expect(revalidatePath).toHaveBeenCalledWith('/leader/leads');
       // `У-312`: воронка менеджера живёт в «Лидах».
       expect(revalidatePath).toHaveBeenCalledWith('/manager/leads');
     } finally {

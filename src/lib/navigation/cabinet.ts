@@ -308,12 +308,10 @@ const NAV_SPECS: Record<Role | 'leader', NavItemSpec[]> = {
       sectionKey: 'organizations',
     },
     { href: '/leader/contacts', group: 'Клиенты', sectionKey: 'contacts', flag: 'contacts' },
-    {
-      href: '/leader/funnel',
-      group: 'Продажи',
-      sectionKey: 'funnel',
-      flag: 'sales_funnel',
-    },
+    // Этап 4 ТЗ 28.10.2026 (`У-349`): «Лиды» — как у менеджера, воронка — вид
+    // внутри них (`/leader/leads?view=funnel`); старый `/leader/funnel` говорит
+    // «раздел переехал».
+    { href: '/leader/leads', group: 'Продажи', sectionKey: 'leads' },
     // deals_pipeline — свой opt-in флаг (НЕ путать с /partner/orders — «Заказы» партнёра).
     {
       href: '/leader/deals',

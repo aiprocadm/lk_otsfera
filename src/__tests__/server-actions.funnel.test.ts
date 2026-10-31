@@ -57,7 +57,7 @@ describe('moveFunnelLeadAction', () => {
       toStageId: 'default:in_review',
       reason: undefined,
     });
-    expect(revalidatePath).toHaveBeenCalledWith('/leader/funnel');
+    expect(revalidatePath).toHaveBeenCalledWith('/leader/leads');
     // `У-312`: воронка менеджера живёт в «Лидах».
     expect(revalidatePath).toHaveBeenCalledWith('/manager/leads');
     expect(revalidatePath).not.toHaveBeenCalledWith('/manager/funnel');

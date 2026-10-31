@@ -1,120 +1,54 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import React from 'react';
 import LeaderFunnelPage from '@/app/leader/funnel/page';
 import { renderServerComponent } from './helpers/renderServerComponent';
+
+/**
+ * Старый адрес «Воронки продаж» руководителя (этап 4 ТЗ 28.10.2026, `У-349`):
+ * воронка — вид внутри «Лидов», страница говорит «раздел переехал» (зеркало
+ * `/manager/funnel`, `У-312`). Доска и настройка стадий — на `/leader/leads`
+ * (их проверяет `pages.leader-leads.test.tsx`).
+ */
 
 const { requireManagerLeader } = vi.hoisted(() => ({ requireManagerLeader: vi.fn() }));
 vi.mock('@/lib/auth/requireRole', () => ({ requireManagerLeader }));
 
-vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
-
 const { isFeatureEnabled } = vi.hoisted(() => ({ isFeatureEnabled: vi.fn() }));
 vi.mock('@/lib/featureFlags', () => ({ isFeatureEnabled }));
-
-const { getFunnelBoard } = vi.hoisted(() => ({ getFunnelBoard: vi.fn() }));
-vi.mock('@/lib/services/funnel/board', () => ({ getFunnelBoard }));
 
 const nav = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error('NOT_FOUND');
   }),
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('next/navigation', () => nav);
 
-vi.mock('@/components/funnel/funnel-board', () => ({
-  FunnelBoard: (props: { board: unknown }) =>
-    React.createElement('div', { 'data-testid': 'funnel-board' }, JSON.stringify(props.board)),
-}));
-
-vi.mock('@/components/funnel/stage-config', () => ({
-  StageConfig: (props: { stages: unknown[]; isDefault: boolean }) =>
-    React.createElement(
-      'div',
-      { 'data-testid': 'stage-config' },
-      String(props.isDefault),
-      JSON.stringify(props.stages)
-    ),
-}));
-
-const SESSION = {
-  sub: 'u1',
-  role: 'leader' as const,
-  companyId: 'c1',
-};
-
-describe('LeaderFunnelPage', () => {
+describe('LeaderFunnelPage — раздел переехал', () => {
   beforeEach(() => {
     requireManagerLeader.mockReset();
     isFeatureEnabled.mockReset();
-    getFunnelBoard.mockReset();
     nav.notFound.mockClear();
   });
 
-  it('calls notFound() when the sales_funnel flag is disabled (before auth check)', async () => {
+  it('без флага sales_funnel — 404, как и раньше, до проверки роли', async () => {
     isFeatureEnabled.mockReturnValue(false);
-
     await expect(renderServerComponent(LeaderFunnelPage())).rejects.toThrow('NOT_FOUND');
-
     expect(isFeatureEnabled).toHaveBeenCalledWith('sales_funnel');
     expect(requireManagerLeader).not.toHaveBeenCalled();
   });
 
-  it('renders with default stages (isDefault: true when the first stage id starts with "default:")', async () => {
+  it('с флагом — гард руководителя и ссылка на воронку внутри «Лидов» руководителя', async () => {
     isFeatureEnabled.mockReturnValue(true);
-    requireManagerLeader.mockResolvedValue(SESSION);
-    getFunnelBoard.mockResolvedValue({
-      stages: [{ id: 'default:new', name: 'Новый' }],
-      columns: [],
-      shown: 0,
-      total: 0,
-    });
+    requireManagerLeader.mockResolvedValue({ sub: 'u1', role: 'leader', companyId: 'c1' });
 
     const { container } = await renderServerComponent(LeaderFunnelPage());
 
-    expect(getFunnelBoard).toHaveBeenCalledWith({}, SESSION);
-    expect(container.textContent).toContain('Воронка продаж');
-    expect(container.textContent).toContain('true');
-  });
-
-  it('renders with custom stages (isDefault: false) and with an empty stages array', async () => {
-    isFeatureEnabled.mockReturnValue(true);
-    requireManagerLeader.mockResolvedValue(SESSION);
-    getFunnelBoard.mockResolvedValue({
-      stages: [{ id: 'custom-1', name: 'Своя стадия' }],
-      columns: [],
-      shown: 0,
-      total: 0,
-    });
-
-    const { container } = await renderServerComponent(LeaderFunnelPage());
-
-    expect(container.textContent).toContain('false');
-  });
-
-  it('renders with an empty stages array (isDefault stays false, no crash on stages[0])', async () => {
-    isFeatureEnabled.mockReturnValue(true);
-    requireManagerLeader.mockResolvedValue(SESSION);
-    getFunnelBoard.mockResolvedValue({ stages: [], columns: [], shown: 0, total: 0 });
-
-    const { container } = await renderServerComponent(LeaderFunnelPage());
-
-    expect(container.textContent).toContain('false');
-    expect(container.textContent).not.toContain('Показаны первые');
-  });
-
-  // `Р-27` (В-3): доска режется по `BOARD_CAP`, живые лиды идут первыми —
-  // экран честно говорит, сколько скрыто, и где искать остальное.
-  it('total > shown → подпись «Показаны первые N из M» с подсказкой про карточку организации', async () => {
-    isFeatureEnabled.mockReturnValue(true);
-    requireManagerLeader.mockResolvedValue(SESSION);
-    getFunnelBoard.mockResolvedValue({ stages: [], columns: [], shown: 500, total: 1200 });
-
-    const { container } = await renderServerComponent(LeaderFunnelPage());
-
-    expect(container.textContent).toContain('Показаны первые 500 из 1200.');
-    expect(container.textContent).toContain('Живые лиды идут первыми и не теряются');
-    expect(container.textContent).toContain('вкладка «Лиды»');
+    expect(requireManagerLeader).toHaveBeenCalled();
+    expect(container.textContent).toContain('Раздел переехал в «Лиды».');
+    expect(container.textContent).toContain('Настройка стадий воронки — там же, под доской.');
+    const link = container.querySelector('a[href="/leader/leads?view=funnel"]');
+    expect(link?.textContent).toBe('Открыть воронку в «Лидах»');
+    // Не в кабинет менеджера: руководитель остаётся в своём.
+    expect(container.querySelector('a[href^="/manager/"]')).toBeNull();
   });
 });

@@ -92,7 +92,9 @@ describe('ФТ-13.4 guard: клиентская форма обращения Б
 
 describe('ФТ-13.4 guard: staff-формы С антидублями', () => {
   it('lead-create-staff-form: ввод валидного ИНН зовёт /api/duplicates/by-inn и показывает плашку', async () => {
-    const { container } = render(<LeadCreateStaffForm organizations={[]} />);
+    const { container } = render(
+      <LeadCreateStaffForm organizations={[]} orgCardHrefBase="/manager/organizations" />
+    );
     const innInput = container.querySelector('#lcs-inn') as HTMLInputElement;
     expect(innInput).toBeTruthy();
 

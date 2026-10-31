@@ -47,7 +47,7 @@ function revalidate(): void {
  */
 function revalidateFunnel(): void {
   revalidatePath('/manager/leads');
-  revalidatePath('/leader/funnel');
+  revalidatePath('/leader/leads');
 }
 
 export async function moveDealAction(fd: FormData): Promise<ActionResult<MoveDealError>> {

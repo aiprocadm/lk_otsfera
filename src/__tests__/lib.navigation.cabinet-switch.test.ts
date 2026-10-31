@@ -36,9 +36,14 @@ describe('переключение кабинетов руководителя (
   });
 
   it('раздела нет у соседа — ведём на главную, а не в 404', () => {
-    // «Роли» есть только у руководителя, «Лиды» — только у менеджера.
+    // «Роли» есть только у руководителя, «Входящие письма» — только у менеджера.
     expect(switchCabinetHref('/leader/roles', 'manager')).toBe('/manager/dashboard');
-    expect(switchCabinetHref('/manager/leads', 'leader')).toBe('/leader/dashboard');
+    expect(switchCabinetHref('/manager/inbox', 'leader')).toBe('/leader/dashboard');
+  });
+
+  it('«Лиды» теперь есть у обоих — переключение остаётся в разделе (`У-349`)', () => {
+    expect(switchCabinetHref('/manager/leads', 'leader')).toBe('/leader/leads');
+    expect(switchCabinetHref('/leader/leads', 'manager')).toBe('/manager/leads');
   });
 
   it('переключение «в себя» и незнакомый адрес ведут на главную', () => {
