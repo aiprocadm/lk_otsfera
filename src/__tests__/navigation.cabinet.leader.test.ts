@@ -197,3 +197,9 @@ describe('меню менеджера при включённом leader_cabinet
     expect(navByRole.manager.filter((i) => i.href.startsWith('/leader/'))).toEqual([]);
   });
 });
+
+describe('меню руководителя — «Команда» и «Аналитика» в «Продажах» (`У-347`)', () => {
+  it.each(['/leader/team', '/leader/analytics'])('%s — группа «Продажи»', (href) => {
+    expect(navByRole.leader.find((i) => i.href === href)?.group).toBe('Продажи');
+  });
+});

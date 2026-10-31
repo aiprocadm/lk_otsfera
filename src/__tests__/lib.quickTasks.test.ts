@@ -88,4 +88,13 @@ describe('этап 4 ТЗ 13.10.2026 (`У-298`, `Р-4-7`): плитка сдел
     expect(quickTasksFor('manager').map((t) => t.title)).not.toContain('Создать сделку');
     expect(deals?.hint).not.toContain('Переговоры');
   });
+
+  it('`У-345`: у руководителя «Посмотреть результаты команды» и нет дубля «Долга клиентов»', () => {
+    const tasks = quickTasksFor('leader');
+    const team = tasks.find((t) => t.href === '/leader/team');
+    expect(team?.title).toBe('Посмотреть результаты команды');
+    // «Проверить долги» вела туда же, куда плитка «Долг клиентов» на главной
+    expect(tasks.some((t) => t.href === '/leader/finance')).toBe(false);
+    expect(tasks.map((t) => t.title)).not.toContain('Проверить долги');
+  });
 });

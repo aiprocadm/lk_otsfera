@@ -3,6 +3,9 @@ import type { PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/auth/jwt';
 import { getManagerFinanceOverview } from '@/lib/services/manager/finance';
 import { listCompanyManagers } from '@/lib/services/manager/team';
+import { kpiMetric } from '@/lib/kpi/metrics';
+import { parseKpiMonth } from '@/lib/kpi/period';
+import { moscowMonthRange } from '@/lib/dates/calendar';
 
 // ExecutionStatus enum: pending | in_progress | completed | cancelled | on_hold
 // Active = открытые в работе заказы; terminal = закрытые (для overdue-фильтра).
@@ -16,6 +19,14 @@ type LeaderKpis = {
   debt: string;
   /** null when no commission on any org (member-level field-gate upstream). */
   commission: string | null;
+  /**
+   * `У-345`: оплаты по заказам компании за текущий московский месяц, возвраты
+   * вычтены. Тот же показатель, что «Оплачено» в «Аналитике» (`revenue_paid`) —
+   * одна цифра из одного расчёта, а не своя сумма на каждом экране (`Д-63`).
+   */
+  paidThisMonth: string;
+  /** `У-345`: комиссия посредников, выплаченная в этом месяце (оплаченные ведомости). */
+  commissionPaidThisMonth: string;
 };
 
 export type LeaderManagerRow = {
@@ -36,7 +47,14 @@ export type LeaderDashboard = {
 };
 
 const EMPTY: LeaderDashboard = {
-  kpis: { managers: 0, activeOrders: 0, debt: '0.00', commission: null },
+  kpis: {
+    managers: 0,
+    activeOrders: 0,
+    debt: '0.00',
+    commission: null,
+    paidThisMonth: '0.00',
+    commissionPaidThisMonth: '0.00',
+  },
   perManager: [],
 };
 
@@ -65,28 +83,34 @@ export async function leaderDashboard(
     executionStatus: { in: [...ACTIVE_EXEC] },
   };
 
-  const [managers, activeOrders, activeGroup, overdueGroup, finance] = await Promise.all([
-    listCompanyManagers(prisma, companyId),
-    prisma.order.count({ where: activeWhere }),
-    prisma.order.groupBy({
-      by: ['managerId'],
-      where: activeWhere,
-      _count: { _all: true },
-      _sum: { totalAmount: true, paidAmount: true },
-    }),
-    prisma.order.groupBy({
-      by: ['managerId'],
-      where: {
-        companyId,
-        deadline: { lt: now },
-        executionStatus: { notIn: [...TERMINAL_EXEC] },
-      },
-      _count: { _all: true },
-    }),
-    // R1.2: дашборду нужны только summary.outstanding и commission-итоги —
-    // ledger платежей (top-50 на каждую организацию) не тянем.
-    getManagerFinanceOverview(prisma, session, { teamMode: true, includePayments: false }),
-  ]);
+  const { year, month } = parseKpiMonth(undefined);
+  const monthRange = moscowMonthRange(year, month);
+
+  const [managers, activeOrders, activeGroup, overdueGroup, finance, paid, commissionPaid] =
+    await Promise.all([
+      listCompanyManagers(prisma, companyId),
+      prisma.order.count({ where: activeWhere }),
+      prisma.order.groupBy({
+        by: ['managerId'],
+        where: activeWhere,
+        _count: { _all: true },
+        _sum: { totalAmount: true, paidAmount: true },
+      }),
+      prisma.order.groupBy({
+        by: ['managerId'],
+        where: {
+          companyId,
+          deadline: { lt: now },
+          executionStatus: { notIn: [...TERMINAL_EXEC] },
+        },
+        _count: { _all: true },
+      }),
+      // R1.2: дашборду нужны только summary.outstanding и commission-итоги —
+      // ledger платежей (top-50 на каждую организацию) не тянем.
+      getManagerFinanceOverview(prisma, session, { teamMode: true, includePayments: false }),
+      kpiMetric('revenue_paid').compute(prisma, { companyId, ...monthRange }),
+      commissionPaidInRange(prisma, companyId, monthRange),
+    ]);
 
   const aggBy = new Map(activeGroup.map((g) => [g.managerId, g]));
   const overdueBy = new Map(overdueGroup.map((g) => [g.managerId, g._count._all]));
@@ -130,7 +154,36 @@ export async function leaderDashboard(
       activeOrders,
       debt: finance.summary.outstanding,
       commission: hasCommission ? commissionTotal.toFixed(2) : null,
+      paidThisMonth: paid.total,
+      commissionPaidThisMonth: commissionPaid,
     },
     perManager,
   };
+}
+
+/**
+ * Комиссия посредников, выплаченная за период: строки ведомостей со статусом
+ * `paid` и датой выплаты в периоде. У ведомости своей компании нет (она
+ * партнёрская, а партнёр работает с организациями разных компаний), поэтому
+ * компания берётся у строки — через её заказ, платёж или корректировку
+ * (корректировка привязана к возврату-платежу). Строки чужой компании в ту же
+ * ведомость не попадают в сумму руководителя (C8).
+ */
+async function commissionPaidInRange(
+  prisma: PrismaClient,
+  companyId: string,
+  range: { from: Date; to: Date }
+): Promise<string> {
+  const agg = await prisma.commissionStatementItem.aggregate({
+    where: {
+      statement: { status: 'paid', paidAt: { gte: range.from, lt: range.to } },
+      OR: [
+        { order: { companyId } },
+        { payment: { order: { companyId } } },
+        { correction: { payment: { order: { companyId } } } },
+      ],
+    },
+    _sum: { commissionAmount: true },
+  });
+  return new Prisma.Decimal(agg._sum.commissionAmount ?? 0).toFixed(2);
 }

@@ -15,6 +15,14 @@ vi.mock('@/lib/auth/managerPolicy', () => ({ getCompanyTeamVisibility }));
 const { listCompanyManagers } = vi.hoisted(() => ({ listCompanyManagers: vi.fn() }));
 vi.mock('@/lib/services/manager/team', () => ({ listCompanyManagers }));
 
+const { leaderDashboard } = vi.hoisted(() => ({ leaderDashboard: vi.fn() }));
+vi.mock('@/lib/services/leader/dashboard', () => ({ leaderDashboard }));
+
+vi.mock('@/components/leader/leader-managers-table', () => ({
+  LeaderManagersTable: (props: { rows: unknown[] }) =>
+    React.createElement('div', { 'data-testid': 'managers-table' }, JSON.stringify(props.rows)),
+}));
+
 // `У-130`: карточка «SLA входящих» УЕХАЛА отсюда в хаб настроек — здесь ей
 // было не место (настройка процесса в разделе про людей). Мок компонента
 // оставлен, чтобы проверять его отсутствие.
@@ -53,6 +61,10 @@ describe('LeaderTeamPage', () => {
     requireManagerLeader.mockReset();
     getCompanyTeamVisibility.mockReset();
     listCompanyManagers.mockReset();
+    leaderDashboard.mockReset().mockResolvedValue({
+      kpis: {},
+      perManager: [{ managerId: 'm1', name: 'Анна Результат', activeOrders: 4 }],
+    });
   });
 
   it('fetches team visibility and roster when session has a companyId', async () => {
@@ -69,6 +81,12 @@ describe('LeaderTeamPage', () => {
     expect(container.textContent).toContain('Менеджер');
     // `У-130`: порогов SLA здесь больше нет — они в «Настройках».
     expect(container.querySelector('[data-testid="sla-settings-card"]')).toBeNull();
+    // `У-346`: таблица «Менеджеры команды» переехала сюда с главной
+    expect(leaderDashboard).toHaveBeenCalledWith({}, SESSION);
+    expect(container.textContent).toContain('Менеджеры команды');
+    expect(container.querySelector('[data-testid="managers-table"]')?.textContent).toContain(
+      'Анна Результат'
+    );
   });
 
   it('short-circuits to teamMode:false and an empty roster when session has no companyId', async () => {

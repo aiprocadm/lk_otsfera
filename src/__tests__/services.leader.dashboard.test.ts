@@ -28,6 +28,8 @@ function fakePrisma(opts: {
   activeOrders?: number;
   activeGroup?: GroupRow[];
   overdueGroup?: Array<{ managerId: string | null; _count: { _all: number } }>;
+  payments?: Array<{ amount: string; isRefund: boolean; order: { managerId: string | null } }>;
+  commissionPaid?: string | null;
 }) {
   const groupBy = vi.fn();
   // The service issues two groupBy calls: [active per-manager (with _sum), overdue per-manager].
@@ -38,6 +40,12 @@ function fakePrisma(opts: {
     order: {
       count: vi.fn().mockResolvedValue(opts.activeOrders ?? 0),
       groupBy,
+    },
+    payment: { findMany: vi.fn().mockResolvedValue(opts.payments ?? []) },
+    commissionStatementItem: {
+      aggregate: vi
+        .fn()
+        .mockResolvedValue({ _sum: { commissionAmount: opts.commissionPaid ?? null } }),
     },
   } as any;
 }
@@ -132,6 +140,51 @@ describe('leaderDashboard', () => {
     expect(m3.totalAmount).toBe('0.00');
     expect(m3.paidAmount).toBe('0.00');
     expect(m3.overdue).toBe(0);
+  });
+
+  it('`У-345`: «Оплачено по команде» = показатель «Оплачено» аналитики за месяц, возвраты вычтены', async () => {
+    const { Prisma } = await import('@prisma/client');
+    const prisma = fakePrisma({
+      payments: [
+        { amount: new Prisma.Decimal('1000') as any, isRefund: false, order: { managerId: 'm1' } },
+        {
+          amount: new Prisma.Decimal('250.50') as any,
+          isRefund: false,
+          order: { managerId: null },
+        },
+        { amount: new Prisma.Decimal('100') as any, isRefund: true, order: { managerId: 'm1' } },
+      ],
+    });
+    const res = await leaderDashboard(prisma, session());
+    expect(res.kpis.paidThisMonth).toBe('1150.50');
+    // оплаты компании за московский месяц — тот же запрос, что у «Аналитики»
+    const where = prisma.payment.findMany.mock.calls[0][0].where;
+    expect(where.order).toEqual({ companyId: 'c1' });
+    expect(where.paidAt.gte).toBeInstanceOf(Date);
+    expect(where.paidAt.lt.getTime()).toBeGreaterThan(where.paidAt.gte.getTime());
+  });
+
+  it('`У-345`: «выплачено в этом месяце» — только оплаченные ведомости, строки своей компании', async () => {
+    const prisma = fakePrisma({ commissionPaid: '321.40' });
+    const res = await leaderDashboard(prisma, session());
+    expect(res.kpis.commissionPaidThisMonth).toBe('321.40');
+    const where = prisma.commissionStatementItem.aggregate.mock.calls[0][0].where;
+    expect(where.statement.status).toBe('paid');
+    expect(where.statement.paidAt.gte).toEqual(
+      prisma.payment.findMany.mock.calls[0][0].where.paidAt.gte
+    );
+    expect(where.OR).toEqual([
+      { order: { companyId: 'c1' } },
+      { payment: { order: { companyId: 'c1' } } },
+      { correction: { payment: { order: { companyId: 'c1' } } } },
+    ]);
+  });
+
+  it('выплат в месяце нет → 0.00, а не пусто', async () => {
+    const prisma = fakePrisma({ commissionPaid: null });
+    const res = await leaderDashboard(prisma, session());
+    expect(res.kpis.commissionPaidThisMonth).toBe('0.00');
+    expect(res.kpis.paidThisMonth).toBe('0.00');
   });
 
   it('commission=null когда ни на одной организации нет комиссии', async () => {
