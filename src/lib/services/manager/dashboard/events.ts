@@ -21,13 +21,21 @@ export type EventItem = {
  * entries, and comments. All scoped via `managerOrderScopeFilter` so that
  * an event for an out-of-scope order is never emitted. Sorted by timestamp
  * desc and sliced to `take`.
+ *
+ * `cabinet` — чей кабинет рисует ленту: ссылки событий ведут в ЕГО разделы.
+ * До закрытия этапа 4 ТЗ 28.10.2026 (прогон №52) главная руководителя вела
+ * каждым событием в кабинет менеджера (`/manager/orders/<id>`), хотя у
+ * руководителя свои «Заказы» и «Документы» — тот же переход «из своего меню в
+ * чужой кабинет», что убирал `У-110`.
  */
 export async function recentEvents(
   prisma: PrismaClient,
   session: SessionPayload,
   take = DEFAULT_EVENTS,
-  teamModeOverride?: boolean
+  teamModeOverride?: boolean,
+  cabinet: 'manager' | 'leader' = 'manager'
 ): Promise<EventItem[]> {
+  const base = `/${cabinet}`;
   const teamMode = teamModeOverride ?? (await getCompanyTeamVisibility(prisma, session.companyId));
   const scope = managerOrderScope(session, teamMode);
   const orgScope = managerOrgScope(session, teamMode);
@@ -108,7 +116,7 @@ export async function recentEvents(
       kind: 'document_created',
       when: d.createdAt,
       text: `Загружен документ ${d.name}${d.order?.orderNumber ? ` по заказу ${d.order.orderNumber}` : ''}`,
-      href: d.orderId ? `/manager/orders/${d.orderId}` : '/manager/documents',
+      href: d.orderId ? `${base}/orders/${d.orderId}` : `${base}/documents`,
     })),
     ...payments.map((p): EventItem =>
       p.order
@@ -117,14 +125,14 @@ export async function recentEvents(
             kind: 'payment_received',
             when: p.paidAt,
             text: `Поступила оплата ${fmtMoney(Number(p.amount))} по заказу ${p.order.orderNumber ?? p.orderId}`,
-            href: `/manager/orders/${p.orderId}`,
+            href: `${base}/orders/${p.orderId}`,
           }
         : {
             id: `pay-${p.id}`,
             kind: 'payment_received',
             when: p.paidAt,
             text: `Поступила оплата ${fmtMoney(Number(p.amount))} (организация ${p.organization.name})`,
-            href: `/manager/dashboard`,
+            href: `${base}/dashboard`,
           }
     ),
     ...statusAudits
@@ -145,7 +153,7 @@ export async function recentEvents(
           kind: a.action,
           when: a.createdAt,
           text,
-          href: `/manager/orders/${a.entityId}`,
+          href: `${base}/orders/${a.entityId}`,
         };
       }),
     ...comments.map((c): EventItem => ({
@@ -153,7 +161,7 @@ export async function recentEvents(
       kind: 'comment',
       when: c.createdAt,
       text: `${c.author?.name ?? 'Аноним'}: ${c.body.slice(0, 100)}`,
-      href: `/manager/orders/${c.orderId}`,
+      href: `${base}/orders/${c.orderId}`,
     })),
   ];
 

@@ -74,8 +74,9 @@ describe('LeaderDashboardPage', () => {
 
     expect(requireManagerLeader).toHaveBeenCalled();
     expect(leaderDashboard).toHaveBeenCalledWith({}, SESSION);
-    // company-wide always: teamModeOverride=true (4th arg)
-    expect(recentEvents).toHaveBeenCalledWith({}, SESSION, undefined, true);
+    // company-wide always: teamModeOverride=true (4th arg); ссылки событий — в
+    // кабинет руководителя (5th arg, прогон №52).
+    expect(recentEvents).toHaveBeenCalledWith({}, SESSION, undefined, true, 'leader');
     expect(container.textContent).toContain('Главная');
     expect(container.textContent).toContain('250');
     // `У-345`: плитки без дублей и с подписями, что считают
