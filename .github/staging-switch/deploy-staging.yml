@@ -1,0 +1,32 @@
+# Заготовка `У-344` (ТЗ 28.10.2026, ДП §7). НЕ ДЕЙСТВУЕТ, пока лежит здесь:
+# GitHub исполняет только .github/workflows/*.yml. Новый workflow требует
+# решения владельца (CLAUDE.md §11) — переносится в .github/workflows/ после
+# `Н-9` и `Н-5` (сборочная машина с self-hosted runner, у которой есть только
+# SSH-ключ к стейджингу, прод-ключей нет). Инструкция — README.md рядом.
+#
+# Каждый merge в `staging` собирает образ `staging-<sha>` и выкладывает его на
+# стейджинг тем же scripts/deploy/deploy.sh, что и прод. Прод намеренно не
+# автоматизируется — его выкладывает человек (docs/runbook-release.md, фаза E).
+name: deploy-staging
+
+on:
+  push:
+    branches: [staging]
+
+concurrency: deploy-staging
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, build]
+    environment: staging
+    timeout-minutes: 60
+    env:
+      IMAGE: ${{ vars.REGISTRY }}/lk-otsfera:staging-${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci && npm run verify
+      - run: docker build -t "$IMAGE" . && docker push "$IMAGE"
+      # Клон на сервере — на тот же коммит, что и образ: compose-файлы и
+      # deploy.sh должны совпадать с выкладываемым кодом.
+      - run: ssh deploy@${{ vars.STAGING_HOST }} "git -C /srv/lk fetch origin && git -C /srv/lk checkout --detach ${{ github.sha }}"
+      - run: ssh deploy@${{ vars.STAGING_HOST }} "/srv/lk/scripts/deploy/deploy.sh staging-${{ github.sha }}"

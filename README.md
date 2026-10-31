@@ -367,6 +367,8 @@ npm run prisma:migrate:deploy
 
 ## Финальный release checklist
 
+> Полная выкладка на стейджинг и прод — [docs/runbook-release.md](docs/runbook-release.md) (фаза B заменяет шаги 1–5 и 7 ниже: `npm ci`, `verify`, `gate`, `build`, `audit:prod`, `schema:drift`). Список ниже — быстрая локальная проверка перед PR.
+
 Перед релизом выполните:
 
 1. Установка зависимостей и генерация Prisma Client:

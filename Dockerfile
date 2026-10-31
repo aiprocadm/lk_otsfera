@@ -46,6 +46,11 @@ COPY --from=build --chown=node:node /app/package.json ./package.json
 # worker (tsx) needs TS source + tsconfig for @/* path resolution
 COPY --from=build --chown=node:node /app/src ./src
 COPY --from=build --chown=node:node /app/tsconfig.json ./tsconfig.json
+# `У-343` (ТЗ 28.10.2026, ДП §6): первый администратор создаётся из образа —
+# `docker compose run --rm web npm run db:create-admin`. Без этой строки папки
+# scripts/ в образе нет, и команда первого запуска падала «файл не найден».
+# Только этот скрипт: остальные scripts/* — для разработки, не для прода.
+COPY --from=build --chown=node:node /app/scripts/create-admin.ts ./scripts/create-admin.ts
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

@@ -1,0 +1,28 @@
+# Заготовка `У-344` (ТЗ 28.10.2026, ДП §7). НЕ ДЕЙСТВУЕТ, пока лежит здесь:
+# GitHub исполняет только .github/workflows/*.yml. Включение после `Н-9` —
+# вставить джоб ниже в `jobs:` файла .github/workflows/ci.yml и добавить его в
+# обязательные проверки ruleset ветки `main` (инструкция — README.md рядом).
+#
+# Почему не включён сразу: сегодня PR в `main` идут из веток задач, и джоб
+# валил бы каждый из них.
+#
+# Что проверяет: в `main` попадает только принятый на стейджинге код
+# (релизный PR из `staging`) или срочный хотфикс (`hotfix/*`).
+source-branch:
+  name: Источник PR в main — staging или hotfix/*
+  if: github.event_name == 'pull_request' && github.base_ref == 'main'
+  runs-on: ubuntu-latest
+  timeout-minutes: 2
+  steps:
+    - name: Проверить ветку-источник
+      env:
+        HEAD_REF: ${{ github.head_ref }}
+      run: |
+        case "$HEAD_REF" in
+          staging | hotfix/*) echo "источник $HEAD_REF — допустим" ;;
+          *)
+            echo "::error::PR в main принимается только из staging или hotfix/*, а пришёл из «$HEAD_REF»."
+            echo "Задачи вливаются в staging; см. docs/runbook-release.md, фаза E."
+            exit 1
+            ;;
+        esac

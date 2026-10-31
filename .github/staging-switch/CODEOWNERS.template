@@ -1,0 +1,26 @@
+# Заготовка `У-344` (ТЗ 28.10.2026, ДП §7). НЕ ДЕЙСТВУЕТ, пока лежит здесь:
+# GitHub читает CODEOWNERS только из корня, .github/ или docs/. Включение —
+# заменить им .github/CODEOWNERS после `Н-9` (инструкция — README.md рядом).
+#
+# Владелец ревьюит всё; чувствительные пути — обязательно, даже когда в
+# проекте появятся другие ревьюеры (ветка `staging` требует одобрения
+# CODEOWNERS именно для них).
+* @aiprocadm
+
+# База и миграции — совместимость релизов (CLAUDE.md §2c)
+/prisma/ @aiprocadm
+# Вход, роли, доступы
+/src/lib/auth/ @aiprocadm
+/src/middleware.ts @aiprocadm
+# Вебхуки провайдеров — адрес и форма меняются только вместе с настройкой у провайдера
+/src/app/api/integrations/ @aiprocadm
+# Выкладка и окружение
+/docker-compose*.yml @aiprocadm
+/Dockerfile @aiprocadm
+/Caddyfile* @aiprocadm
+/scripts/deploy/ @aiprocadm
+# Процесс, правила агента, зависимости
+/.github/ @aiprocadm
+/CLAUDE.md @aiprocadm
+/package.json @aiprocadm
+/package-lock.json @aiprocadm

@@ -1,5 +1,7 @@
 # Runbook — боевой запуск (launch-readiness, все 6 ролей)
 
+> **Главный документ выкладки — [runbook-release.md](runbook-release.md) (`У-343`, ТЗ 28.10.2026).** Этот файл остаётся справочником по своей теме; порядок выкладки, смоук и откат — там, при расхождении верен он.
+
 **Owner**: тех.лид Промтехносфера (деплой + флип env) + DBA/ops (миграция + dedupe) + QA (smoke) + поддержка партнёров (F2-коммуникация)
 **Scope**: разворот в prod кода треков **T1–T5 + F6 + T4**, смерженного в `main` через [PR #124](https://github.com/aiprocadm/lk_otsfera/pull/124) (2026-06-15).
 **Roadmap**: [launch-readiness-roadmap](superpowers/specs/2026-06-13-launch-readiness-roadmap.md).
