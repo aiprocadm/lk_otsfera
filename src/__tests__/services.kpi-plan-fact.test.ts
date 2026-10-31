@@ -124,6 +124,58 @@ describe('getKpiPlanFact — план и факт по показателям', 
     });
   });
 
+  // `У-334` (`Д-68`, ТЗ 28.10.2026): на стенде планы заданы двум менеджерам
+  // (400 000 + 200 000 ₽), плана «на команду» нет — «Итого по команде» стоял
+  // прочерком, хотя таблица планов ниже показывала «Итого» 600 000 ₽.
+  it('плана на команду нет — «Итого по команде» = сумма планов менеджеров', async () => {
+    resolveActiveMetrics.mockReturnValue(['revenue_paid']);
+    kpiMetric.mockReturnValue(
+      metric('revenue_paid', true, {
+        year: 2026,
+        month: 10,
+        current: { total: '300000', byManager: new Map() },
+        previous: { total: '0', byManager: new Map() },
+      })
+    );
+    const db = makeDb({
+      company: { activeKpiMetrics: ['revenue_paid'] },
+      managers: [
+        { id: 'm1', name: 'А', email: 'a@x.ru', isActive: true },
+        { id: 'm2', name: 'Б', email: 'b@x.ru', isActive: true },
+      ],
+      targets: [
+        { managerId: 'm1', metric: 'revenue_paid', targetAmount: dec(400000) },
+        { managerId: 'm2', metric: 'revenue_paid', targetAmount: dec(200000) },
+      ],
+    });
+    const res = await getKpiPlanFact(db, { companyId: 'c1', year: 2026, month: 10 });
+    expect(res.rows.at(-1)).toMatchObject({
+      managerName: 'Итого по команде',
+      plan: '600000.00',
+      fact: '300000',
+      percent: 50,
+    });
+  });
+
+  it('ни одного плана — у «Итого по команде» плана нет', async () => {
+    resolveActiveMetrics.mockReturnValue(['revenue_paid']);
+    kpiMetric.mockReturnValue(
+      metric('revenue_paid', true, {
+        year: 2026,
+        month: 10,
+        current: { total: '0', byManager: new Map() },
+        previous: { total: '0', byManager: new Map() },
+      })
+    );
+    const db = makeDb({
+      company: { activeKpiMetrics: ['revenue_paid'] },
+      managers: [{ id: 'm1', name: 'А', email: 'a@x.ru', isActive: true }],
+      targets: [],
+    });
+    const res = await getKpiPlanFact(db, { companyId: 'c1', year: 2026, month: 10 });
+    expect(res.rows.at(-1)).toMatchObject({ managerName: 'Итого по команде', plan: null });
+  });
+
   it('показатель без ответственного даёт одну строку «По компании»', async () => {
     resolveActiveMetrics.mockReturnValue(['revenue']);
     kpiMetric.mockReturnValue(

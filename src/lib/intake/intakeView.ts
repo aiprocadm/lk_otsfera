@@ -15,7 +15,7 @@ export const INTAKE_CHANNEL_LABEL: Record<IntakeChannel, string> = {
   call: 'Звонки',
 };
 
-function isIntakeChannel(value: unknown): value is IntakeChannel {
+export function isIntakeChannel(value: unknown): value is IntakeChannel {
   return typeof value === 'string' && (INTAKE_CHANNELS as readonly string[]).includes(value);
 }
 

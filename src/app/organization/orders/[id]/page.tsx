@@ -118,7 +118,10 @@ export default async function OrganizationOrderDetailPage({
 
             <OrderCustomFields fields={customFields} orderId={order.id} editable={false} />
 
-            <OrderComments comments={comments} orderId={order.id} />
+            {/* `У-332`: «Сообщения → По заказам» ведёт сюда якорем. */}
+            <div id="comments" className="scroll-mt-4">
+              <OrderComments comments={comments} orderId={order.id} />
+            </div>
           </div>
 
           <div className="space-y-4">

@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 import { leadCompanyWhere } from '@/lib/auth/leadScope';
+import { INTAKE_CHANNEL_LABEL, isIntakeChannel } from '@/lib/intake/intakeView';
 
 /**
  * Откуда приходят клиенты (`У-247`, этап 7).
@@ -87,6 +88,20 @@ export async function getSources(
       _count: { _all: true },
     }),
   ]);
+  // `У-334` (`Д-68`, ТЗ 28.10.2026): «обращения» — это и сообщения из
+  // мессенджеров, почты и кабинета, и входящие звонки (раздел «Входящие
+  // обращения», `У-318`). Отчёт считал только заявки клиентов: на стенде в
+  // октябре было 5 вопросов из кабинета, а в «Воронке» — 2 обращения.
+  const [messageRows, inboundCalls] = await Promise.all([
+    prisma.inboundMessage.groupBy({
+      by: ['channel'],
+      where: { companyId: args.companyId, createdAt: period },
+      _count: { _all: true },
+    }),
+    prisma.call.count({
+      where: { companyId: args.companyId, direction: 'inbound', createdAt: period },
+    }),
+  ]);
 
   const promoted = new Map(promotedRows.map((r) => [String(r.source), r._count._all]));
   const dealt = new Map(dealRows.map((r) => [String(r.source), r._count._all]));
@@ -115,13 +130,22 @@ export async function getSources(
   });
   leads.sort((a, b) => b.leads - a.leads);
 
-  const requests: RequestSourceRow[] = requestRows
-    .map((r) => ({
+  const requests: RequestSourceRow[] = [
+    ...requestRows.map((r) => ({
       source: String(r.source),
       label: REQUEST_SOURCE_LABELS[String(r.source)] ?? String(r.source),
       requests: r._count._all,
-    }))
-    .sort((a, b) => b.requests - a.requests);
+    })),
+    // Названия каналов — те же, что в фильтре «Входящих обращений» (зеркало).
+    ...messageRows.map((r) => ({
+      source: `channel:${r.channel}`,
+      label: isIntakeChannel(r.channel) ? INTAKE_CHANNEL_LABEL[r.channel] : r.channel,
+      requests: r._count._all,
+    })),
+    ...(inboundCalls > 0
+      ? [{ source: 'channel:call', label: INTAKE_CHANNEL_LABEL.call, requests: inboundCalls }]
+      : []),
+  ].sort((a, b) => b.requests - a.requests);
 
   return { leads, requests, totalLeads, totalDeals, totalOrders };
 }

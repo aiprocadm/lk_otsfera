@@ -5,6 +5,9 @@ import { getOrgPageContext } from '@/lib/auth/orgPageContext';
 import { OrgAppShell } from '@/components/organization/org-app-shell';
 import { isFeatureEnabled } from '@/lib/featureFlags';
 import { listThreads } from '@/lib/services/chat/threads';
+import { listOrgOrderConversations } from '@/lib/services/organization/orderConversations';
+import { orgOrderScope } from '@/lib/services/organization/memberScope';
+import { OrgOrderConversations } from '@/components/organization/org-order-conversations';
 import { listCabinetDialogs } from '@/lib/services/cabinetDialogs/list';
 import { getCabinetDialog } from '@/lib/services/cabinetDialogs/get';
 import { OrderThreadInbox } from '@/components/chat/order-thread-inbox';
@@ -48,10 +51,9 @@ export default async function OrganizationMessagesPage({
   const ctx = await getOrgPageContext(sp);
   const session = ctx.session;
 
-  const tabs: MessagesTabKey[] = [
-    ...(cabinetEnabled ? (['manager'] as const) : []),
-    ...(chatEnabled ? (['orders'] as const) : []),
-  ];
+  // `У-332`: «По заказам» — это прежде всего комментарии к заказам, а они
+  // работают без флага чата (CLAUDE.md §5: домен комментариев ≠ домен чата).
+  const tabs: MessagesTabKey[] = [...(cabinetEnabled ? (['manager'] as const) : []), 'orders'];
   const requested: MessagesTabKey = sp.tab === 'orders' ? 'orders' : 'manager';
   const active: MessagesTabKey = tabs.includes(requested) ? requested : tabs[0]!;
 
@@ -66,7 +68,15 @@ export default async function OrganizationMessagesPage({
     selected = res.dialog;
   }
 
-  const threads = active === 'orders' ? await listThreads(prisma, session) : null;
+  const threads = active === 'orders' && chatEnabled ? await listThreads(prisma, session) : null;
+  const conversations =
+    active === 'orders'
+      ? await listOrgOrderConversations(
+          prisma,
+          ctx.activeOrgId,
+          await orgOrderScope(prisma, session, ctx.activeOrgId)
+        )
+      : [];
 
   return (
     <OrgAppShell
@@ -85,12 +95,20 @@ export default async function OrganizationMessagesPage({
         {active === 'manager' ? (
           <CabinetDialogsPanel basePath={BASE} dialogs={dialogs} selected={selected} />
         ) : (
-          <OrderThreadInbox
-            threads={threads?.ok ? threads.rows : []}
-            total={threads?.ok ? threads.total : 0}
-            currentUserId={session.sub}
-            variant="role"
-          />
+          <div className="space-y-6">
+            <OrgOrderConversations rows={conversations} orgId={ctx.activeOrgId} />
+            {chatEnabled && threads?.ok && threads.total > 0 ? (
+              <section className="space-y-2">
+                <h2 className="text-sm font-semibold text-gray-700">Чаты по заказам</h2>
+                <OrderThreadInbox
+                  threads={threads.rows}
+                  total={threads.total}
+                  currentUserId={session.sub}
+                  variant="role"
+                />
+              </section>
+            ) : null}
+          </div>
         )}
       </div>
     </OrgAppShell>
