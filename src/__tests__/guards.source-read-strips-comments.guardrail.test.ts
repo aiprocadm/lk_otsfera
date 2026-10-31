@@ -88,7 +88,12 @@ const READS_NOT_CODE = new Set(['prisma.migrations-plain-sql']);
 // `.yml` (ТЗ 28.10.2026, `У-322`): у YAML комментарий — `#`, а снятие `//`
 // съело бы `http://…` в проверках здоровья compose. Страж compose снимает `#`
 // сам (`infra.compose-prod.guardrail`).
+// `Caddyfile` и `.gitignore` (`У-340`): комментарий тоже `#`, а снятие `/* */`
+// съело бы пути вида `/api/integrations/*`. Страж стейджинга снимает `#` сам
+// (`infra.staging.guardrail`).
 const NOT_CODE = [
+  'Caddyfile',
+  '.gitignore',
   '.md',
   '.env',
   '.prisma',

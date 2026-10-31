@@ -89,6 +89,19 @@ describe('validateProductionEnv — базовый набор', () => {
     expect(issues.join('\n')).toContain('MinIO');
   });
 
+  it.each(['ONE_C_API_TOKEN', 'IMAP_PASSWORD', 'MANGO_API_SALT', 'STUDENT_BRIDGE_SHARED_SECRET'])(
+    'заглушка в необязательной переменной %s → issue, а значение в сообщение не попадает (У-340)',
+    (key) => {
+      const issues = issuesFor({ [key]: 'replace_with_real_value_xyz' });
+      expect(issues).toEqual([`${key}: осталось плейсхолдер-значение из .env.example`]);
+    }
+  );
+
+  it('заглушка в обязательной переменной сообщается один раз', () => {
+    const issues = issuesFor({ S3_ACCESS_KEY_ID: 'replace_me' });
+    expect(issues.filter((s) => s.startsWith('S3_ACCESS_KEY_ID:'))).toHaveLength(1);
+  });
+
   it('плейсхолдерный S3_SECRET_ACCESS_KEY (replace_me) → issue', () => {
     expect(issuesFor({ S3_SECRET_ACCESS_KEY: 'replace_me' }).join('\n')).toContain(
       'S3_SECRET_ACCESS_KEY'

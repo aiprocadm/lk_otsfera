@@ -23,7 +23,7 @@
 ```
 
 - Наружу смотрит **только Caddy** (порты 80/443). `web` остаётся на loopback (`127.0.0.1:3000`) — для прямого `curl` health на VM при отладке.
-- `web` и `worker` — **один образ** `lk-otsfera:prod`, разные команды (`npm run start` / `npm run worker`).
+- `web` и `worker` — **один образ** `${IMAGE_REPO:-lk-otsfera}:${IMAGE_TAG}` (тег — версия релиза, `У-338`), разные команды (`npm run start` / `npm run worker`).
 - PostgreSQL и S3 — внешние managed-сервисы, доступны только через env в `.env.production`.
 
 ---
@@ -42,11 +42,12 @@
 
 ## 2. Подготовка VM
 
-1. **Доставить образ.** Либо собрать на VM из репозитория:
+1. **Доставить образ с тегом версии** (`У-338`). Либо собрать на VM из репозитория:
    ```bash
-   docker build -t lk-otsfera:prod .
+   docker build -t lk-otsfera:v0.12.0 .
    ```
-   либо `docker pull` из вашего registry (если образ публикуется в CI — вне scope SP3).
+   либо положить в реестр и указать `IMAGE_REPO=<реестр>/lk-otsfera` в `.deploy.env` стека —
+   `deploy.sh` скачает его сам. Без тега compose не стартует.
 2. **Заполнить env.**
    ```bash
    cp .env.production.example .env.production
@@ -69,11 +70,13 @@
 # 1. DNS обязан резолвиться в IP VM:
 dig +short <APP_DOMAIN>            # ожидание: публичный IP этой VM
 
-# 2. Поднять стек (Caddy выпустит сертификат при первом обращении):
-docker compose -f docker-compose.prod.yml up -d
+# 2. Поднять стек (Caddy выпустит сертификат при первом обращении).
+#    deploy.sh ждёт здоровья сервисов и запоминает тег в .env стека — дальше
+#    служебные команды compose работают без указания тега:
+./scripts/deploy/deploy.sh v0.12.0
 
 # 3. Наблюдать выпуск сертификата:
-docker compose -f docker-compose.prod.yml logs -f caddy   # ждём "certificate obtained successfully"
+docker compose logs -f caddy   # ждём "certificate obtained successfully"
 
 # 4. Проверить HTTPS через домен:
 curl -fsS https://<APP_DOMAIN>/api/health/live            # ожидание: 200, валидный TLS

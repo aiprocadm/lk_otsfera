@@ -157,17 +157,17 @@
 
 ### 3.1 Откат релиза (код)
 
-Образ один — `lk-otsfera:prod`, **по SHA/версиям не тегируется** (не настроено; рекомендация из [runbook-launch-deploy.md](runbook-launch-deploy.md) §5 — начать тегировать). Registry в CI тоже нет — откат = пересборка из git на VM:
+С `У-338`/`У-339` (ТЗ 28.10.2026) образ тегируется версией (`vX.Y.Z`, на стейджинге `staging-<sha>`), а выкладку делает [`scripts/deploy/deploy.sh`](../scripts/deploy/deploy.sh). Откат = прежний образ **без пересборки** и **без отката схемы**:
 
 ```bash
-git log --oneline -10                       # найти прошлый рабочий tag/SHA
-git checkout <прошлый tag/SHA>
-docker build -t lk-otsfera:prod .
-docker compose -f docker-compose.prod.yml up -d
+tail -5 deploy.log                          # история выкладок: дата и тег
+./scripts/deploy/deploy.sh <прежний тег>    # или: IMAGE_TAG=<прежний> docker compose up -d web worker
 curl -fsS https://<APP_DOMAIN>/api/health/live
 ```
 
-⚠️ `up -d` прогонит one-shot сервис `migrate` (`prisma migrate deploy`) — для старого кода это no-op, если новых миграций тот релиз не приносил; если приносил — см. §3.2.
+Прежний образ обязан работать на новой схеме — это держат правила совместимости (CLAUDE.md §2c) и страж миграций `prisma.migrations-compat`. Сервис `migrate` на старом образе — no-op (его миграции уже применены). Образа прежнего релиза нет ни локально, ни в реестре — тогда откат = пересборка из git: `git checkout <тег> && docker build -t lk-otsfera:<тег> . && ./scripts/deploy/deploy.sh <тег>`.
+
+Служебные команды (`docker compose ps/logs/restart`) в папке стека работают без указания тега: `deploy.sh` после удачной выкладки пишет работающий тег в `.env` стека.
 
 ### 3.2 Откат миграции Prisma
 

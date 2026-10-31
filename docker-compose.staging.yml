@@ -1,0 +1,10 @@
+# Надстройка для стейджинга (`У-340`, ДП §5): запускается ВМЕСТЕ с прод-файлом —
+#   COMPOSE_FILE=docker-compose.prod.yml:docker-compose.staging.yml
+# (deploy.sh читает это из `.deploy.env` на сервере стейджинга). Меняет только
+# Caddy: закрытый паролем Caddyfile.staging + файл пользователей с сервера.
+# Монтирование в тот же путь /etc/caddy/Caddyfile заменяет прод-конфиг.
+services:
+  caddy:
+    volumes:
+      - ./Caddyfile.staging:/etc/caddy/Caddyfile:ro
+      - ./caddy-staging-users:/etc/caddy/staging-users:ro

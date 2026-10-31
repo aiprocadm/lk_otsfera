@@ -43,3 +43,16 @@ describe('docker-compose.prod.yml — антивирус в прод-стеке 
     expect(serviceBlock('worker')).toMatch(/clamav:\s*\n\s*condition:\s*service_healthy/);
   });
 });
+
+// `У-338` (ТЗ 28.10.2026, ДП §5): образ по тегу из реестра. Жёсткий
+// `lk-otsfera:prod` делал откат пересборкой — теперь откат = прежний тег.
+describe('прод-стек: образ приложения по тегу (У-338)', () => {
+  it.each(['migrate', 'web', 'worker'])('%s берёт образ по обязательному IMAGE_TAG', (name) => {
+    const image = /^\s+image:\s*(.+?)\s*$/m.exec(serviceBlock(name))?.[1];
+    expect(image).toBe('${IMAGE_REPO:-lk-otsfera}:${IMAGE_TAG:?IMAGE_TAG is required}');
+  });
+
+  it('жёстко зашитого тега приложения не осталось', () => {
+    expect(compose).not.toMatch(/lk-otsfera:prod\b/);
+  });
+});

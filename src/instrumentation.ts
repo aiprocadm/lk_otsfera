@@ -60,6 +60,9 @@ export async function register(): Promise<void> {
     dsn,
     // `||`, не `??`: пустая строка в env означает «не задано»
     environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV,
+    // `У-340`: тег образа (`vX.Y.Z` / `staging-<sha>`) — ошибки группируются по
+    // релизу, и после выкладки видно, что появилось нового. Пусто — Sentry сам.
+    ...(process.env.SENTRY_RELEASE ? { release: process.env.SENTRY_RELEASE } : {}),
     // Только ошибки: перфоманс-трейсинг не входит в скоуп observability-PR
     tracesSampleRate: 0,
     // 152-ФЗ: не отправлять ip/cookies/user автоматически…

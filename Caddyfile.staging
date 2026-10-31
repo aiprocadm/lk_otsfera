@@ -1,0 +1,19 @@
+# Стейджинг (`У-340`, ТЗ 28.10.2026, ДП §5): тот же стек, но всё закрыто паролем,
+# кроме вебхуков провайдеров и публичной формы заявки — их вызывают снаружи без
+# пароля, и на стейджинге их тоже надо проверять. Поисковикам — запрет индексации.
+#
+# Подключается docker-compose.staging.yml поверх docker-compose.prod.yml.
+# Пароль НЕ хранится в репозитории: на сервере рядом лежит файл
+# `caddy-staging-users` (одна строка «логин хеш»), хеш получают командой
+#   docker run --rm caddy:2-alpine caddy hash-password --plaintext '<пароль>'
+# Нет файла — Caddy не стартует, и стейджинг не откроется без пароля.
+
+{$APP_DOMAIN} {
+	@private not path /api/integrations/* /api/public/*
+	basic_auth @private {
+		import /etc/caddy/staging-users
+	}
+	header X-Robots-Tag "noindex, nofollow"
+	reverse_proxy web:3000
+	encode gzip
+}
