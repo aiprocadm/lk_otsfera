@@ -2,9 +2,9 @@ import React from 'react';
 import { requireManagerLeader } from '@/lib/auth/requireRole';
 import { prisma } from '@/lib/db/prisma';
 import { getCompanyTeamVisibility } from '@/lib/auth/managerPolicy';
-import { listCompanyManagers } from '@/lib/services/manager/team';
 import { TeamVisibilityToggle } from '@/components/manager/team-visibility-toggle';
-import { ManagerRosterPanel } from '@/components/manager/manager-roster-panel';
+import { LeaderTeamBoard } from '@/components/leader/leader-team-board';
+import { getLeaderTeamBoard } from '@/lib/services/leader/teamBoard';
 import { LeaderManagersTable } from '@/components/leader/leader-managers-table';
 import { leaderDashboard } from '@/lib/services/leader/dashboard';
 
@@ -16,8 +16,9 @@ export default async function LeaderTeamPage() {
   const teamMode = session.companyId
     ? await getCompanyTeamVisibility(prisma, session.companyId)
     : false;
-  const [roster, results] = await Promise.all([
-    session.companyId ? listCompanyManagers(prisma, session.companyId) : Promise.resolve([]),
+  const [board, results] = await Promise.all([
+    // `У-346` (макет 2): организации менеджеров со статистикой, перевод и назначение.
+    getLeaderTeamBoard(prisma, session),
     // `У-346`: таблица «Менеджеры команды» переехала с главной — результаты
     // команды смотрят здесь, а главная ведёт сюда кнопкой.
     leaderDashboard(prisma, session),
@@ -25,7 +26,10 @@ export default async function LeaderTeamPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Команда" subtitle="Результаты менеджеров, их нагрузка и планы продаж" />
+      <PageHeader
+        title="Команда"
+        subtitle="Результаты менеджеров, их организации и назначение ответственных"
+      />
       <section className="space-y-2">
         <div>
           <h2 className="text-lg font-semibold text-[#111111]">Менеджеры команды</h2>
@@ -40,7 +44,7 @@ export default async function LeaderTeamPage() {
       {/* `У-130`: пороги SLA уехали в «Настройки → Конфигурация процессов →
           SLA входящих в работу». Здесь им было не место: это настройка
           процесса, а не раздел про людей. */}
-      <ManagerRosterPanel roster={roster} />
+      <LeaderTeamBoard board={board} />
     </div>
   );
 }

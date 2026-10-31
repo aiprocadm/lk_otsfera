@@ -12,8 +12,8 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 const { getCompanyTeamVisibility } = vi.hoisted(() => ({ getCompanyTeamVisibility: vi.fn() }));
 vi.mock('@/lib/auth/managerPolicy', () => ({ getCompanyTeamVisibility }));
 
-const { listCompanyManagers } = vi.hoisted(() => ({ listCompanyManagers: vi.fn() }));
-vi.mock('@/lib/services/manager/team', () => ({ listCompanyManagers }));
+const { getLeaderTeamBoard } = vi.hoisted(() => ({ getLeaderTeamBoard: vi.fn() }));
+vi.mock('@/lib/services/leader/teamBoard', () => ({ getLeaderTeamBoard }));
 
 const { leaderDashboard } = vi.hoisted(() => ({ leaderDashboard: vi.fn() }));
 vi.mock('@/lib/services/leader/dashboard', () => ({ leaderDashboard }));
@@ -40,9 +40,9 @@ vi.mock('@/components/manager/team-visibility-toggle', () => ({
     React.createElement('div', { 'data-testid': 'visibility-toggle' }, String(props.initial)),
 }));
 
-vi.mock('@/components/manager/manager-roster-panel', () => ({
-  ManagerRosterPanel: (props: { roster: unknown[] }) =>
-    React.createElement('div', { 'data-testid': 'roster-panel' }, JSON.stringify(props.roster)),
+vi.mock('@/components/leader/leader-team-board', () => ({
+  LeaderTeamBoard: (props: { board: unknown }) =>
+    React.createElement('div', { 'data-testid': 'team-board' }, JSON.stringify(props.board)),
 }));
 
 const SESSION = {
@@ -60,7 +60,10 @@ describe('LeaderTeamPage', () => {
   beforeEach(() => {
     requireManagerLeader.mockReset();
     getCompanyTeamVisibility.mockReset();
-    listCompanyManagers.mockReset();
+    getLeaderTeamBoard.mockReset().mockResolvedValue({
+      managers: [{ id: 'm1', name: 'Менеджер', orgs: [] }],
+      unassigned: { rows: [], total: 0 },
+    });
     leaderDashboard.mockReset().mockResolvedValue({
       kpis: {},
       perManager: [{ managerId: 'm1', name: 'Анна Результат', activeOrders: 4 }],
@@ -70,12 +73,13 @@ describe('LeaderTeamPage', () => {
   it('fetches team visibility and roster when session has a companyId', async () => {
     requireManagerLeader.mockResolvedValue(SESSION);
     getCompanyTeamVisibility.mockResolvedValue(true);
-    listCompanyManagers.mockResolvedValue([{ id: 'm1', name: 'Менеджер' }]);
 
     const { container } = await renderServerComponent(LeaderTeamPage());
 
     expect(getCompanyTeamVisibility).toHaveBeenCalledWith({}, 'c1');
-    expect(listCompanyManagers).toHaveBeenCalledWith({}, 'c1');
+    // `У-346`: организации менеджеров, перевод и назначение — доска по макету 2
+    expect(getLeaderTeamBoard).toHaveBeenCalledWith({}, SESSION);
+    expect(container.querySelector('[data-testid="team-board"]')).not.toBeNull();
     expect(container.textContent).toContain('Команда');
     expect(container.textContent).toContain('true');
     expect(container.textContent).toContain('Менеджер');
@@ -95,7 +99,7 @@ describe('LeaderTeamPage', () => {
     const { container } = await renderServerComponent(LeaderTeamPage());
 
     expect(getCompanyTeamVisibility).not.toHaveBeenCalled();
-    expect(listCompanyManagers).not.toHaveBeenCalled();
+    // без компании сервис сам вернёт пустую доску (C8) — страница не решает за него
     expect(container.querySelector('[data-testid="sla-settings-card"]')).toBeNull();
     expect(container.textContent).toContain('false');
   });

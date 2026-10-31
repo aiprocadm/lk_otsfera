@@ -10,11 +10,13 @@ const {
   revalidatePath,
   assignManagerAsLeader,
   deactivateAssignmentAsLeader,
+  transferOrganizationAsLeader,
 } = vi.hoisted(() => ({
   requireManagerLeader: vi.fn(),
   revalidatePath: vi.fn(),
   assignManagerAsLeader: vi.fn(),
   deactivateAssignmentAsLeader: vi.fn(),
+  transferOrganizationAsLeader: vi.fn(),
 }));
 
 vi.mock('@/lib/auth/requireRole', () => ({ requireManagerLeader }));
@@ -23,12 +25,14 @@ vi.mock('@/lib/db/prisma', () => ({ prisma: {} }));
 vi.mock('@/lib/services/manager/leaderTeam', () => ({
   assignManagerAsLeader,
   deactivateAssignmentAsLeader,
+  transferOrganizationAsLeader,
 }));
 
 import { prisma } from '@/lib/db/prisma';
 import {
   leaderAssignManagerAction,
   leaderDeactivateAssignmentAction,
+  leaderTransferOrganizationAction,
 } from '@/server-actions/manager/team';
 
 function fd(data: Record<string, string>): FormData {
@@ -161,6 +165,41 @@ describe('leaderDeactivateAssignmentAction', () => {
       const res = await leaderDeactivateAssignmentAction(fd({ assignmentId: 'x' }));
       expect(res).toEqual({ ok: false, error });
     }
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe('leaderTransferOrganizationAction (`У-346`)', () => {
+  it('без любого из трёх полей — validation, сервис не зовётся', async () => {
+    const res = await leaderTransferOrganizationAction(
+      fd({ organizationId: 'o1', fromUserId: 'm1' })
+    );
+    expect(res).toEqual({ ok: false, error: 'validation' });
+    expect(transferOrganizationAsLeader).not.toHaveBeenCalled();
+  });
+
+  it('делегирует в сервис с сессией и ревалидирует «Команду»', async () => {
+    requireManagerLeader.mockResolvedValue(LEADER_SESSION_CO_A);
+    transferOrganizationAsLeader.mockResolvedValue({ ok: true, ordersMoved: 3 });
+    const res = await leaderTransferOrganizationAction(
+      fd({ organizationId: 'o1', fromUserId: 'm1', toUserId: 'm2' })
+    );
+    expect(res).toEqual({ ok: true, ordersMoved: 3 });
+    expect(transferOrganizationAsLeader).toHaveBeenCalledWith(prisma, LEADER_SESSION_CO_A, {
+      organizationId: 'o1',
+      fromUserId: 'm1',
+      toUserId: 'm2',
+    });
+    expect(revalidatePath).toHaveBeenCalledWith('/leader/team');
+  });
+
+  it('отказ сервиса прокидывается без ревалидации', async () => {
+    requireManagerLeader.mockResolvedValue(LEADER_SESSION_CO_A);
+    transferOrganizationAsLeader.mockResolvedValue({ ok: false, error: 'forbidden_org' });
+    const res = await leaderTransferOrganizationAction(
+      fd({ organizationId: 'o1', fromUserId: 'm1', toUserId: 'm2' })
+    );
+    expect(res).toEqual({ ok: false, error: 'forbidden_org' });
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
