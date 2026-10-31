@@ -94,6 +94,9 @@ const READS_NOT_CODE = new Set(['prisma.migrations-plain-sql']);
 const NOT_CODE = [
   'Caddyfile',
   '.gitignore',
+  // `У-343`/`У-344`: тоже `#`-комментарии; в Dockerfile есть `http://…`.
+  'Dockerfile',
+  'CODEOWNERS',
   '.md',
   '.env',
   '.prisma',

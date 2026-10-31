@@ -13,7 +13,7 @@
 |---|---|---|
 | **PR-1** | `У-341`, `У-342` | Страж совместимости миграций; правила ДП §8 в CLAUDE.md, шаблон PR, блок «Миграции и совместимость» в CHANGELOG |
 | **PR-2** | `У-338`, `У-339`, `У-340` | Образ по тегу в прод-compose, `deploy.sh <тег>`, Caddy стейджинга, `.env.production.example` по таблице ДП §5, переменные Sentry |
-| PR-3 | `У-343`, `У-344` | Ранбук `docs/runbook-release.md` (фазы A–E), выключенные заготовки `staging → main` |
+| **PR-3** | `У-343`, `У-344` | Ранбук `docs/runbook-release.md` (фазы A–E), выключенные заготовки `staging → main` |
 
 ## PR-1 — что сделано
 
@@ -103,6 +103,48 @@
   `/api/auth/login` без пароля — 401; `/api/integrations/telegram/webhook`, `/api/public/requests` —
   проходят (502: приложение в пробе не поднято); верный пароль — проходит, неверный — 401;
   `X-Robots-Tag: noindex, nofollow`.
+
+## PR-3 — что сделано
+
+### `У-343` — ранбук выкладки
+
+`docs/runbook-release.md` — главный документ: разведение сред (таблица ДП §2, `mock` → `fake`), фаза A с
+привязкой к действиям владельца `Н-1`…`Н-7`, фаза B (свежий клон: `verify`, `gate`, `build`, `audit:prod`,
+`schema:drift`, тег и образ), фаза C (`.env.production`, `.deploy.env`, пароль стейджинга), фаза D (первый
+запуск через `deploy.sh`, первый администратор, смоук-чек-лист go/no-go ДП §6 плюс проверка пароля
+стейджинга), фаза E (стейджинг → тест отката → тег → прод → 24 часа → откат), хотфикс прода. Клон стека на
+сервере переключается на тег/коммит образа — иначе новый образ поехал бы со старыми compose-файлами.
+`RUNBOOK.md`, `runbook-prod-infra-rf.md`, `runbook-launch-deploy.md` и README «Финальный release checklist»
+ссылаются на него (сверка ДП §11: фаза B заменяет шаги 1–5 и 7 README, шаг 6 — запуск dev — оставлен).
+
+**Находка — дефект первого запуска.** Команда `docker compose run --rm web npm run db:create-admin` (ДП §6,
+`runbook-prod-infra-rf` §5) падала бы: папка `scripts/` в рабочий образ не копировалась. `Dockerfile` теперь
+кладёт в образ только `scripts/create-admin.ts` (его импорты — `src/`, уже в образе). Страж проверяет строку в
+стадии `runtime` (мутация — строка удалена → красный).
+
+**Живой первый запуск (Docker, образ `lk-otsfera:pr3-check`).** В образе из `scripts/` — только
+`create-admin.ts`; на пустом `postgres:16-alpine` из образа `prisma migrate deploy` применил все 144
+миграции; `npm run db:create-admin` без переменных — понятный отказ, с ними — «admin создан», в базе
+пользователь `admin` и запись аудита `admin_bootstrapped`. **Вторая находка:** без `DIRECT_URL` миграции
+падают (`schema.prisma` читает `directUrl`), а web/worker ждут `migrate` — прод не поднимается, а в таблице
+ДП §5 этой переменной нет. `env.ts` теперь требует её в production (на стенде задана — проверено); ранбук
+говорит об этом в фазе C. Сборка внутри Docker на агентском сервере идёт только через прокси хоста
+(`--network host` + `HTTPS_PROXY`): без него CDN SheetJS (`xlsx`) недоступен — свойство сервера, не кода.
+
+### `У-344` — заготовки `staging → main`
+
+`.github/staging-switch/`: `CODEOWNERS.template` (чувствительные пути ДП §7), `ci-source-branch.job.yml`,
+`deploy-staging.yml`, `README.md` (условия `Н-9`/`Н-11`/`Н-5`, таблица «что переключить»: CODEOWNERS, триггеры
+и джоб `ci.yml`, автодеплой, `renovate.json` `baseBranches`, CLAUDE.md §11/§14 и порядок вливания, rulesets).
+**Решение:** заготовки не кладутся в `.github/workflows/` и не вставляются в `ci.yml` — GitHub исполнил бы
+их сразу: `source-branch` валил бы каждый нынешний PR в `main`, а новый workflow требует решения владельца
+(CLAUDE.md §11). Из этой папки GitHub ничего не читает.
+
+Страж `infra.staging-switch`: заготовки на месте и выключены (в `workflows` только `ci.yml`, джоба нет,
+`CODEOWNERS` прежний); шаг `source-branch` **исполняется** bash-ем — пропускает `staging` и `hotfix/*`,
+отклоняет `feat/…`, `claude/…`, `staging-old`, `main`; автодеплой — только push в `staging`, тот же
+`deploy.sh`, клон на коммит образа. Мутации: проверка пропускает любую ветку (4 красных), автодеплой перенесён
+в `workflows` (красный), образ без скрипта администратора (красный).
 
 ## Тестовая стратегия
 

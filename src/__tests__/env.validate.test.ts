@@ -10,6 +10,7 @@ function validEnv(overrides: Record<string, string | undefined> = {}): NodeJS.Pr
   return {
     NODE_ENV: 'production',
     DATABASE_URL: 'postgresql://u:p@host:5432/cabinet',
+    DIRECT_URL: 'postgresql://u:p@host:5432/cabinet',
     APP_URL: 'https://lk.example.ru',
     JWT_SECRET: 'a'.repeat(32),
     STUDENT_BRIDGE_JWT_SECRET: 'b'.repeat(32),
@@ -43,6 +44,10 @@ describe('validateProductionEnv — базовый набор', () => {
 
   it('отсутствующая DATABASE_URL → issue с именем переменной', () => {
     expect(issuesFor({ DATABASE_URL: undefined }).join('\n')).toContain('DATABASE_URL');
+  });
+
+  it('отсутствующая DIRECT_URL → issue: без неё не пройдут миграции (У-343)', () => {
+    expect(issuesFor({ DIRECT_URL: undefined }).join('\n')).toContain('DIRECT_URL');
   });
 
   it('пустая DATABASE_URL → issue', () => {

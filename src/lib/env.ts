@@ -60,6 +60,12 @@ const optionalStr = z.string().optional();
 const productionEnvSchema = z
   .object({
     DATABASE_URL: requiredNonEmpty('обязательна в production'),
+    // `У-343` (живой первый запуск): `schema.prisma` читает `directUrl` — без
+    // неё сервис `migrate` падает, а web/worker ждут его и не стартуют вовсе.
+    // Здесь — чтобы причина была названа в журнале приложения, а не угадывалась.
+    DIRECT_URL: requiredNonEmpty(
+      'обязательна в production (прямой адрес базы для миграций, schema.prisma directUrl)'
+    ),
     APP_URL: z
       .string(
         missing(

@@ -1,5 +1,7 @@
 # Runbook — прод-инфраструктура РФ (greenfield: провижн → TLS → bring-up)
 
+> **Главный документ выкладки — [runbook-release.md](runbook-release.md) (`У-343`, ТЗ 28.10.2026).** Этот файл остаётся справочником по своей теме; порядок выкладки, смоук и откат — там, при расхождении верен он.
+
 **Owner**: ops / тех.лид Промтехносфера (провижн инфры + запуск compose + TLS)
 **Scope**: развернуть приложение с нуля на **топологии C** (одна VM: web+worker+Redis+Caddy через docker-compose; managed-PostgreSQL и S3 — внешние). Описание **provider-agnostic** (Yandex/VK/Selectel — S3 API и managed-PG-контракт одинаковы).
 **Не-цель**: миграции БД, bootstrap первого админа, флип feature-флагов, перевод 1С в live — это [runbook-launch-deploy.md §0.1](runbook-launch-deploy.md). Этот runbook ведёт от пустой VM до работающего HTTPS-эндпоинта и передаёт эстафету (§5).

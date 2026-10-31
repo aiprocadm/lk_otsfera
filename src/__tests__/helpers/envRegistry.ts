@@ -21,6 +21,8 @@
 export const ENV_ONLY: Record<string, string> = {
   // --- инфраструктура: база, очереди, ключи процесса ---
   DATABASE_URL: 'инфраструктура: строка подключения Postgres (читает Prisma из schema.prisma)',
+  DIRECT_URL:
+    'инфраструктура: прямой адрес базы для миграций (schema.prisma directUrl), обязателен в production (У-343)',
   REDIS_URL: 'инфраструктура: Redis для BullMQ',
   JWT_SECRET: 'инфраструктура: подпись сессионных JWT',
   APP_ENCRYPTION_KEY: 'инфраструктура: мастер-ключ шифрования секретов в БД (курица и яйцо)',
@@ -110,7 +112,6 @@ export const ENV_ONLY: Record<string, string> = {
  * поэтому обратная сверка стража `У-134` знает их поимённо.
  */
 export const TOOL_ONLY: Record<string, string> = {
-  DIRECT_URL: 'prisma: прямое подключение мимо пула (migrate)',
   APP_DOMAIN: 'docker-compose.prod.yml: домен для Caddy (TLS-сертификат)',
   ADMIN_EMAIL: 'скрипт db:create-admin',
   ADMIN_PASSWORD: 'скрипт db:create-admin',
