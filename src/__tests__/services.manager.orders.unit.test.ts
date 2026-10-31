@@ -87,6 +87,8 @@ describe('listOrders — filter branches', () => {
       OR: [
         { title: { contains: 'тест', mode: 'insensitive' } },
         { orderNumber: { contains: 'тест', mode: 'insensitive' } },
+        // `У-350`: и по названию организации.
+        { organization: { name: { contains: 'тест', mode: 'insensitive' } } },
       ],
     });
   });
@@ -100,7 +102,7 @@ describe('listOrders — filter branches', () => {
     const searchFilter = filters.find((f) => typeof f === 'object' && f !== null && 'OR' in f) as
       { OR: unknown[] } | undefined;
     expect(searchFilter).toBeDefined();
-    expect(searchFilter!.OR).toHaveLength(2);
+    expect(searchFilter!.OR).toHaveLength(3);
   });
 
   it('adds managerId:null filter when unassigned=true', async () => {

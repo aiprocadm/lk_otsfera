@@ -113,7 +113,6 @@ export default async function ManagerOrdersPage({
       {/* `У-232`: пришли по ссылке на удалённый или чужой заказ. */}
       {isMissingObjectRequested(sp) && <MissingObjectNotice what="Заказ" />}
       <ManagerOrdersFilter
-        orgs={orgs}
         initial={{ ...rest, ...(focus ? { focus } : {}) }}
         statuses={statusOptions}
       />

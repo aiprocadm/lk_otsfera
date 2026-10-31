@@ -76,6 +76,8 @@ export async function listOrdersForAdmin(
       OR: [
         { title: { contains: opts.search, mode: 'insensitive' } },
         { orderNumber: { contains: opts.search, mode: 'insensitive' } },
+        // `У-350`: организация ищется той же строкой — выпадающий список убран.
+        { organization: { name: { contains: opts.search, mode: 'insensitive' } } },
       ],
     });
   }

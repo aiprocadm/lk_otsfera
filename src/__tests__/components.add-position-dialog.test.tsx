@@ -54,6 +54,72 @@ describe('AddPositionDialog', () => {
     expect(screen.getByText('Охрана труда')).toBeTruthy();
   });
 
+  describe('`У-352`: поиск слушателя по ФИО', () => {
+    const MANY = [
+      { id: 's1', name: 'Петров Иван Сергеевич', email: 'petrov@example.com' },
+      { id: 's2', name: 'Сидорова Алёна', email: null },
+      { id: 's3', name: 'Иванов Пётр', email: 'ivanov@example.com' },
+    ];
+    const open = () =>
+      render(
+        React.createElement(AddPositionDialog, {
+          open: true,
+          onClose: vi.fn(),
+          orderId: 'order-1',
+          directions: DIRECTIONS,
+          students: MANY,
+        })
+      );
+    const optionTexts = () =>
+      Array.from(
+        (document.getElementById('add-pos-student') as HTMLSelectElement).querySelectorAll('option')
+      ).map((o) => o.textContent);
+
+    it('ввод сужает список; регистр, порядок слов и «ё/е» не мешают', async () => {
+      open();
+      const search = await screen.findByLabelText('Найти слушателя');
+      fireEvent.change(search, { target: { value: 'иван петров' } });
+      expect(optionTexts()).toEqual([
+        '— Выберите слушателя —',
+        'Петров Иван Сергеевич (petrov@example.com)',
+      ]);
+      expect(screen.getByText('Найдено: 1 из 3')).toBeTruthy();
+      fireEvent.change(search, { target: { value: 'алена' } });
+      expect(optionTexts()).toEqual(['— Выберите слушателя —', 'Сидорова Алёна']);
+    });
+
+    it('у слушателя без почты нет «(null)» в подписи', async () => {
+      open();
+      await screen.findByLabelText('Найти слушателя');
+      expect(optionTexts()).toContain('Сидорова Алёна');
+      expect(optionTexts().join(' ')).not.toContain('null');
+    });
+
+    it('выбранный слушатель не пропадает, когда новый запрос его не находит', async () => {
+      open();
+      const search = await screen.findByLabelText('Найти слушателя');
+      fireEvent.change(screen.getByLabelText('Слушатель'), { target: { value: 's3' } });
+      fireEvent.change(search, { target: { value: 'сидорова' } });
+      const select = document.getElementById('add-pos-student') as HTMLSelectElement;
+      expect(select.value).toBe('s3');
+      expect(optionTexts()).toEqual([
+        '— Выберите слушателя —',
+        'Иванов Пётр (ivanov@example.com)',
+        'Сидорова Алёна',
+      ]);
+    });
+
+    it('никого не нашли — подсказка говорит, что делать', async () => {
+      open();
+      fireEvent.change(await screen.findByLabelText('Найти слушателя'), {
+        target: { value: 'ъъъ' },
+      });
+      expect(
+        screen.getByText('Никого не нашли — проверьте написание или очистите поле')
+      ).toBeTruthy();
+    });
+  });
+
   it('does not render dialog content structure when closed (Dialog itself gates via showModal)', () => {
     render(
       React.createElement(AddPositionDialog, {

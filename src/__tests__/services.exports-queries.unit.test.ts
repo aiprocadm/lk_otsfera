@@ -79,6 +79,8 @@ describe('listOrdersForExport', () => {
       OR: [
         { title: { contains: 'Ромашка', mode: 'insensitive' } },
         { orderNumber: { contains: 'Ромашка', mode: 'insensitive' } },
+        // `У-350`: выгрузка ищет так же, как экран, — и по организации.
+        { organization: { name: { contains: 'Ромашка', mode: 'insensitive' } } },
       ],
     });
   });
